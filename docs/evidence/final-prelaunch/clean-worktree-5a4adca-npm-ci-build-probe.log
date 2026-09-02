@@ -1,0 +1,99 @@
+===== START 2026-09-02T22:03:16Z =====
+Preparing worktree (detached HEAD 5a4adca)
+HEAD is now at 5a4adca Phase 5 closeout: save intention is the Workspace save identity
+--- worktree HEAD: 5a4adca7c8550a23d2fbc39f521a33a3f0adf523
+--- node_modules present before ci: no
+--- .next present before build:     no
+===== npm ci =====
+
+added 371 packages, and audited 372 packages in 18s
+
+84 packages are looking for funding
+  run `npm fund` for details
+
+10 high severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+npm warn install-scripts 7 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @prisma/client@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @prisma/engines@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts   fsevents@2.3.3 (install: (install scripts present))
+npm warn install-scripts   prisma@6.19.3 (preinstall: node scripts/preinstall-entry.js)
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm ci exit=0
+===== prisma generate =====
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 72ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+===== prisma migrate deploy (throwaway) =====
+  └─ 20260824010000_add_processing_job_fields/
+    └─ migration.sql
+  └─ 20260824120000_add_usage_metering/
+    └─ migration.sql
+  └─ 20260825010000_add_usage_settlements/
+    └─ migration.sql
+  └─ 20260825120000_add_billing_subscriptions/
+    └─ migration.sql
+  └─ 20260902100000_add_workspace_save_intents/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+===== build =====
+├ ƒ /signup
+├ ○ /sitemap.xml
+├ ƒ /terms
+├ ƒ /tools
+├ ƒ /tools/[slug]
+├ ƒ /tools/add-page-numbers
+├ ƒ /tools/add-watermark
+├ ƒ /tools/annotate-pdf
+├ ƒ /tools/crop-pdf
+├ ƒ /tools/delete-pdf-pages
+├ ƒ /tools/edit-pdf
+├ ƒ /tools/extract-pdf-pages
+├ ƒ /tools/fill-pdf-forms
+├ ƒ /tools/image-to-pdf
+├ ƒ /tools/jpg-to-pdf
+├ ƒ /tools/merge-pdf
+├ ƒ /tools/organize-pdf
+├ ƒ /tools/png-to-pdf
+├ ƒ /tools/remove-pdf-metadata
+├ ƒ /tools/reorder-pdf-pages
+├ ƒ /tools/rotate-pdf
+├ ƒ /tools/sign-pdf
+├ ƒ /tools/split-pdf
+├ ƒ /workspaces
+├ ƒ /workspaces/[workspaceId]
+├ ƒ /workspaces/[workspaceId]/documents/[documentId]
+└ ƒ /workspaces/[workspaceId]/settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit=0
+===== start server 3012 =====
+--- health: 200
+===== probe =====
+PROBE_EXIT=0
+=============== 155/156 passed ===============
+  ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its binary is absent (soffice,qpdf,pdftoppm,pdfinfo), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+
+1 environmental gap(s) only — every product assertion this machine can reach passed.
+===== DONE 2026-09-02T22:08:21Z =====

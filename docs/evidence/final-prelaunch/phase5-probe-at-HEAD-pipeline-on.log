@@ -1,0 +1,226 @@
+(node:26159) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  0: a server is answering on the verification origin  — GET / → 200
+
+=============== SETUP. a real account and a real Workspace ===============
+PASS  setup: registering lands the prober in the authenticated app  — https://172.20.10.2:3001/workspaces
+PASS  setup: registration provisioned a Workspace to receive results  — workspace cmtklpz780003uo44ce7odj1y org cmtklpz770001uo44jpi0fx3h
+
+=============== A. a browser result opens in the editor, and the bytes never leave ===============
+PASS  A: the merge tool page renders
+PASS  A: two PDFs can be attached
+PASS  A: the merge control is reachable
+PASS  A: the merge produced a result panel — the precondition for everything below  — Skip to content | PDFDadi | Tools | Pricing | Workspace | Editor | Open Workspace | Home | Tools | Merge PDF | Merge PDF |  | Combine multiple PDF files into one do
+PASS  A/B: the produced name is the naming policy's, with no stacked suffix  — quarterly-report-and-appendix-merged.pdf
+PASS  A/B: no `.pdf.pdf`, and no download-folder collision marker in the name  — quarterly-report-and-appendix-merged.pdf
+PASS  A: the result offers Download AND Open in Editor AND Save to Workspace  — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Open in Editor / Save to Workspace / Split PDF
+
+Extract a page range or split a PDF into a new file.
+
+Processing:
+Browser / Organize PDF
+
+PASS  A: producing the result uploaded nothing — the merge ran in this browser
+PASS  A: and no request body was large enough to be the document
+PASS  A: Open in Editor is pressable
+PASS  A: Open in Editor navigates to the editor carrying a handoff id, not the bytes  — https://172.20.10.2:3001/editor?handoff=24ae93e9-e707-46f4-ba6f-22990709a46d&_rsc=shXJET9uaorojeSF
+PASS  A: the spent handoff id is not left in the address bar  — https://172.20.10.2:3001/editor
+PASS  A: the editor opened the MERGED document — 3 pages, from a 2-page and a 1-page input  — page count 3
+PASS  A: the handoff crossed the navigation through this browser, not through a server
+
+=============== B. a browser result becomes ONE Workspace document, and stays one ===============
+PASS  B: a second merge run produced a result panel
+PASS  B: the Workspace document list is readable, so a duplicate would be visible  — status 200 count 0
+PASS  B: Save to Workspace is pressable
+PASS  B: the save reports success in the canonical words  — Skip to content | PDFDadi | Tools | Pricing | Workspace | Editor | Open Workspace | Home | Tools | Merge PDF | Merge PDF |  | Combine multiple PDF files into one document. |  | Your file is ready |  | quarterly-report-and-appendix-m
+PASS  B: the save answered with a canonical document id, linked as `Open document`  — /workspaces/cmtklpz780003uo44ce7odj1y/documents/cmtklqqvz000iuo4428mqt2cd?organizationId=cmtklpz770001uo44jpi0fx3h
+PASS  B: the server saved into the Workspace this run is watching  — saved into cmtklpz780003uo44ce7odj1y, watching cmtklpz780003uo44ce7odj1y
+PASS  B/C: after a successful save the Save control is gone, replaced by `Open document`  — replaced
+PASS  B/C: exactly ONE document was created — no duplicate `Untitled PDF.pdf`  — before 0 after 1
+PASS  B: the stored document carries the produced name, not `Untitled PDF.pdf`  — quarterly-report-and-appendix-merged.pdf
+
+=============== C. a server job's output is copied server-to-server, never through the page ===============
+PASS  C: the compress tool page renders
+PASS  C: a PDF can be attached
+PASS  C: the compress control is reachable
+PASS  C: the compress job completed — the precondition for the save below
+PASS  C: a cloud result offers the same three actions as a local one  — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Open in Editor / Save to Workspace / Repair PDF
+
+Rebuild and recover a damaged PDF.
+
+Processing:
+Secure cloud / OCR PDF
+
+Make scanned PDF
+PASS  C: Save to Workspace is pressable
+PASS  C: the cloud result reports the same success copy as a local one  — Skip to content | PDFDadi | Tools | Pricing | Workspace | Editor | Open Workspace | Home | Tools | Compress PDF | Compress PDF |  | Reduce PDF file size with quality presets. |  | Your file is ready |  | quarterly-report-compressed.
+PASS  C: the save answered with a canonical document id  — /workspaces/cmtklpz780003uo44ce7odj1y/documents/cmtklr4h6000xuo44oek3keg5?organizationId=cmtklpz770001uo44jpi0fx3h
+PASS  C: the save request carried two ids, not the file  — 172b
+PASS  C: nothing large left the page, and the result was never streamed into it
+
+=============== D. the Workspace editor can publish a version of the document it holds ===============
+PASS  D: the workbench opened the document, at 200  — status 200 pages 3
+PASS  D: the document starts with the ONE version its upload cut  — status 200 versions [1]
+PASS  D: the page canvas is on screen to draw on  — {"x":567,"y":247,"w":492,"h":637}
+PASS  D: the edit landed — an object exists that did not before  — 34 → 35
+PASS  D: the Workspace editor offers `Publish version`  — Skip to content / PDFDadi / W
+Workflow Prober's Organization Workspace
+Workspace / Home / Documents / Favorites / Recent / Archived / Trash / Editor / Collapse / WP
+Workflow Prober
+wf.1788384100790@example.test / Commands
+Ctrl+K / quarterly-report-and-appendix
+PASS  D: `Publish version` is pressable
+PASS  D: the canonical readout names the version it published  — Collapse sidebar || Workspace settings || Save your edits as a new version of this document || Select (V) — active || Hand (H) || Text (T) || Image (I) || Signature (S) || Note (N) || Add Shape || Highlight (G) || Draw || Crop — Select one image to crop || Org
+PASS  D: the server holds a SECOND version of the SAME document  — versions [2,1]
+PASS  D: the published version carries the editor scene AND the output AND the source  — {"scene":true,"output":true,"source":true,"pages":null}
+PASS  D: publishing created NO second Workspace document  — 2 → 2
+
+=============== E. publishing your own version does not become a conflict on the next edit ===============
+PASS  E: a further edit exists AFTER the publish — the write this journey watches  — 35 → 36
+PASS  E: the edit was accepted, not refused — the write happened  — Collapse sidebar || Workspace settings || Save your edits as a new version of this document || Select (V) — active || Hand (H) || Text (T) || Image (I) || Signature (S) || Note (N) || Add Shape || Highlight (G) || Draw || Crop — Select one image to crop || Org
+PASS  E: NO conflict was raised by the version this same session published  — Collapse sidebar || Workspace settings || Save your edits as a new version of this document || Select (V) — active || Hand (H) || Text (T) || Image (I) || Signature (S) || Note (N) || Add Shape || Highlight (G) || Draw || Crop — Select one image to crop || Organize pages (panel open) || More tools |
+PASS  E: the autosaved draft did NOT become a third version  — versions [2,1]
+PASS  E: `Publish version` is pressable again
+PASS  E: a repeat publish adds version 3 to the SAME document  — versions [3,2,1]
+PASS  E: three versions, still one document  — 2 → 2
+
+=============== F. an intentional open is recorded, and nothing else pretends to be one ===============
+PASS  F: the document opened in the workbench appears in Recent  — recent [cmtklqqvz000iuo4428mqt2cd] looking for cmtklqqvz000iuo4428mqt2cd
+PASS  F: a document that was saved but never opened is NOT in Recent  — recent [cmtklqqvz000iuo4428mqt2cd] must not contain cmtklr4h6000xuo44oek3keg5
+PASS  F: the file manager's `Opened` cell is a real time for the opened document, not `—`  —  | quarterly-report-and-appendix-merged.pdf | Just now | Just now | Just now | 
+PASS  F: `—` still means never opened — the column reports, it does not decorate  — 1 row(s) still read —, which is correct for documents nobody opened
+PASS  F: opening a document created NO version  — versions 3
+
+=============== G. the activity feed names the document, the version and the tool ===============
+PASS  G: an activity feed rendered with entries in it  — ActivityWorkflow Prober published version 3 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober published version 2 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober sa
+PASS  G: a published version is named, with its number and its document  — ActivityWorkflow Prober published version 3 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober published version 2 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober saved quarterly-report-compressed.pdf from Compress PDF to this Workspacejust nowWorkflow Prober uploaded quarterly-report
+PASS  G: NOTHING reads `uploaded an item` — the recorded defect's exact words  — ActivityWorkflow Prober published version 3 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober published version 2 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober saved quarterly-report-compressed.pdf from Compress PDF to this Workspacejust nowWorkflow Prober uploaded quarterly-report
+PASS  G: a tool-sourced save says which tool it came from  — ActivityWorkflow Prober published version 3 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober published version 2 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober saved quarterly-report-compressed.pdf from Compress PDF to this Workspacejust nowWorkflow Prober uploaded quarterly-report
+PASS  G: no document CONTENT reached the activity feed  — ActivityWorkflow Prober published version 3 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober published version 2 of quarterly-report-and-appendix-merged.pdfjust nowWorkflow Prober sa
+
+=============== J. a member of several Workspaces chooses where the result goes ===============
+PASS  J: a second Workspace exists, so the destination question is a real one  — POST /api/workspaces → 201 cmtkls5rb001duo44n97n675q
+PASS  J: the server offers BOTH authorized Workspaces, and states the actor's auth  — authenticated=true destinations=[cmtkls5rb001duo44n97n675q,cmtklpz780003uo44ce7odj1y]
+PASS  J: a default is NAMED, not applied — identifying one is not choosing it  — defaultWorkspaceId=cmtklpz780003uo44ce7odj1y provisioned=cmtklpz780003uo44ce7odj1y
+PASS  J: each destination is an id and a display name, with no internals attached  — [{"workspaceId":"cmtkls5rb001duo44n97n675q","organizationId":"cmtklpz770001uo44jpi0fx3h","workspaceName":"Probe Destination 1788384100790"},{"workspaceId":"cmtklpz780003uo44ce7odj1y","organizationId":"cmtklpz770001uo44jpi0fx3h","workspaceName":"Workflow Prober
+PASS  J: two files attach to the merge tool
+PASS  J: the merge control is reachable
+PASS  J: the merge produced a result that offers Save to Workspace  — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Open in Editor / Save to Workspace / Split PDF
+
+Extract a page range or split a PDF into a new file.
+
+Processing:
+Bro
+PASS  J: a labelled native selector renders, one option per authorized destination  — {"tag":"SELECT","labelled":"Save to which Workspace?","value":"","options":[{"value":"","label":"Choose a Workspace…"},{"value":"cmtkls5rb001duo44n97n675q","label":"Probe Destination 1788384100790"},{"value":"cmtklpz780003uo44ce7odj1y","label":"Workflow Prober's Organization Workspace (default)"}],"
+PASS  J: nothing is pre-chosen, and Save cannot be pressed until it is  — {"tag":"SELECT","labelled":"Save to which Workspace?","value":"","options":[{"value":"","label":"Choose a Workspace…"},{"value":"cmtkls5rb001duo44n97n675q","label":"Probe Destination 1788384100790"},{"value":"cmtklpz780003uo44ce7odj1y","label":"Workflow Prober's Organization Workspace (default)"}],"
+PASS  J: the default is MARKED in the list, so the choice is informed and not blind  — [{"value":"","label":"Choose a Workspace…"},{"value":"cmtkls5rb001duo44n97n675q","label":"Probe Destination 1788384100790"},{"value":"cmtklpz780003uo44ce7odj1y","label":"Workflow Prober's Organization Workspace (default)"}]
+PASS  J: the selector takes keyboard focus, and choosing is what enables Save  — focus=focused value=cmtkls5rb001duo44n97n675q saveDisabled=false
+PASS  J: Save to Workspace is pressable once a destination is chosen
+PASS  J: the result saved, and the confirmation links to the document it created  — /workspaces/cmtkls5rb001duo44n97n675q/documents/cmtklseg6001muo444e6tsnr3?organizationId=cmtklpz770001uo44jpi0fx3h
+PASS  J: it landed in the Workspace the user CHOSE, not in the default one  — chose cmtkls5rb001duo44n97n675q, document is in cmtkls5rb001duo44n97n675q (default cmtklpz780003uo44ce7odj1y)
+PASS  J: the default Workspace gained nothing — no save-there-then-move-it  — default workspace document count started at 2
+PASS  J: the bytes this browser uploaded were captured, so fidelity is checkable  — appendix-and-quarterly-report-merged.pdf 4732b sha 7857a5903ee82cd7…
+
+=============== K. a lost response and a retry produce the SAME document, not a second ===============
+PASS  K: the saved document holds exactly ONE initial version  — versions [1]
+PASS  K: the stored document reads back through the content route  — status 200 size 4732
+PASS  K: same bytes, same destination, a DIFFERENT name → the same document id  — → 200 deduplicated=true id=cmtklseg6001muo444e6tsnr3 (saved cmtklseg6001muo444e6tsnr3)
+PASS  K: and again — the identity is the CONTENT, not the name and not the request  — → 200 id=cmtklseg6001muo444e6tsnr3
+PASS  K: two retries added no second document to the chosen Workspace  — 1 document(s) present
+PASS  K: and cut no second initial version  — versions [1]
+PASS  K: the SAME bytes in another Workspace are a NEW document — dedup is not a global ban  — → 201 id=cmtklsovx001tuo44x9oza34i
+PASS  K: a fabricated destination is refused even though the actor is signed in  — → 404 {"error":{"code":"NOT_FOUND","message":"Workspace not found.","requestId":"773641b4-4e3f-4a2a-a8ea-8b25944bc781"}}
+PASS  K: and the refusal created nothing anywhere  — 1 document(s) in the chosen Workspace
+PASS  K: the save and its two retries produced ONE activity entry, not three  — 1 entr(ies): Workflow Prober uploaded appendix-and-quarterly-report-merged.pdfjust now
+
+=============== L. what the Workspace holds is what the tool made — parsed, not counted ===============
+PASS  L: the stored object is byte-identical to what this browser uploaded  — stored 7857a5903ee82cd7… 4732b vs uploaded 7857a5903ee82cd7… 4732b
+PASS  L: and it REPARSES as the merge itself — three pages of the two inputs  — {"pages":3,"widths":[612]}
+PASS  L: it is NEITHER input — no first-selected file, no stale handoff buffer  — stored 7857a5903ee8… inputs 29c551063435… / 1628eb4f870c…
+PASS  L: and the document carries the name the tool produced, not a placeholder  — appendix-and-quarterly-report-merged.pdf
+
+=============== M. a genuinely stale second session is refused, and told the truth ===============
+PASS  M: the second session signed in as the same user, on its own cookie jar  — https://172.20.10.2:3001/workspaces
+PASS  M: the second session holds the document open at the current revision  — pages 3
+PASS  M: any draft-recovery prompt is answered first — a modal is not a missing canvas  — answered: Unsaved changes foundAn unsaved draft from 1 minute ago was found, with 2 changes the saved version does not have.Show detailsRestore my cha
+PASS  M: the first session made an edit worth publishing  — 36 → 37 on canvas {"x":567,"y":247,"w":492,"h":637} {"atPoint":"path.","armed":["Select tool — active","Active tool: Select — active"],"overlays":[]}
+PASS  M: the first session can publish
+PASS  M: the first session's publish landed as version 4 of the same document  — versions [4,3,2,1]
+PASS  M: and the FIRST session saw no conflict — it adopted its own write  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788384100790@example.
+PASS  M: the stale session made an edit of its own  — 36 → 37
+PASS  M: the stale session is told the document changed somewhere else  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788384100790@example.test |  | WORKFLOW PROBER'S ORGANIZATION WORKSPACE |  | quarterly-re
+PASS  M: the existing Phase 2 Conflict dialog is what appeared, as a modal alert  — {"modal":"true","headline":"This document changed somewhere else"}
+PASS  M: it states plainly that nothing was overwritten  — This document changed somewhere elseYour workspace holds a version that does not include your recent changes — someone else saved it, or you edited it in another tab or on another device. Nothing has been overwritten.Your changes are stored in this browser and
+PASS  M: it shows the two revisions, and they DIFFER — that is the whole conflict  — ["Revision 1, stored in this browser · 2 Sept, 23:24","Revision 5 · you last saw 4"]
+PASS  M: the resolution set is the Phase 2 contract, unchanged and complete  — ["Review the workspace version","Download my version","Keep both","Replace the workspace version","Decide later"]
+PASS  M: only the overwriting choice is gated, and it is gated behind a word  — [{"label":"Review the workspace version","button":"Choose"},{"label":"Download my version","button":"Choose"},{"label":"Keep both","button":"Choose"},{"label":"Replace the workspace version","button":"Continue"},{"label":"Decide later","button":"Choose"}]
+PASS  M: it asks once more, in words, before replacing anyone's work  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788384100790@example.test |  | WORKFLOW PROBER'S ORGANIZATION WOR
+PASS  M: backing out returns to the choices, with nothing replaced  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788384100790@example.
+PASS  M: the server still holds the FIRST session's version — no silent overwrite  — before [4,3,2,1] after [4,3,2,1]
+PASS  M: and the stale session's refused write became no document of its own  — 3 document(s) before the race
+
+=============== I'. a non-PDF cloud result, with no test behaviour anywhere in the product ===============
+PASS  I': a PDF can be attached to the cloud tool
+PASS  I': the compress control is reachable
+PASS  I': the completed job really did arrive reporting a non-PDF output  — rewrites=2 panel=Skip to content | PDFDadi | Tools | Pricing | Workspace | Editor | Open Workspace | Home | Tools | Compress PDF | Compress PDF |  | Reduce PDF file size with quality presets. |  | Your fil
+PASS  I': Download IS offered — the absences below are read next to a presence  — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Repair PDFRebuild and recover a damaged PDF.Processing: Secure cloud / OCR PDFMake scanned PDFs searchable with text recognition.Processi
+PASS  I': `Open in Editor` is offered NOWHERE on the page  — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Repair PDFRebuild and recover a damaged PDF.Processing: Secure cloud / OCR PDFMake scanned PDFs searchable with text recognition.Processi
+PASS  I': neither Save to Workspace nor the destination selector is offered for it  — selects=0 chooseCopy=false labels=Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Repair PDFRebuild and recover a damaged PDF.Processing: Secure cloud / OCR PD
+PASS  I': no editor handoff was written behind the scenes for a result it cannot open  — 0 → 0 handoff entries
+PASS  I': forcing the editor action by hand opens no document, and says so honestly  — alert="That result is no longer waiting to be opened. Go back to the tool and choose “Open in Editor” again, or open the file you downloaded.Dismiss" onboarding=true objects=0
+PASS  I': the interception is disarmed again, so nothing after this is measuring the probe
+
+=============== N. a save intention decides whether two saves are one, and content does not ===============
+PASS  N: the Workspace list is readable, so a second document would be visible  — count 3
+PASS  N1: a new intention saves the result and returns its document  — → 201 id=cmtklulj6002iuo44yxxhx7xc deduplicated=false
+PASS  N1: the SAME intention retried returns the SAME document, not a second one  — → 200 id=cmtklulj6002iuo44yxxhx7xc deduplicated=true
+PASS  N1: and the retry did not rename the document the first request made  — name intent-original-1788384100790.pdf (saved as intent-original-1788384100790.pdf)
+PASS  N1: two requests, exactly one new document in the Workspace  — 4 document(s), baseline 3
+PASS  N1: and exactly ONE initial version, not one per request  — versions [1]
+PASS  N2: a NEW intention over IDENTICAL bytes is a new document — the recorded defect  — → 201 id=cmtklunhp002quo44decno4oa (first cmtklulj6002iuo44yxxhx7xc) deduplicated=false
+PASS  N2: and it is filed under the name the user chose, not the first save's name  — name intent-copy-1788384100790.pdf (asked for intent-copy-1788384100790.pdf)
+PASS  N2: both documents are in the Workspace  — 5 document(s), baseline 3
+PASS  N2: both download the same bytes — one stored object serves two documents  — 284d76103d56749850ebfb55086960a00e68550673e0c08e8c5b1c937a510e38 vs 284d76103d56749850ebfb55086960a00e68550673e0c08e8c5b1c937a510e38
+PASS  N1: the save and its retry produced ONE activity entry, not two  — 1 entr(ies): Workflow Prober uploaded intent-original-1788384100790.pdfjust now
+PASS  N3: the first document can be trashed  — lifecycle → 200
+PASS  N3: saving those same bytes again AFTER the trash succeeds — no constraint error  — → 201 {"document":{"id":"cmtklusjs002zuo44wtqxzm9z","name":"intent-after-trash-1788384100790.pdf","workspaceId":"cmtklpz780003uo44ce7odj1y","folderId":null,"projectId":null},"file":{"id":"cmtklusjr002yuo440
+PASS  N3: and it is a NEW document, not the trashed one handed back as a success  — id=cmtklusjs002zuo44wtqxzm9z (trashed cmtklulj6002iuo44yxxhx7xc) name=intent-after-trash-1788384100790.pdf
+PASS  N3: the new document downloads, and holds the same bytes that were saved  — 284d76103d56749850ebfb55086960a00e68550673e0c08e8c5b1c937a510e38 vs 284d76103d56749850ebfb55086960a00e68550673e0c08e8c5b1c937a510e38
+PASS  N3: the trashed document was NOT silently restored by that save  — lifecycleState trashed (status 200)
+PASS  N4: the settled key presented for DIFFERENT bytes is a 409, not a 500 and not a save  — → 409 {"error":{"code":"WORKSPACE_OPERATION_REJECTED","message":"This save could not be repeated because its details changed. Start a new save.","requestId":"62ad4402-81d6-4344-b8cd-0b5e415ed545"}}
+PASS  N4: and the refusal names no document, destination or existing save  — {"error":{"code":"WORKSPACE_OPERATION_REJECTED","message":"This save could not be repeated because its details changed. Start a new save.","requestId":"62ad4402-81d6-4344-b8cd-0b5e415ed545"}}
+PASS  N4: the refused request created nothing — the Workspace is exactly as it was  — 5 document(s) before 5; baseline 3 + 3 saves - 1 trashed
+
+=============== H. a signed-out result offers sign-in and still opens in the editor ===============
+PASS  H: the prober is signed out  — logout → 200
+PASS  H: two PDFs can be attached while signed out
+PASS  H: a signed-out user gets a real result  — Skip to content | PDFDadi | Tools | AI Assistant | PREVIEW | Edit | Convert | Compress | Pricing | Log in | Get Started Free | Home | Tools | Merge PDF | Merge PDF |  | Combine multiple PDF fi
+PASS  H: the offer is Download + Open in Editor + Sign in to save to Workspace  — Skip to content / PDFDadi / Tools / AI Assistant
+PREVIEW / Edit / Convert / Compress / Pricing / Log in / Get Started Free / Home / Tools / Download / Start over / Open in Editor / Sign in to save to Workspace / Split PDF
+
+Extract a page range or split a PDF i
+PASS  H: `Save to Workspace` is NOT offered to someone with no Workspace  — Skip to content / PDFDadi / Tools / AI Assistant
+PREVIEW / Edit / Convert / Compress / Pricing / Log in / Get Started Free / Home / Tools / Download / Start over / Open in Editor / Sign in to save to 
+PASS  H: the sign-in link comes back to this tool, so the work is not abandoned  — /login?next=%2Ftools%2Fmerge-pdf
+PASS  H: nothing was uploaded before consent — no result, no file, nothing
+PASS  H: a signed-out user's result still opens in the editor, with all 3 pages  — https://172.20.10.2:3001/editor pages 3
+PASS  H: and that open uploaded nothing either
+
+=============== I. unsupported output, and the server-side half of the same rule ===============
+      binaries on this machine: LibreOfficebinary: soffice · apt: libreoffice Missing || LibreOfficebinary: soffice · apt: libreoffice || Ghostscriptbinary: gs · apt: ghostscript Installed || Ghostscriptbinary: gs · apt: ghostscript || qpdfbinary: qpdf · apt: qpdf Missing || qpdfbinary: qpdf · apt: qpdf || Poppler utilsbinary: pdftoppm · apt: poppler-utils Missing || Poppler utilsbinary: pdftoppm · apt: poppler-utils || Poppler utilsbinary: pdfinfo · apt: poppler-utils Missing || Poppler utilsbinary: pdfinfo · apt: poppler-utils || Tesseract OCRbinary: tesseract · apt: tesseract-ocr Installed || Tesseract OCRbinary: tesseract · apt: tesseract-ocr
+PASS  I: the server-status page reports each binary's real state  — 4 missing: soffice,qpdf,pdftoppm,pdfinfo
+FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine  — every non-PDF-output tool is server-run and its binary is absent (soffice,qpdf,pdftoppm,pdfinfo), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+PASS  I: a job id alone does not save anything — a different actor is refused  — POST save-to-workspace as a signed-out caller → 404 (expected 404, which also refuses to confirm the job exists)
+PASS  I: a non-JSON body is refused before anything is read  — → 415 (expected 415)
+PASS  I: a request that names no destination is refused  — → 422 (expected 422)
+
+=============== H+. nothing broke quietly while all of that happened ===============
+PASS  the server returned no 5xx during any journey
+PASS  no uncaught exception or console error surfaced in the page
+PASS  no hydration mismatch
+
+=============== 155/156 passed ===============
+  ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its binary is absent (soffice,qpdf,pdftoppm,pdfinfo), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+
+1 environmental gap(s) only — every product assertion this machine can reach passed.
+PHASE5_EXIT=0
