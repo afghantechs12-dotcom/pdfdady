@@ -12,6 +12,11 @@ next-env.d.ts
 .env*
 !.env.example
 
+# Runtime backup of the admin CMS store. `writeStore` recreates it on every
+# admin save (temp + rename + copyFile), so it is output, not source — and it
+# carries whatever `settings.adminPasswordHash` held at the previous save.
+/data/admin/store.json.bak
+
 # Local object storage and databases (real uploaded documents live here)
 /.storage
 *.db
