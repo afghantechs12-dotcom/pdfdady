@@ -69,7 +69,13 @@ export function AIPreview({ aiToolCount }: { aiToolCount: number }) {
         <div className="grid items-center gap-8 lg:grid-cols-[0.56fr_0.4fr_1fr] lg:gap-8 xl:gap-10">
           {/* ── Copy ──────────────────────────────────────────────────────── */}
           <Reveal>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-aipink/20 bg-aipink/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-aipink">
+            {/*
+              `text-pink-700`, not `text-aipink`: the brand pink is 3.13:1 against
+              its own 10% tint, and "Coming soon" is the badge's whole point — 12px
+              bold uppercase is not large text, so it owes 4.5:1 (WCAG 1.4.3). The
+              deeper pink of the same family reads at 5.35:1 and needs no new token.
+            */}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-aipink/20 bg-aipink/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-pink-700">
               <Sparkles size={13} aria-hidden="true" />
               Coming soon
             </span>
