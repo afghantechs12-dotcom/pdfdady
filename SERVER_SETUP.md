@@ -35,9 +35,10 @@ and never echoes a value, because this text lands in logs and error trackers:
 ```
 [startup] PDFDadi refused to start.
 Refusing to start: 3 production configuration problems.
-  - DATABASE_URL is not set. Point it at PostgreSQL. There is no production
-    default on purpose: falling back to a local SQLite file would silently store
-    live data on an ephemeral container disk and lose it on the next deploy.
+  - DATABASE_URL is not set. Point it at a SQLite file on a persistent volume,
+    e.g. file:/app/data/db/pdfdadi.db. There is no production default on
+    purpose: a relative path would silently put the live database inside the
+    container's writable layer and delete it on the next deploy.
   - ADMIN_SECRET is not set. It signs admin session cookies and local storage
     download URLs, so without it both are forgeable: admin takeover with no
     password, and arbitrary reads of any stored file.
@@ -51,7 +52,7 @@ reports a failed container rather than a running one that 500s.
 
 | Variable | Why the gate refuses to start without it |
 |----------|------------------------------------------|
-| `DATABASE_URL` | No production default. A SQLite fallback would put live data on an ephemeral disk and lose it on redeploy. |
+| `DATABASE_URL` | No production default. Must be an **absolute** `file:` path — see "Which database" below. A relative path would put the live database inside the container's writable layer and lose it on redeploy. |
 | `ADMIN_SECRET` | Signs admin session cookies *and* local storage download URLs. Must be ≥16 characters, and must not be the public dev fallback string that ships in this repo. |
 | `NEXT_PUBLIC_SITE_URL` | Signed download and multipart-upload URLs are built from it; a loopback value hands clients links to their own machine. Must be an absolute `http(s)` URL and not localhost/127.0.0.1/0.0.0.0/::1. |
 
@@ -82,9 +83,38 @@ On a healthy start you get one line naming provider selections and flags only �
 never a secret:
 
 ```
-[startup] PDFDadi configuration OK — env=production db=postgres storage=r2 \
+[startup] PDFDadi configuration OK — env=production db=sqlite storage=r2 \
   queue=redis billing=enabled usageLimits=observe logLevel=info
 ```
+
+### Which database — and why not PostgreSQL
+
+`prisma/schema.prisma` declares `provider = "sqlite"`, and a Prisma datasource
+accepts only its own provider's URLs. It does not discover a mismatch until it
+**connects**, so a `postgresql://` value would pass the gate, log
+`configuration OK`, answer the readiness probe, and then fail every request that
+reads the database. The gate therefore refuses any `DATABASE_URL` that does not
+begin with `file:`, and refuses a relative `file:` path as well.
+
+Moving to PostgreSQL is a schema change plus a regenerated migration history
+(all 24 migrations are SQLite DDL), not a change to this variable. Until that
+work is done and verified, one writable deployment per database file is the
+supported topology — see `docs/adr/ADR-M7-009-sqlite-operations.md`.
+
+### Migrations
+
+The schema is **not** created automatically by the server process. Apply it
+before or as part of every deploy:
+
+```bash
+DATABASE_URL=file:/app/data/db/pdfdadi.db npx prisma migrate deploy
+```
+
+The Docker image does this for you: its `CMD` runs `prisma migrate deploy`
+against `prisma/migrations` (both are copied into the image) and only then execs
+the server, so a fresh volume gets its schema on first boot and an existing one
+gets any new migrations. `migrate deploy` never generates or resets — it applies
+committed migrations and fails loudly on a drifted database.
 
 Implementation: `productionProblems()` in `src/infrastructure/config/env.ts` is
 the single authority on what "required" means; `instrumentation.ts` (via
@@ -107,11 +137,36 @@ Every route gets these via `headers()` in `next.config.mjs`:
 HSTS is production-gated on purpose: sent over plain-HTTP local dev it would pin
 `localhost` to HTTPS in the developer's browser for two years.
 
-`Content-Security-Policy` is deliberately **not** set yet. A correct one needs
-nonce plumbing for Next's inline bootstrap plus explicit `worker-src`/`blob:`
-allowances for the pdf.js worker; a half-right CSP would silently break the PDF
-editor in production while looking like a security win. It is tracked as its own
-task rather than guessed at here.
+`Content-Security-Policy` **is** set, and enforced (not report-only). Both
+places that can attach it use one builder, `buildCsp` in `lib/security/csp.mjs`,
+so there is a single policy to read:
+
+| Directive | Value |
+|-----------|-------|
+| `default-src` | `'self'` |
+| `script-src` | `'nonce-<per-request>' 'strict-dynamic'` on documents; `'self'` on `/_next/static/*` and `/_next/image` |
+| `style-src` | `'self' 'unsafe-inline'` |
+| `img-src` | `'self' data: blob:` |
+| `font-src` | `'self'` |
+| `connect-src` | `'self'` plus the configured R2 origin, when one is configured **at build time** |
+| `worker-src` | `'self'` |
+| `object-src`, `frame-src`, `frame-ancestors` | `'none'` |
+| `base-uri`, `form-action` | `'self'` |
+| `report-uri` | `/api/csp-report` |
+| `report-to` | `csp-endpoint` — **only** when `NEXT_PUBLIC_SITE_URL` is `https:` |
+
+Two things an operator needs to know about it:
+
+- **`connect-src` is baked at build time for static assets.** `headers()` in
+  `next.config.mjs` is evaluated during `next build`, so an image built without
+  R2 configuration ships a static-asset policy with no storage origin. `proxy.ts`
+  reads the environment at boot and has no such limitation, so this affects only
+  `/_next/static/*` — which issues no download `fetch`.
+- **`report-to` needs https.** The Reporting API requires a secure context, and
+  its presence *suppresses* `report-uri` by spec. On a plain-http origin it would
+  therefore be a mute button rather than a fallback, so it is omitted there. If
+  you terminate TLS at a proxy, set `NEXT_PUBLIC_SITE_URL` to the `https://`
+  public URL and reports keep flowing.
 
 ## Option A — Docker (recommended)
 
@@ -120,21 +175,42 @@ The provided image installs every dependency for you.
 ```bash
 # ADMIN_SECRET is required (generate a long random value):
 export ADMIN_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+
+# The public URL. Required in production: signed download and upload URLs are
+# built from it, and the default below is almost certainly not your host.
+export NEXT_PUBLIC_SITE_URL="https://your-host"
+
 docker compose up --build
 
 # App available at http://localhost:3000
 # First run: visit http://localhost:3000/admin/setup to set the admin password.
 ```
 
-`docker-compose.yml` persists admin content on the `pdfdadi-data` volume and
-runs the app on a no-egress `internal` network (see "Docker volume & network
-isolation" below).
+`docker-compose.yml` supplies the remaining required configuration itself:
+`DATABASE_URL=file:/app/data/db/pdfdadi.db` and
+`STORAGE_LOCAL_ROOT=/app/data/storage`, both inside named volumes. Override
+either from the environment if you mount storage elsewhere; do not point them
+back inside `/app`, which is the image's own layer.
 
-Or with plain Docker:
+Three volumes persist across `docker compose up --build`: `pdfdadi-data`
+(admin content, including the operator-set password), `pdfdadi-db` (the
+database) and `pdfdadi-storage` (uploaded and generated documents). The app runs
+on a no-egress `internal` network (see "Docker volume & network isolation"
+below).
+
+Or with plain Docker — note that every one of these is required, and that
+without the two mounts the database and the documents live in the container:
 
 ```bash
 docker build -t pdfdadi .
-docker run -p 3000:3000 --tmpfs /tmp pdfdadi
+docker volume create pdfdadi-db && docker volume create pdfdadi-storage
+docker run -p 3000:3000 --tmpfs /tmp \
+  -e ADMIN_SECRET="$ADMIN_SECRET" \
+  -e NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
+  -e DATABASE_URL=file:/app/data/db/pdfdadi.db \
+  -e STORAGE_LOCAL_ROOT=/app/data/storage \
+  -v pdfdadi-db:/app/data/db -v pdfdadi-storage:/app/data/storage \
+  pdfdadi
 ```
 
 ## Option B — Ubuntu / Debian server (manual)
@@ -157,7 +233,8 @@ Then build and run the Node server:
 ```bash
 npm ci
 npm run build
-npm run start   # serves on PORT (default 3000)
+npx prisma migrate deploy   # applies the schema; required before the first start
+npm run start               # serves on PORT (default 3000)
 ```
 
 ## Windows (local development)
@@ -188,8 +265,17 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
   buffering so the memory-heavy parse phase is also bounded.
 - The public tool API is per-IP rate-limited (`TOOLS_RATE_LIMIT_PER_MIN`).
 - The temp directory is deleted in a `finally` block after every request.
-- No database, no permanent storage of uploaded files, no file history (admin
-  content is persisted to `data/admin/store.json` on a Docker volume — see below).
+- **A public tool run keeps nothing.** No database row, no stored file, no
+  history: the temp directory is deleted in a `finally` block and a server tool's
+  output is removed when its job expires.
+- **A signed-in Workspace deliberately keeps things**, which is what a Workspace
+  is: documents, versions, comments, tags, activity and audit rows persist until
+  the user or the operator deletes them. Retention, deletion and export are
+  covered in `docs/FINAL_PRELAUNCH_AUDIT.md` §10 — this line used to read "no
+  database, no permanent storage", which was true before the Workspace shipped
+  and is not a claim to make to users now.
+- Admin content is persisted to `data/admin/store.json` on a Docker volume, the
+  database to `data/db` and stored documents to `data/storage` — see below.
 
 ## Admin security & first-run setup
 
@@ -225,9 +311,13 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
 
 ## Docker volume & network isolation
 
-- The `pdfdadi-data` named volume is mounted at `/app/data/admin` so admin
-  content (including the operator-set admin password) survives redeploy and
-  restart. The volume is seeded from the image's `data/admin` on first attach.
+- Three named volumes, and all three matter. `pdfdadi-data` at
+  `/app/data/admin` keeps admin content (including the operator-set admin
+  password) and is seeded from the image's `data/admin` on first attach;
+  `pdfdadi-db` at `/app/data/db` keeps the database; `pdfdadi-storage` at
+  `/app/data/storage` keeps uploaded and generated documents. Without the last
+  two the app still boots and still accepts uploads — and loses every document
+  and every account on the next `docker compose up --build`.
 - The app attaches to an `internal: true` network with **no external egress**.
   Published port 3000 still accepts inbound traffic. This blocks the
   LibreOffice/`soffice` SSRF vector — a crafted uploaded document cannot make
