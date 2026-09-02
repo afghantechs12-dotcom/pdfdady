@@ -109,8 +109,22 @@ export function PremiumEditorFrame({
 
         {/* Canvas is the dominant surface; the shell's background is the cool
             light application tone so the white page reads as the surface being
-            edited. All scrolling is contained inside the canvas region. */}
-        <main className="relative flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
+            edited. All scrolling is contained inside the canvas region.
+
+            A REGION, not `<main>`. This frame is mounted in two places: the
+            standalone `/editor` route and, inside `AppShell`, the Workspace
+            document workbench. `AppShell` already renders `<main id="main">`, so
+            claiming a document-level landmark for a region put two `main`
+            landmarks in one document there (invalid HTML, and an ARIA violation)
+            while `/editor` still had none — which is why the root layout's
+            "Skip to content" link pointed at nothing on that route. One `main`
+            per document is now the route's job, matching what the layout comment
+            has always claimed; this stays a labelled region so the canvas is
+            still reachable from a landmark list. */}
+        <section
+          aria-label="Document canvas"
+          className="relative flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden"
+        >
           {canvas}
 
           {/*
@@ -127,7 +141,7 @@ export function PremiumEditorFrame({
               {floatingControls}
             </div>
           ) : null}
-        </main>
+        </section>
 
         {rightInspector}
       </div>

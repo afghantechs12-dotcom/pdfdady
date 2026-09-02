@@ -27,11 +27,18 @@ export default async function EditorPage() {
   const saveTarget = user ? await resolveSaveTarget(user.id) : null;
 
   return (
-    <div className="fixed inset-0 z-editor bg-white">
+    // `id="main"` because the root layout's "Skip to content" link targets it on
+    // every route and this route supplies no other shell. Before this it resolved
+    // to nothing here — `document.getElementById("main")` was null on /editor —
+    // so the one bypass mechanism the page had was inert (WCAG 2.4.1). The editor
+    // frame used to spend the `<main>` on its canvas region, which both left this
+    // route without a landmark and nested a second `main` inside AppShell's on the
+    // Workspace editor.
+    <main id="main" className="fixed inset-0 z-editor bg-white">
       <StandaloneEditorShell
         viewer={{ email: user?.email ?? null, name: user?.name ?? null }}
         saveTarget={saveTarget}
       />
-    </div>
+    </main>
   );
 }
