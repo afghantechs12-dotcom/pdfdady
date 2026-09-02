@@ -1,4 +1,4 @@
-import { configWarnings, getConfig } from "@/src/infrastructure/config/env";
+import { configWarnings, databaseEngineLabel, getConfig } from "@/src/infrastructure/config/env";
 
 /**
  * Boot-time production gate, Node-only.
@@ -26,7 +26,7 @@ function startupSummary(): string {
   for (const warning of configWarnings(cfg)) console.warn(`[startup] ${warning}`);
   return [
     `env=${cfg.nodeEnv}`,
-    `db=${cfg.databaseUrl.startsWith("file:") ? "sqlite" : "postgres"}`,
+    `db=${databaseEngineLabel(cfg.databaseUrl)}`,
     `storage=${cfg.storage.provider}`,
     `queue=${cfg.queue.provider}`,
     `billing=${cfg.billing.enabled ? "enabled" : "disabled"}`,

@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getConfig, _resetConfigForTests } from "./env";
+import { readFileSync } from "node:fs";
+import {
+  DATABASE_ENGINE,
+  DATABASE_URL_PREFIX,
+  databaseEngineLabel,
+  getConfig,
+  _resetConfigForTests,
+} from "./env";
 import { ConfigurationError } from "@/src/domain/errors";
 import { INSECURE_DEV_SECRET } from "@/lib/admin/session";
 
@@ -54,9 +61,17 @@ afterEach(() => {
  */
 const GOOD_SECRET = "0123456789abcdef0123456789abcdef";
 
+/**
+ * An absolute SQLite file on a mounted volume — the ONLY shape this build's
+ * `provider = "sqlite"` datasource can open. It used to be a `postgresql://`
+ * URL here, which is where the gate's false "point it at PostgreSQL" message
+ * came from: the suite asserted the wrong engine as confidently as the code did.
+ */
+const GOOD_DATABASE_URL = "file:/srv/pdfdadi/data/pdfdadi.db";
+
 function setValidProductionEnv(): void {
   env.NODE_ENV = "production";
-  env.DATABASE_URL = "postgresql://u:p@db.internal:5432/pdfdadi";
+  env.DATABASE_URL = GOOD_DATABASE_URL;
   env.ADMIN_SECRET = GOOD_SECRET;
   env.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.com";
 }
@@ -90,12 +105,59 @@ describe("env config", () => {
     expect(() => getConfig()).toThrow(ConfigurationError);
   });
 
-  it("accepts a DATABASE_URL in production (e.g. PostgreSQL)", () => {
+  it("accepts an absolute SQLite DATABASE_URL in production", () => {
     setValidProductionEnv();
-    env.DATABASE_URL = "postgresql://user:pass@host:5432/db";
     const cfg = getConfig();
     expect(cfg.isProduction).toBe(true);
-    expect(cfg.databaseUrl).toBe("postgresql://user:pass@host:5432/db");
+    expect(cfg.databaseUrl).toBe(GOOD_DATABASE_URL);
+  });
+
+  /*
+   * This test was "accepts a DATABASE_URL in production (e.g. PostgreSQL)" and
+   * asserted the opposite of what it now asserts, because both the gate and the
+   * suite believed a production deployment would run on PostgreSQL. The schema
+   * says otherwise. A Prisma datasource takes only its own provider's URLs and
+   * discovers the mismatch when it CONNECTS, so accepting one here buys a
+   * deployment that boots "healthy" and then 500s every request that reads the
+   * database — the failure the gate exists to prevent, waved through by the gate.
+   */
+  it("refuses a DATABASE_URL for an engine this build cannot open", () => {
+    setValidProductionEnv();
+    env.DATABASE_URL = "postgresql://user:pass@host:5432/db";
+    const msg = gateError();
+    expect(msg).toMatch(/DATABASE_URL/);
+    expect(msg).toContain(DATABASE_ENGINE);
+    expect(msg).not.toContain("pass@host");
+  });
+
+  it("refuses a relative SQLite path in production, which a deploy would delete", () => {
+    setValidProductionEnv();
+    env.DATABASE_URL = "file:./prisma/dev.db";
+    expect(gateError()).toMatch(/relative/i);
+  });
+
+  /*
+   * The gate's accepted scheme is a claim ABOUT THE SCHEMA, so it is read from
+   * the schema. Switching `provider` without changing the gate would otherwise
+   * leave both the refusal above and `startupGate`'s `db=` label asserting an
+   * engine the build no longer has.
+   */
+  /*
+   * The boot summary's `db=` label. It is only reachable for a refused URL
+   * outside production — where the gate does not run — and that is precisely the
+   * case worth being honest about: a developer who sets a Postgres URL locally
+   * must not be told `db=postgres` by a build that cannot open one.
+   */
+  it("labels a URL the gate would refuse as unsupported, never as another engine", () => {
+    expect(databaseEngineLabel(GOOD_DATABASE_URL)).toBe(DATABASE_ENGINE);
+    expect(databaseEngineLabel("postgresql://u:p@db.internal:5432/pdfdadi")).toBe("unsupported");
+  });
+
+  it("expects the scheme of the provider prisma/schema.prisma actually declares", () => {
+    const schema = readFileSync(new URL("../../../prisma/schema.prisma", import.meta.url), "utf8");
+    const provider = /datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/.exec(schema)?.[1];
+    expect(provider).toBe(DATABASE_ENGINE);
+    expect(DATABASE_URL_PREFIX).toBe("file:");
   });
 
   it("coerces numeric env vars", () => {

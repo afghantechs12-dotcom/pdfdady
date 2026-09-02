@@ -45,7 +45,9 @@ afterEach(() => {
 
 function setValidProductionEnv(): void {
   env.NODE_ENV = "production";
-  env.DATABASE_URL = "postgresql://u:p@db.internal:5432/pdfdadi";
+  // Absolute SQLite file: what `provider = "sqlite"` can open, and what the
+  // production gate now requires. See env.test.ts for why it was a Postgres URL.
+  env.DATABASE_URL = "file:/srv/pdfdadi/data/pdfdadi.db";
   env.ADMIN_SECRET = SECRET;
   env.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.com";
 }
@@ -111,12 +113,13 @@ describe("instrumentation register()", () => {
     const c = captureConsole();
     await register();
     const text = c.text();
-    for (const secret of [SECRET, "sk_live_leakme", "whsec_leakme", "u:p@db.internal"]) {
+    for (const secret of [SECRET, "sk_live_leakme", "whsec_leakme", "/srv/pdfdadi"]) {
       expect(text).not.toContain(secret);
     }
     // It still reports the derived state, which is what an operator needs.
     expect(text).toMatch(/billing=enabled/);
-    expect(text).toMatch(/db=postgres/);
+    // The ENGINE, derived from the scheme the gate accepted — never the URL.
+    expect(text).toMatch(/db=sqlite/);
   });
 
   it("warns but starts when billing is only half configured", async () => {

@@ -186,6 +186,35 @@ const MIN_SECRET_LENGTH = 16;
 /** Hostnames that mean "this machine" — never a valid public site origin. */
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"]);
 
+/**
+ * The only `DATABASE_URL` scheme this build can open, and the engine it selects.
+ *
+ * `prisma/schema.prisma` declares `provider = "sqlite"`. A Prisma datasource
+ * accepts only its own provider's URLs, and it does not find out until it
+ * connects — so a `postgresql://` value passes every check a gate could make
+ * about *presence*, boots "healthy", and then fails every request that touches
+ * the database. Turning that into a refusal is exactly this gate's job.
+ *
+ * The gate said the opposite until the pre-launch audit: its own message told the
+ * operator to "point it at PostgreSQL", and `startupGate` then printed
+ * `db=postgres` for the URL it had accepted — a derived label, never a fact about
+ * the schema. Both are corrected here, in one place, because they are one claim.
+ *
+ * Changing the schema's provider means changing this. `env.test.ts` reads
+ * `prisma/schema.prisma` and fails if the two disagree, so a provider swap cannot
+ * leave the gate asserting the old engine.
+ */
+export const DATABASE_URL_PREFIX = "file:";
+export const DATABASE_ENGINE = "sqlite";
+
+/**
+ * The engine label for the startup summary. A shared reader so the boot log
+ * cannot describe a different database than the gate admitted.
+ */
+export function databaseEngineLabel(url: string): string {
+  return url.startsWith(DATABASE_URL_PREFIX) ? DATABASE_ENGINE : "unsupported";
+}
+
 const R2_KEYS = [
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
@@ -224,9 +253,21 @@ function isBuildPhase(): boolean {
 export function productionProblems(e: z.infer<typeof envSchema>): string[] {
   const problems: string[] = [];
 
-  if (!e.DATABASE_URL?.trim()) {
+  const databaseUrl = e.DATABASE_URL?.trim();
+  if (!databaseUrl) {
     problems.push(
-      "DATABASE_URL is not set. Point it at PostgreSQL. There is no production default on purpose: falling back to a local SQLite file would silently store live data on an ephemeral container disk and lose it on the next deploy.",
+      `DATABASE_URL is not set. Point it at a SQLite file on a persistent volume, e.g. ${DATABASE_URL_PREFIX}/app/data/db/pdfdadi.db. There is no production default on purpose: a relative path would silently put the live database inside the container's writable layer and delete it on the next deploy.`,
+    );
+  } else if (!databaseUrl.startsWith(DATABASE_URL_PREFIX)) {
+    // Named, never echoed: a connection URL routinely carries a password.
+    problems.push(
+      `DATABASE_URL does not begin with "${DATABASE_URL_PREFIX}", but prisma/schema.prisma declares provider = "${DATABASE_ENGINE}". Prisma rejects a URL from another provider when it connects, not at startup, so this deployment would boot healthy and then fail every request that reads the database. Point it at a SQLite file on a persistent volume, or change the schema's provider and its migrations first.`,
+    );
+  } else if (!databaseUrl.slice(DATABASE_URL_PREFIX.length).startsWith("/")) {
+    // Relative is the shape that loses data: `file:./prisma/dev.db` resolves
+    // against the working directory, which in a container is the image layer.
+    problems.push(
+      `DATABASE_URL is a relative SQLite path. It resolves against the server's working directory, which in a container is the image's writable layer — the database would be deleted by the next deploy. Use an absolute path on a persistent volume, e.g. ${DATABASE_URL_PREFIX}/app/data/db/pdfdadi.db.`,
     );
   }
 

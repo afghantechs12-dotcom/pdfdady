@@ -129,7 +129,9 @@ afterEach(() => {
 /** A production deployment the startup gate accepts, served at `siteUrl`. */
 function deployBehindProxy(siteUrl: string = PUBLIC_ORIGIN): void {
   env.NODE_ENV = "production";
-  env.DATABASE_URL = "postgresql://u:p@db.internal:5432/pdfdadi";
+  // Absolute SQLite file: the only DATABASE_URL shape the production gate accepts,
+  // because prisma/schema.prisma declares provider = "sqlite".
+  env.DATABASE_URL = "file:/srv/pdfdadi/data/pdfdadi.db";
   env.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
   env.NEXT_PUBLIC_SITE_URL = siteUrl;
   _resetConfigForTests();
