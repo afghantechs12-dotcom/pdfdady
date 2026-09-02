@@ -245,12 +245,28 @@ function groupA() {
     // Every blob ever committed on any local ref. `--all` covers branches this
     // audit created as well as the phase branches.
     const objects = git("rev-list", "--objects", "--all").split("\n").filter(Boolean);
+    /*
+     * `rev-list --objects` lists TREES as well as blobs, and every tree in it has a
+     * path, so feeding the list straight to `cat-file blob` printed one
+     * "bad file" per directory to stderr and relied on the catch to move on. The
+     * scan was right and unreadable. This asks git for each object's type once.
+     */
+    const blobShas = new Set(
+      execFileSync("git", ["cat-file", "--batch-check", "--batch-all-objects"], {
+        cwd: ROOT,
+        encoding: "utf8",
+        maxBuffer: 256 << 20,
+      })
+        .split("\n")
+        .filter((l) => l.endsWith(" blob") || / blob \d+$/.test(l))
+        .map((l) => l.slice(0, l.indexOf(" "))),
+    );
     const blobs = objects
       .map((line) => {
         const sp = line.indexOf(" ");
         return sp === -1 ? null : { sha: line.slice(0, sp), path: line.slice(sp + 1) };
       })
-      .filter((b) => b && b.path && !b.path.startsWith("docs/evidence/") && b.path !== SELF);
+      .filter((b) => b && b.path && blobShas.has(b.sha) && !b.path.startsWith("docs/evidence/") && b.path !== SELF);
     const hits = [];
     const fixtureHits = [];
     let scanned = 0;
@@ -262,6 +278,7 @@ function groupA() {
           cwd: ROOT,
           encoding: "utf8",
           maxBuffer: 16 << 20,
+          stdio: ["ignore", "pipe", "ignore"],
         });
       } catch {
         continue;
@@ -558,14 +575,37 @@ function groupD() {
     return facts.caps === facts.total ? null : `${facts.caps} capability records for ${facts.total} tools`;
   });
 
+  /*
+   * Two rules, because the app has two kinds of tool page, and the first version of
+   * this check knew neither: it listed `app/tools` (the pages live under the
+   * `(marketing)` route group, so it threw ENOENT and recorded ENVIRONMENTAL) and
+   * would have called a directory listing proof that a page renders.
+   *
+   *  - a functional-CLIENT tool needs its own directory, because `[slug]`
+   *    deliberately `notFound()`s that state — its runner is bespoke.
+   *  - a functional-SERVER tool is served by `[slug]`, which `notFound()`s unless
+   *    `getServerToolConfigMerged(slug)` answers. That resolution is the actual
+   *    render condition, so it is what gets called here rather than grepped for: a
+   *    server tool with no config is a 404 on a tool the registry advertises.
+   */
   check("D2", "every functional tool has a page that renders it", () => {
     if (!facts) return { verdict: "NOT EXERCISED", detail: "D1 did not produce an inventory" };
-    const dir = join(ROOT, "app", "tools");
+    const dir = join(ROOT, "app", "(marketing)", "tools");
     const routes = new Set(readdirSync(dir).filter((d) => statSync(join(dir, d)).isDirectory()));
-    const dynamic = routes.has("[slug]");
-    const missing = [...facts.serverSlugs, ...facts.clientSlugs].filter((s) => !routes.has(s));
-    if (dynamic && missing.length) return { verdict: "PASS", detail: `served by app/tools/[slug] (${missing.length} slugs have no static directory)` };
-    return missing.length ? `no page for ${missing.slice(0, 6).join(", ")}` : null;
+    if (!routes.has("[slug]")) return "app/(marketing)/tools/[slug] is gone, so no server tool has a page";
+    const clientMissing = facts.clientSlugs.filter((s) => !routes.has(s));
+    if (clientMissing.length) return `functional-client tools with no own page: ${clientMissing.join(", ")} — [slug] notFound()s that state`;
+    const unresolvable = tsFacts(`
+      const { getServerToolConfigMerged } = await import("./data/admin/index.ts");
+      const { TOOL_CAPABILITIES } = await import("./lib/tools/capability.ts");
+      const out = [];
+      for (const c of TOOL_CAPABILITIES.filter((c) => c.implementationState === "functional-server")) {
+        if (!(await getServerToolConfigMerged(c.slug))) out.push(c.slug);
+      }
+      console.log(JSON.stringify(out));
+    `);
+    if (unresolvable.length) return `functional-server tools [slug] would 404: ${unresolvable.join(", ")}`;
+    return { verdict: "PASS", detail: `${facts.clientSlugs.length} client tools have own pages; ${facts.serverSlugs.length} server tools resolve a config through [slug]` };
   });
 
   check("D3", "no tool whose output is an archive or an office document offers a Workspace save", () => {
