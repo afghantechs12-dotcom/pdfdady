@@ -43,6 +43,8 @@ export const Tokens = {
   AuthService: Symbol("AuthService"),
   // Workspace-aware upload service + M7.4 ingestion persistence
   DocumentIngestionRepository: Symbol("DocumentIngestionRepository"),
+  /** Save-operation identity — an intention, not a checksum. */
+  WorkspaceSaveIntentRepository: Symbol("WorkspaceSaveIntentRepository"),
   WorkspaceAwareUploadService: Symbol("WorkspaceAwareUploadService"),
   /** Promotes a pending ingestion into a document's initial `import` version. */
   DocumentIngestionService: Symbol("DocumentIngestionService"),

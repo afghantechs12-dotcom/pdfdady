@@ -55,7 +55,7 @@ export const dynamic = "force-dynamic";
  *
  * No new persistence path: the write is `uploadToWorkspace`, the same application
  * service the Workspace upload route and the editor's first save use, so this
- * route inherits its destination validation, ingestion, checksum dedup and
+ * route inherits its destination validation, ingestion, save-intent identity and
  * ceilings rather than restating any of them.
  */
 export async function POST(
@@ -73,6 +73,7 @@ export async function POST(
   const body = (await request.json().catch(() => null)) as {
     workspaceId?: unknown;
     organizationId?: unknown;
+    saveIntentKey?: unknown;
   } | null;
   const workspaceId = typeof body?.workspaceId === "string" ? body.workspaceId.trim() : "";
   if (!workspaceId) {
@@ -82,6 +83,14 @@ export async function POST(
     typeof body?.organizationId === "string" && body.organizationId.trim()
       ? body.organizationId.trim()
       : undefined;
+  /*
+   * The client's save INTENTION. Opaque, and not authorization: the two checks
+   * below still run in full, and the key is only consulted afterwards, inside the
+   * actor's own scope. `sourceIdentity` is the job id rather than anything the
+   * client says about the job, so a key minted for one result cannot be presented
+   * for another — it is a typed conflict, not a second document.
+   */
+  const saveIntentKey = typeof body?.saveIntentKey === "string" ? body.saveIntentKey : null;
 
   const { id } = await params;
   const row = await loadJobRow(id);
@@ -138,6 +147,9 @@ export async function POST(
       // Workspace document and the downloaded file are called the same thing.
       originalName: output.downloadName,
       name: output.downloadName,
+      saveIntent: saveIntentKey
+        ? { key: saveIntentKey, sourceKind: "processing-job", sourceIdentity: id }
+        : null,
     });
 
     /*

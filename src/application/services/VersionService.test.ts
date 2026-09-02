@@ -16,6 +16,7 @@ import {
 } from "@/src/domain/entities/DocumentVersion";
 import { InMemoryDocumentVersionRepository } from "@/src/infrastructure/persistence/InMemoryDocumentVersionRepository";
 import { DomainError, NotFoundError } from "@/src/domain/errors";
+import { InMemoryStoredFileRepository } from "@/src/infrastructure/persistence/InMemoryStoredFileRepository";
 
 class TestLogger implements ILogger {
   readonly entries: Array<{ level: string; message: string; fields?: LogFields }> = [];
@@ -266,6 +267,7 @@ function harness(options: HarnessOptions = {}) {
   const storage = new FakeObjectStorage();
   const inner = new InMemoryDocumentVersionRepository();
   const versions = options.wrapVersions ? options.wrapVersions(inner) : inner;
+  const files = new InMemoryStoredFileRepository();
 
   workspaces.addWorkspace(WS_A, ORG);
   workspaces.addWorkspace(WS_B, ORG_OTHER);
@@ -281,9 +283,10 @@ function harness(options: HarnessOptions = {}) {
     versions,
     documents as unknown as DocumentRecordRepository,
     storage,
+    files,
     { maxVersionsPerDocument: options.maxVersionsPerDocument },
   );
-  return { service, logger, workspaces, documents, storage, versions: inner };
+  return { service, logger, workspaces, documents, storage, versions: inner, files };
 }
 
 function manifest(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -996,6 +999,32 @@ describe("VersionService — retention", () => {
     }
 
     expect(storage.deletes).toHaveLength(0);
+  });
+
+  it("keeps bytes a stored-file row outside this Workspace still points at", async () => {
+    const { service, documents, storage, files } = harness({ maxVersionsPerDocument: 1 });
+    // The initial `import` version names the CONTENT-ADDRESSED key of the upload
+    // (`DocumentIngestionService` sets `sourceKey: file.key`), and that object is
+    // shared by every document saved from the same bytes — including documents in
+    // Workspaces this sweep cannot see. Asking only this Workspace's versions
+    // whether the artifact is still needed is the wrong question.
+    const shared = `ca/aa/bb/${"c".repeat(64)}`;
+    await files.create({
+      ownerType: "org",
+      ownerId: "org-elsewhere",
+      key: shared,
+      sha256: "c".repeat(64),
+      size: 2048,
+      mimeType: "application/pdf",
+    });
+
+    await save(service, documents, "user-1", { sourceKey: shared });
+    await save(service, documents, "user-1", { sourceKey: "sources/doc-1/v2.pdf" });
+    await save(service, documents, "user-1", { sourceKey: "sources/doc-1/v3.pdf" });
+
+    // The version rows are pruned; the object another reference needs is not.
+    expect(storage.deletes).not.toContain(shared);
+    expect(storage.deletes).toContain("sources/doc-1/v2.pdf");
   });
 
   it("does not let a failed retention sweep fail the save", async () => {

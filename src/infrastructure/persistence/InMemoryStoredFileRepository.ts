@@ -56,6 +56,10 @@ export class InMemoryStoredFileRepository implements IFileMetadataRepository {
     return f ? { ...f } : null;
   }
 
+  async existsByKey(key: string): Promise<boolean> {
+    return [...this.files.values()].some((x) => x.key === key);
+  }
+
   async listByOwner(
     ownerType: StoredFileOwnerType,
     ownerId: string,

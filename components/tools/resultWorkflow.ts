@@ -201,14 +201,19 @@ export function openInEditorFailureMessage(failure: HandoffFailure): string {
  * What "already saved" means for a result: the SAME document, not a second one.
  *
  * A result's bytes never change after the run, so a second press of Save has
- * nothing new to store. The server agrees independently and durably: a result
- * save is identified by `(workspaceId, sha256(bytes))`, which is the unique
- * `DocumentIngestion` index — so a retry after a lost response finds the row,
- * and two concurrent requests collide on it and converge on the one document
- * that won. Both halves are wanted, and only one of them is load-bearing: this
- * one keeps a second click from costing an upload, that one keeps a
- * double-submit, a remounted page or a restarted process from costing a
- * document. See `src/application/services/resultSaveIdempotency.test.ts`.
+ * nothing new to store. The server agrees independently and durably, and it agrees
+ * about the right thing: a save is identified by the user's INTENTION —
+ * `(organizationId, userId, saveIntentKey)`, a unique row in
+ * `workspace_save_intents` — not by the checksum of the bytes. So a retry after a
+ * lost response finds that row and gets the document it already made, two
+ * concurrent requests collide on it and converge on the one that won, and a
+ * deliberate second save of the same file is still allowed to be its own document.
+ *
+ * Both halves are wanted, and only one of them is load-bearing: this one keeps a
+ * second click from costing an upload, that one keeps a double-submit, a remounted
+ * page or a restarted process from costing a document. See
+ * `src/application/services/saveIntentIdentity.test.ts` and
+ * `resultSaveIdempotency.test.ts`.
  */
 export function shouldStartSave(state: ResultSaveState): boolean {
   return state.kind === "idle" || state.kind === "error";

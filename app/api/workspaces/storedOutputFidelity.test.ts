@@ -72,6 +72,7 @@ import { PrismaWorkspaceRepository } from "@/src/infrastructure/persistence/Pris
 import { PrismaWorkspaceMembershipRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceMembershipRepository";
 import { PrismaDocumentRecordRepository } from "@/src/infrastructure/persistence/PrismaDocumentRecordRepository";
 import { PrismaDocumentIngestionRepository } from "@/src/infrastructure/persistence/PrismaDocumentIngestionRepository";
+import { PrismaWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceSaveIntentRepository";
 import { PrismaStoredFileRepository } from "@/src/infrastructure/persistence/PrismaStoredFileRepository";
 import { PrismaFolderRepository } from "@/src/infrastructure/persistence/PrismaFolderRepository";
 import { PrismaProjectRepository } from "@/src/infrastructure/persistence/PrismaProjectRepository";
@@ -260,6 +261,7 @@ beforeAll(() => {
       new PrismaFolderRepository(prisma),
       new PrismaProjectRepository(prisma),
       new PrismaDocumentIngestionRepository(prisma),
+      new PrismaWorkspaceSaveIntentRepository(prisma),
     ),
   );
   registry.set(Tokens.AuditLogRepository, {

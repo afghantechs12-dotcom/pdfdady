@@ -8,11 +8,27 @@ import type { DocumentRecordRepository } from "@/src/application/ports/workspace
 import type { FolderRepository } from "@/src/application/ports/workspaces/FolderRepository";
 import type { ProjectRepository } from "@/src/application/ports/workspaces/ProjectRepository";
 import type { DocumentIngestionRepository } from "@/src/application/ports/workspaces/DocumentIngestionRepository";
+import type {
+  SaveIntentIdentity,
+  SaveIntentMeaning,
+  WorkspaceSaveIntentRepository,
+} from "@/src/application/ports/workspaces/WorkspaceSaveIntentRepository";
 import type { IQueue } from "@/src/application/ports/queue/Queue";
 import type { IWorkspaceAwareUploadService } from "@/src/application/ports/workspace/WorkspaceAwareUploadService";
 import type { WorkspaceUploadResult } from "@/src/domain/entities/DocumentIngestion";
 import { DOCUMENT_INGESTION_LIMITS as L } from "@/src/domain/entities/DocumentIngestion";
-import { DomainError, NotFoundError } from "@/src/domain/errors";
+import type { SaveIntentRequest, WorkspaceSaveIntent } from "@/src/domain/entities/WorkspaceSaveIntent";
+import {
+  SAVE_INTENT_LIMITS as SI,
+  isSaveIntentSourceKind,
+  normalizeSaveIntentKey,
+} from "@/src/domain/entities/WorkspaceSaveIntent";
+import {
+  DomainError,
+  NotFoundError,
+  SaveIntentConflictError,
+  SaveIntentInProgressError,
+} from "@/src/domain/errors";
 import { normalizeWorkspaceName } from "./workspaceNormalization";
 import { generateOrderKeyBetween } from "./orderKey";
 import { DocumentIngestionJobHandler } from "./DocumentIngestionJobHandler";
@@ -68,13 +84,23 @@ function assertSafeFilename(value: unknown): string {
  *  3. validates the payload — filename, name bounds, MIME allow-list, and a
  *     magic-number signature check over the actual bytes;
  *  4. enforces the size limit;
- *  5. dedups per Workspace by content hash — Workspace-scoped on purpose, so a
- *     duplicate can never disclose that another tenant holds the same file;
+ *  5. resolves the save's IDENTITY, one of two ways:
+ *      - with a `saveIntent`, by claiming `(organizationId, userId, key)` — a
+ *        retry of that intention converges on the document it already produced,
+ *        and identical bytes saved under a *new* intention are a new document;
+ *      - without one, by content hash within the Workspace — the legacy path a
+ *        file-manager upload and the editor's first save still want.
+ *     Workspace-scoped either way, so a duplicate can never disclose that
+ *     another tenant holds the same file;
  *  6. persists bytes (content-addressed key), StoredFile, DocumentRecord and
  *     the ingestion record in `pending`;
  *  7. rolls back on partial failure so no orphaned row or object is left, and
  *     converges on the winner when a concurrent save of the same bytes into the
  *     same Workspace got there first.
+ *
+ * Content hash is NOT the save identity. Bytes are shared physically — one
+ * content-addressed object, many documents — which is why storage collection asks
+ * `meta.existsByKey` rather than assuming one document owns one object.
  */
 export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAwareUploadService {
   constructor(
@@ -86,6 +112,12 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
     private readonly folders: FolderRepository,
     private readonly projects: ProjectRepository,
     private readonly ingestions: DocumentIngestionRepository,
+    /**
+     * Save-operation identity. Separate from the ingestion repository on purpose:
+     * an ingestion is a fact about bytes, this is a fact about a user pressing
+     * Save, and the previous closeout's defect was one row trying to be both.
+     */
+    private readonly intents: WorkspaceSaveIntentRepository,
     /**
      * Delivers the post-upload ingestion job. Optional so the service can be
      * constructed without a queue in tests and in any deployment that drains
@@ -212,6 +244,7 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
       folderId?: string | null;
       projectId?: string | null;
       name?: string;
+      saveIntent?: SaveIntentRequest | null;
     },
   ): Promise<WorkspaceUploadResult> {
     const { workspace } = await this.workspaces.get(actor, workspaceId, true);
@@ -250,15 +283,43 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
 
     const checksum = crypto.createHash("sha256").update(data).digest("hex");
 
-    // Workspace-scoped dedup. A match in another Workspace is deliberately not
-    // consulted: reporting it would disclose another tenant's holdings.
-    const already = await this.existingSaveResult(workspaceId, checksum);
-    if (already) {
-      this.logger.debug("Workspace upload deduplicated by content", {
-        workspaceId,
-        documentId: already.document.id,
-      });
-      return already;
+    /*
+     * IDENTITY, and only now — after the actor, the Workspace, the destination,
+     * the filename, the size, the declared type, the actual leading bytes and the
+     * checksum have all been established.
+     *
+     * §9's rule in code form: an intention is looked up inside the authorized
+     * scope of a caller who has already earned the right to write here. A key
+     * presented before that could return a document to somebody who may not read
+     * it, and a failed validation must not be able to leave an intention behind.
+     */
+    const intent = input.saveIntent ?? null;
+    let claim: WorkspaceSaveIntent | null = null;
+    if (intent === null) {
+      // No intention: dedup by content, Workspace-scoped. A match in another
+      // Workspace is deliberately not consulted — reporting it would disclose
+      // another tenant's holdings.
+      const already = await this.existingSaveResult(workspaceId, checksum);
+      if (already) {
+        this.logger.debug("Workspace upload deduplicated by content", {
+          workspaceId,
+          documentId: already.document.id,
+        });
+        return already;
+      }
+    } else {
+      // An intention: the content pre-check is SKIPPED. Consulting it here is the
+      // whole defect — it makes two deliberate saves of one file collapse into the
+      // first document, under the first name.
+      const claimed = await this.claimSaveIntent(actor, workspaceId, checksum, intent);
+      if (claimed.settled) {
+        this.logger.debug("Save intention already completed; returning its document", {
+          workspaceId,
+          documentId: claimed.settled.document.id,
+        });
+        return claimed.settled;
+      }
+      claim = claimed.claim;
     }
 
     const key = contentAddressedKey(checksum);
@@ -317,6 +378,18 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
         storedFileId: file.id,
         ingestionId: ingestion.id,
       });
+
+      /*
+       * The intention is completed HERE — after the document and the ingestion
+       * are durable, and before anything that is allowed to fail.
+       *
+       * Both halves of that matter. Marking it completed any earlier hands a
+       * retry the id of a row that may never commit; marking it after the queue
+       * would let a queue outage leave a finished save looking `pending`, so the
+       * retry that follows would be told to wait and then take the claim over and
+       * save the file a second time.
+       */
+      if (claim) await this.intents.complete(claim.id, document.id, ingestion.id);
 
       // Hand the ingestion to the worker, which cuts the initial version that
       // makes the document openable.
@@ -382,8 +455,20 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
        * every adapter: no Prisma error code, no message matching, and it is equally
        * true for a name collision or any other loss of the same race.
        */
-      const winner = await this.existingSaveResult(workspaceId, checksum).catch(() => null);
+      const winner = intent
+        ? null
+        : await this.existingSaveResult(workspaceId, checksum).catch(() => null);
       const converged = winner && winner.ingestion.id !== ingestionId ? winner : null;
+      /*
+       * An intention does NOT converge on content, which is why `winner` is not
+       * even looked up above. The checksum in this Workspace may belong to a
+       * document this save has nothing to do with — a colleague's copy, or the
+       * user's own earlier save under a different name — and answering with it
+       * would report success for a document this intention did not produce and
+       * record that id against this key. The intention's own row is the
+       * convergence mechanism; releasing the claim is what lets the retry work.
+       */
+      if (claim) await this.intents.fail(claim.id).catch(() => undefined);
       // Unwind in reverse order of creation. Each step is best-effort: a
       // cleanup failure must not mask the original error.
       this.logger[converged ? "info" : "error"](
@@ -404,20 +489,158 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
         await this.meta.delete(storedFileId).catch(() => undefined);
       }
       // Only remove the object if this upload is what put it there AND nothing
-      // else references it now. The key is content-addressed, so the request that
-      // won the race points at these exact bytes: deleting them here would leave
-      // the winner's document with a document row, a version and no file. The
-      // lookup runs after this request's own StoredFile row is gone, so it only
-      // ever sees somebody else's.
+      // else references it now. The key is content-addressed, so any other row
+      // pointing at these exact bytes points at this object: deleting it would
+      // leave that document with a document row, a version and no file. The lookup
+      // runs after this request's own StoredFile row is gone, so it only ever sees
+      // somebody else's.
+      //
+      // Asked by KEY rather than by (org, sha256): the object is shared by
+      // everything that references it, including scopes this request cannot see,
+      // and an owner-scoped question about shared bytes is the wrong question.
       if (!objectPreexisting) {
-        const stillReferenced = await this.meta
-          .findBySha256("org", actor.organizationId, checksum)
-          .catch(() => null);
+        const stillReferenced = await this.meta.existsByKey(key).catch(() => true);
         if (!stillReferenced) await this.storage.delete(key).catch(() => undefined);
       }
       if (converged) return converged;
       throw error;
     }
+  }
+
+  /**
+   * Establishes this request's claim on the user's save intention.
+   *
+   * Returns either the claim to work under, or the result of the intention that
+   * already completed. Never both, and never a document that some *other*
+   * intention produced.
+   *
+   * The loop exists because three things can be found under one key and only one
+   * of them is an answer: a completed intention (return its document), a live
+   * attempt in flight (wait for it), or an abandoned attempt (take it over). Each
+   * of those can change underneath the read, so every write is conditional and a
+   * lost condition sends the request round again rather than forward on stale
+   * facts.
+   */
+  private async claimSaveIntent(
+    actor: ActorContext,
+    workspaceId: string,
+    checksum: string,
+    request: SaveIntentRequest,
+  ): Promise<{ claim: WorkspaceSaveIntent | null; settled: WorkspaceUploadResult | null }> {
+    const key = normalizeSaveIntentKey(request.key);
+    if (key === null) throw new DomainError("Save reference is not valid.");
+    if (!isSaveIntentSourceKind(request.sourceKind)) {
+      throw new DomainError("Save reference is not valid.");
+    }
+    const sourceIdentity = String(request.sourceIdentity ?? "").trim();
+    if (!sourceIdentity || sourceIdentity.length > SI.maxSourceIdentityLength) {
+      throw new DomainError("Save reference is not valid.");
+    }
+
+    // Scoped to the ACTOR, not to the key alone. This is what makes a key useless
+    // as an oracle: a colleague who presents the same literal addresses their own
+    // row, gets their own document, and learns nothing about anybody else's.
+    const identity: SaveIntentIdentity = {
+      organizationId: actor.organizationId,
+      userId: actor.userId,
+      key,
+    };
+    const meaning: SaveIntentMeaning = {
+      workspaceId,
+      sourceKind: request.sourceKind,
+      sourceIdentity,
+      payloadChecksum: checksum,
+    };
+
+    const deadline = Date.now() + SI.convergenceTimeoutMs;
+    for (;;) {
+      // The unique index is the mutual exclusion. Two concurrent requests both
+      // attempt this; exactly one row exists afterwards, so exactly one of them
+      // does the work and the other falls through to wait for it. No process-local
+      // lock is involved, so it holds across workers and across a restart.
+      const claimed = await this.intents.insertPending(identity, meaning);
+      if (claimed) return { claim: claimed, settled: null };
+
+      const row = await this.intents.find(identity);
+      // Gone between the refused insert and this read — vanishingly unlikely, but
+      // the honest response is to try to claim it again, not to guess.
+      if (row === null) continue;
+
+      if (!sameMeaning(row, meaning)) {
+        // The key is real and it is this actor's, but it stands for a different
+        // save: other bytes, another Workspace, another source result. There is no
+        // safe way to pick one of the two, so neither is performed.
+        throw new SaveIntentConflictError();
+      }
+
+      if (row.status === "completed") {
+        const settled = await this.completedIntentResult(row);
+        // A completed row whose document cannot be resolved is a broken record,
+        // not an answer: fall through and let the take-over below redo the work.
+        if (settled) return { claim: null, settled };
+      } else if (row.status === "pending" && Date.now() - row.updatedAt.getTime() < SI.staleClaimMs) {
+        // Somebody is saving this right now. Wait for their document rather than
+        // making a second one; the winner completes in well under a second.
+        if (Date.now() >= deadline) throw new SaveIntentInProgressError();
+        await delay(SI.convergencePollMs);
+        continue;
+      }
+
+      // `failed`, or `pending` and abandoned by a process that is not coming back.
+      // Conditional on `updatedAt`, so of several retries arriving together only
+      // one takes it over and the rest look again.
+      const taken = await this.intents.reclaim(row.id, row.updatedAt, meaning);
+      if (taken) return { claim: { ...row, ...meaning, status: "pending" }, settled: null };
+      if (Date.now() >= deadline) throw new SaveIntentInProgressError();
+      await delay(SI.convergencePollMs);
+    }
+  }
+
+  /**
+   * The document a completed intention produced, as an upload result.
+   *
+   * Read through the intention's own recorded ids — not through the checksum, and
+   * not through the name. `deduplicated: true` is deliberate: it is what tells the
+   * route this is the same logical save, so a retried Save cannot emit a second
+   * activity event for one press of the button.
+   *
+   * A trashed document is still returned here, and that is not the trash defect.
+   * This intention genuinely produced that document; what §8 forbids is a *new*
+   * intention being answered with an old trashed document, and a new intention has
+   * a different key, so it never reaches this method.
+   */
+  private async completedIntentResult(
+    row: WorkspaceSaveIntent,
+  ): Promise<WorkspaceUploadResult | null> {
+    if (!row.documentId || !row.ingestionId) return null;
+    const document = await this.documents.getById(row.workspaceId, row.documentId);
+    if (!document) return null;
+    const ingestion = await this.ingestions.getById(row.workspaceId, row.ingestionId);
+    if (!ingestion) return null;
+    const file = await this.meta.get(ingestion.storedFileId);
+    return {
+      document: {
+        id: document.id,
+        name: document.name,
+        workspaceId: document.workspaceId,
+        folderId: document.folderId,
+        projectId: document.projectId,
+      },
+      file: {
+        id: ingestion.storedFileId,
+        key: file?.key ?? contentAddressedKey(ingestion.checksum),
+        size: ingestion.byteSize,
+        mimeType: ingestion.mimeType,
+        originalName: ingestion.originalName,
+      },
+      ingestion: {
+        id: ingestion.id,
+        status: ingestion.status,
+        checksum: ingestion.checksum,
+        pageCount: ingestion.pageCount,
+      },
+      deduplicated: true,
+    };
   }
 
   /**
@@ -463,6 +686,27 @@ export class WorkspaceAwareUploadService implements IUploadService, IWorkspaceAw
       deduplicated: true,
     };
   }
+}
+
+/**
+ * Whether a recorded intention stands for the same save as this request.
+ *
+ * All four fields, because each of them changes what the save WOULD DO: other
+ * bytes are another file, another Workspace is another destination, and another
+ * source result is another run. Anything less makes one key able to produce a
+ * document the user did not ask for.
+ */
+function sameMeaning(row: WorkspaceSaveIntent, meaning: SaveIntentMeaning): boolean {
+  return (
+    row.workspaceId === meaning.workspaceId &&
+    row.sourceKind === meaning.sourceKind &&
+    row.sourceIdentity === meaning.sourceIdentity &&
+    row.payloadChecksum === meaning.payloadChecksum
+  );
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function contentAddressedKey(sha256: string): string {

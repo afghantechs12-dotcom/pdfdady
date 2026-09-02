@@ -79,3 +79,45 @@ export class WorkspaceLifecycleError extends DomainError {
     this.name = "WorkspaceLifecycleError";
   }
 }
+
+/**
+ * The same save-intent key, presented with a different meaning.
+ *
+ * An intention is the pairing of a key with what it means: this payload, into this
+ * Workspace, from this result or job. When the key matches but the meaning does
+ * not, the two candidate answers are both wrong — returning the recorded document
+ * tells the user their NEW file was saved when the OLD one is what is stored, and
+ * saving anyway makes one key name two documents and the next retry ambiguous.
+ *
+ * A `DomainError`, so the routes answer 409 and the editor's existing
+ * `classifyWorkspaceSaveFailure` already renders it as a conflict. The message
+ * carries no document id, no Workspace name and no hint of what the key was
+ * recorded against: a conflict must not become a read of somebody's else's save,
+ * and `mismatch` is deliberately not reported per-field to the caller.
+ */
+export class SaveIntentConflictError extends DomainError {
+  readonly code = "SAVE_INTENT_CONFLICT" as const;
+  constructor(
+    message = "This save could not be repeated because its details changed. Start a new save.",
+  ) {
+    super(message);
+    this.name = "SaveIntentConflictError";
+  }
+}
+
+/**
+ * The same intention is already being saved, and did not finish while we waited.
+ *
+ * Raised only after the bounded wait in `WorkspaceAwareUploadService` — a genuine
+ * double-submit converges on the winner's document instead of reaching this. What
+ * gets here is a claim held longer than a save takes, which is retryable and is
+ * therefore reported as a conflict rather than a failure: the user's file is still
+ * on the page they are standing on.
+ */
+export class SaveIntentInProgressError extends DomainError {
+  readonly code = "SAVE_IN_PROGRESS" as const;
+  constructor(message = "This save is already in progress. Try again in a moment.") {
+    super(message);
+    this.name = "SaveIntentInProgressError";
+  }
+}

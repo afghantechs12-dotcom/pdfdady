@@ -76,6 +76,11 @@ export class PrismaStoredFileRepository implements IFileMetadataRepository {
     return row ? toDomain(row) : null;
   }
 
+  async existsByKey(key: string): Promise<boolean> {
+    const row = await this.prisma.storedFile.findFirst({ where: { key }, select: { id: true } });
+    return row !== null;
+  }
+
   async listByOwner(
     ownerType: StoredFileOwnerType,
     ownerId: string,

@@ -3652,6 +3652,13 @@ the same shape — a truth with no owner, or an owner with no proof.
   **Workspace-saveable true, editor-openable false.** Had the store corrupted or refused
   the bytes, `workspaceSaveableOutput` would have to be false and that file would say so.
 - **One logical save is one document, durably — and no migration was needed to say so.**
+  *(Corrected by the Phase 5 data-identity closeout below: this bullet's claim is wrong.
+  `(workspaceId, sha256)` is content **de-duplication**, not operation idempotency. It makes
+  two saves of identical bytes one document even when the user meant two, and it makes a
+  re-save after trashing fail. The durable identity of a save is now
+  `WorkspaceSaveIntent`, which did need a migration. Everything else in this bullet —
+  ask-the-repository-who-won convergence, and that none of it lives in memory — still
+  holds and is still how the race is settled.)*
   Identity is `(workspaceId, sha256(bytes))`, which is already a unique index on
   `DocumentIngestion` (`prisma/migrations/20260802153439_add_document_ingestions`). The
   read-side pre-check only saves work; the load-bearing half is the index plus the
@@ -3750,7 +3757,10 @@ the environmental line below, which is reported as `ENVIRONMENTAL` and not relab
 
 ### Known limitations
 
-- **Save, trash, save the same bytes again does not converge.** The unique
+- **Save, trash, save the same bytes again does not converge.** *(Fixed by the Phase 5
+  data-identity closeout below. It was not a product decision waiting to be made: it was
+  content standing in for identity. A save carrying a new intention now creates a sibling
+  document and the trashed one stays trashed.)* The unique
   `(workspaceId, checksum)` row survives trashing while `existingSaveResult` deliberately
   ignores a trashed document, so the second save collides on the index and fails rather
   than restoring or re-creating. It no longer destroys the stored object, and the first
@@ -3792,3 +3802,239 @@ observed red for the intended reason, and reverted; a whole-tree sha256 manifest
 1375 files confirms the reverted tree is byte-for-byte the tree the gates ran against.
 **This repository is not under version control**, so that manifest — not `git diff` — is
 the revert evidence, and there are no commits to report.
+
+## Phase 5 data-identity closeout — a save intention is not a checksum
+
+The previous entry closed Phase 5 with `DocumentIngestion @@unique([workspaceId,
+checksum])` as "persistent save identity". That index answers *"are these bytes already
+here?"* — a useful question, and the wrong one. It was being used to answer *"has this
+save already happened?"*, and the two come apart in both directions:
+
+- **Two intentions collapse into one.** Export the same page twice under two names and
+  the second save returns the first document. Nothing failed, nothing was stored, and the
+  file the user named is not there.
+- **One intention is refused.** Save, trash it, save the same bytes again: the trashed
+  ingestion still holds the index, `existingSaveResult` deliberately ignores a trashed
+  document, so the insert collides and the route answers with an error. A server error is
+  not a product policy, and the previous entry mis-diagnosed this as a product decision
+  waiting to be made.
+
+Three identities were wearing one name. They are now separate: **an intention to save**,
+**a logical document**, and **the content bytes**.
+
+### The three identities
+
+| Identity | Owner | Uniqueness | Answers |
+| --- | --- | --- | --- |
+| Save intention | `WorkspaceSaveIntent` | `(organizationId, userId, key)` | did *this* save already happen? |
+| Logical document | `DocumentRecord` | its own id | which document is the user looking at? |
+| Content | `StoredFile` / object key `ca/<2>/<2>/<sha256>` | `sha256` | are these bytes already stored? |
+
+A retry converges because the *intention* is the same. A second save of identical bytes
+gets its own document because the *intention* is new. Neither question is asked of the
+checksum any more, and the checksum index survives as an ordinary index for the one
+question it is right for.
+
+### The intention, and what a key means
+
+`normalizeSaveIntentKey` (`src/domain/entities/WorkspaceSaveIntent.ts`) is the only
+gate: 16–200 characters, `[A-Za-z0-9._:-]`, trimmed. A key is an **identifier, not a
+credential** — every request is authorized on its own, and the key is only ever consulted
+*inside* the scope the actor already proved. Its row carries the intention's meaning:
+destination Workspace, `sourceKind`, `sourceIdentity`, and `payloadChecksum`.
+
+`claimSaveIntent` in `WorkspaceAwareUploadService` is claim-before-work. `insertPending`
+is a plain insert against the unique index, so it is also the mutual exclusion: the
+concurrent second request loses the insert instead of doing the work twice. What happens
+next is decided by the row that is already there, compared with `sameMeaning` over all
+four fields:
+
+- **Same meaning, `completed`** → return the recorded document and ingestion.
+  `deduplicated: true`, HTTP 200, no second version and no second activity event.
+- **Same meaning, `pending` and fresh** → the other request is mid-flight. Poll briefly,
+  then `SaveIntentInProgressError` rather than a duplicate.
+- **Same meaning, `pending` and stale, or `failed`** → `reclaim`, a conditional
+  `updateMany` on `status in (pending, failed)` **and** the `updatedAt` the caller read.
+  A compare-and-swap, so exactly one of two retriers may proceed.
+- **Different meaning** → `SaveIntentConflictError`. Never another document.
+
+`complete(claim.id, document.id, ingestion.id)` runs **after** both writes. Marking it
+earlier is mutation I, and D18 goes red: a crash mid-write would leave a completed
+intention pointing at nothing, and every retry would be answered with that nothing.
+
+### Key lifecycle — a local result
+
+`lib/workflow/saveIntent.ts`. A key is minted when the result exists, not when it is
+uploaded, and **no bytes leave the browser before an explicit Save**. Opening in the
+editor stays local and mints nothing.
+
+- `newSaveIntentKey()` — `crypto.randomUUID` with a `getRandomValues` fallback, because a
+  non-secure context has no `randomUUID` and a save that cannot mint a key cannot happen.
+- `saveIntentKeyForJob(jobId)` — memoized in `sessionStorage`, so the same job saved after
+  a remount *or a reload* is the same intention. Storage blocked entirely degrades to
+  per-page, which costs a duplicate document at worst and never a refused save.
+- `saveIntentKeyForTarget(key, workspaceId)` — the destination is part of the meaning, so
+  a client that offers a Workspace picker narrows its key per destination. Two saves of
+  one result are still visibly related (the base key is the prefix), which is what makes
+  a conflict legible in a log; a destination change is a new intention, not a 409 the user
+  cannot act on.
+
+### Key lifecycle — a processing job
+
+`POST /api/jobs/:id/save-to-workspace` keeps every ownership check it had: the job is
+resolved for the actor, a job that does not exist and a job belonging to somebody else
+answer identically, and result bytes are read **server-side from storage** — they never
+travel through the browser. The intention binds `sourceKind: "job-result"` and
+`sourceIdentity` to the exact job result plus its checksum, so the same key presented for
+a *different* job is a typed conflict rather than a cross-wired document. A job id alone
+is not the key: one job can be saved to two destinations, and that is two intentions.
+
+### Content, references, and deletion
+
+Storage stays content-addressed at `ca/<2>/<2>/<sha256>` and there is **no second storage
+subsystem**. Many documents may point at one object; `StoredFile` is the reference index.
+
+- Trashing or permanently deleting one document never touches an object another row still
+  references (`existsByKey` is deliberately *not* owner-scoped — a reference belonging to
+  another Workspace or organization still counts).
+- The upload rollback deletes an object only when it created it *and* nothing references
+  it. Both halves are load-bearing: mutation G (delete unconditionally) fails D14/D15.
+- `VersionService` retention asks the same question before dropping a superseded artifact,
+  and treats a lookup failure as "still referenced" — losing bytes is worse than keeping
+  them.
+
+### Concurrency and lost responses
+
+No process-local locks: the mutual exclusion is the unique index, the release is a
+compare-and-swap, and the document plus its initial version are one transaction. A lost
+HTTP response is the ordinary case, not a special one — the retry carries the same key and
+is answered from the intention row. Removing that row's uniqueness (mutation B) produces
+duplicate documents in the concurrency tests.
+
+### Trash and non-disclosure
+
+Save-to-Workspace **never silently restores** a trashed document and never returns one as
+though the new save succeeded. A new intention over the same bytes creates an active
+sibling; the trashed document stays trashed with its `trashedAt` intact.
+
+The uniqueness scope makes §9 non-disclosure structural rather than a check that can be
+forgotten: `(organizationId, userId, key)` means another actor's key is a *different row*.
+There is no global lookup to get wrong, so an invalid actor learns nothing — not the
+document id, not the destination, not whether the key exists.
+
+### Schema and migration
+
+`prisma/migrations/20260902100000_add_workspace_save_intents/` — creates
+`workspace_save_intents` (+ its unique index and two secondary indexes), then **drops**
+`document_ingestions_workspaceId_checksum_key` and re-creates it as a plain index. Both
+steps are additive to the data: dropping a uniqueness constraint cannot fail on existing
+rows and deletes nothing. No historical intention rows are fabricated — an old save has no
+recorded intention, which is the truth; the keyless upload path still de-duplicates by
+content, so every existing document opens and downloads exactly as before.
+
+**Deployment order:** migration first, then code. The new code needs the table; the old
+code is unaffected by it and does not care that the checksum index lost its uniqueness.
+
+**Rollback is not symmetric.** Re-creating the UNIQUE index fails once one Workspace holds
+two ingestions of identical bytes — precisely what this phase enables. Roll back by
+reverting the *code* and leaving the schema, or collapse those rows by hand first.
+
+`prisma/saveIntentMigration.test.ts` (D20) proves it on a **copy of a populated
+database**: every migration except the last is applied through the real Prisma CLI and
+seeded with an active, an archived and a trashed document plus their ingestions, versions
+and stored files; the final migration is then applied by the same CLI to a byte copy,
+leaving the seeded original as the control. Documents, lifecycle timestamps, ingestions,
+versions, manifests and stored files all survive; the intention table arrives empty; two
+ingestions of identical bytes now insert; and a legacy document still reads back through
+the same repositories downloads use.
+
+### Browser journey N
+
+`scripts/workflow-completeness-probe.mjs`, real Chrome over CDP, before journey H (which
+signs out). **N1** the same key twice with a different filename — 201 then 200,
+`deduplicated: true`, the same document id, the name unchanged, one document added, exactly
+one version (polled, then settled and re-asserted), one activity entry. **N2** a new key
+over identical bytes — 201, a *different* document id, the intended filename preserved,
+and both documents' downloaded content hashing identically: physical de-duplication without
+collapsing identity. **N3** trash it, then save the same bytes under a new key — a new
+active document, the old one still `trashed`, and the new document downloads with the same
+content. **N4** the settled key with altered payload — 409, and the body carries neither the
+first document id nor the Workspace id.
+
+### Key files
+
+- `src/domain/entities/WorkspaceSaveIntent.ts` — key normalization, limits, status.
+- `src/application/ports/workspaces/WorkspaceSaveIntentRepository.ts` — `insertPending`,
+  `find`, `reclaim`, `complete`, `fail`.
+- `src/infrastructure/persistence/PrismaWorkspaceSaveIntentRepository.ts` — `insertPending`
+  returns `null` on P2002 (the lost race is a value, not an exception);
+  `reclaim` is the conditional `updateMany`.
+- `src/infrastructure/persistence/InMemoryWorkspaceSaveIntentRepository.ts` — the twin.
+- `src/application/services/WorkspaceAwareUploadService.ts` — `claimSaveIntent`,
+  `sameMeaning`, `completedIntentResult`, the reference-safe rollback.
+- `lib/workflow/saveIntent.ts` — key minting and the two ways an intention repeats.
+- `prisma/migrations/20260902100000_add_workspace_save_intents/migration.sql`.
+
+### Tests
+
+`src/application/services/saveIntentIdentity.test.ts` (16) is D1–D19 on real Prisma
+repositories, real `LocalFileStorage` and a migrated throwaway database — retry
+convergence, new-intention siblings, one payload under two names, trash-then-resave,
+payload/destination/source conflicts, cross-actor non-disclosure, shared-content deletion
+safety, single activity event, claim release on failure. `prisma/saveIntentMigration.test.ts`
+(6) is D20 on a copied populated database. `lib/workflow/saveIntent.test.ts` (7) checks the
+client keys against the **real server validator**, including the reload case.
+`app/api/jobs/saveToWorkspaceRoute.test.ts` (14), `resultSaveIdempotency.test.ts` (9),
+`WorkspaceAwareUploadService.test.ts` (31), `VersionService.test.ts` (62),
+`container.test.ts` (75), `resultWorkflowWiring.test.ts` (33).
+
+Nine mutations (§12 A–I) were each applied, observed red, and reverted: checksum-as-identity
+(8 red), no intention uniqueness (9), one key with a different payload (1), one key for
+another destination (2), another actor's operation returned (1), a trashed ingestion
+blocking a new intention (7, including D20), unconditional object deletion (2), a second
+activity event on retry (2), completing the intention before the transaction (1). Reverts
+are verified against pre-mutation snapshots byte-for-byte, `git status`, and a 1428-file
+sha256 manifest.
+
+### Known limitations
+
+- **A key is per-tab, not per-account.** `sessionStorage` means a job saved from two tabs
+  is two intentions and therefore two documents. Correct for the local-result case (two
+  tabs are two results) and mildly surprising for a job. A server-side derivation from
+  `(job, destination)` would close it and is not built.
+- **No intention history for old saves.** Anything saved before this migration has no row,
+  so a retry of an ancient save de-duplicates by content, exactly as it did before.
+- **Nothing prunes `workspace_save_intents`.** Rows are small and bounded by real saves;
+  a retention job is not built.
+- **The loser of a race waits, it does not stream.** A concurrent second request polls
+  briefly and then returns `SaveIntentInProgressError` for the client to retry, rather
+  than blocking on the winner's transaction.
+- **Every `DomainError` is still one 409 shape.** `mapWorkspaceError` flattens
+  `SaveIntentConflictError` and `SaveIntentInProgressError` into
+  `WORKSPACE_OPERATION_REJECTED`; the distinction lives in the message, and clients cannot
+  branch on a code.
+
+### Deployment gates
+
+**Migration first, then code** —
+`prisma/migrations/20260902100000_add_workspace_save_intents`. It is additive to the
+data and the old code is indifferent to it. Rollback is code-only once two ingestions of
+identical bytes exist in one Workspace; see the migration file's own header.
+
+Run against the final tree: full suite **355 files / 7069 tests / 0 failures** (baseline
+352/7034); the D1–D23 set **4 files / 62 tests**; the prior Phase 5 closeout set **6 files
+/ 47** unchanged; every route test **15 files / 202**; the persistence, document and
+version set **32 files / 779**; `tsc --noEmit` clean; `eslint .` **0 errors / 11
+pre-existing warnings**; `node scripts/next-build.js` exit 0, **63/63** static pages;
+`prisma validate` and `prisma generate` clean. Browser: Phase 5 workflow probe
+**155/156**, exit 0, the one non-pass being the same `ENVIRONMENTAL` missing-binaries line
+as before and journey **N 19/19**; Phase 4 **49/49**; Phase 3 **91/91**; Phase 2
+**80/80**; Phase 1 **31/31**; export fidelity **35/35**. The Phase 5 probe runs against
+the production standalone artifact behind the self-signed TLS front (it needs a secure
+context); the earlier-phase probes run over plain HTTP, because the production start-up
+guard correctly refuses a loopback `NEXT_PUBLIC_SITE_URL`.
+
+Unlike the entry above, **this repository is now under local version control**: commit
+`a82aa3a` is a labelled pre-fix baseline, so `git status` is the primary revert evidence
+for the nine mutations, with a 1428-file sha256 manifest as the secondary. No remote is
+configured and nothing was pushed.

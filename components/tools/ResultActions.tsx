@@ -8,6 +8,7 @@ import { useToolFunnel, useToolSlug } from "@/components/tools/ToolAnalyticsProv
 import { ResultWorkflowActions } from "@/components/tools/ResultWorkflowActions";
 import type { ResultSaveTarget } from "@/components/tools/resultWorkflow";
 import type { ProcessedResult } from "@/lib/pdf/types";
+import { saveIntentKeyForTarget } from "@/lib/workflow/saveIntent";
 
 interface ResultActionsProps {
   result: ProcessedResult;
@@ -79,7 +80,7 @@ export function ResultActions({ result, onReset }: ResultActionsProps) {
         fileName={result.fileName}
         outputMimeType={result.mimeType}
         loadBytes={async () => new Uint8Array(await result.blob.arrayBuffer())}
-        save={(target) => saveLocalResult(target, result)}
+        save={(target) => saveLocalResult(target, result, toolSlug)}
       />
     </div>
   );
@@ -90,19 +91,35 @@ export function ResultActions({ result, onReset }: ResultActionsProps) {
  * the editor's first save uses.
  *
  * No dedicated "save result" route: this one already enforces CSRF, membership,
- * organization scoping and the upload ceiling, and `uploadToWorkspace`
- * deduplicates by content checksum within the Workspace — so a second press
- * answers with the first document's id instead of a twin. A new endpoint would
- * have had to re-earn all four.
+ * organization scoping and the upload ceiling. A new endpoint would have had to
+ * re-earn all four.
+ *
+ * `saveIntentKey` is what makes a second press cheap and a second SAVE possible.
+ * The key belongs to this result AND to the chosen destination, so every retry of
+ * this press converges on the one document it made while the same result saved into
+ * a second Workspace is allowed to be its own save; a different result, or a re-run of the same tool, carries a
+ * different key and is allowed to become its own document even when the bytes are
+ * identical. Without it the server would fall back to content dedup, which is what
+ * used to answer a deliberate second save with the first document under the first
+ * name. `saveIntentSource` is the tool, so one key cannot be replayed for another
+ * tool's output.
  *
  * `organizationId` is sent because the server resolved it for this session (see
  * `/api/workflow/save-target`); the route re-checks membership for it either way.
  */
-function saveLocalResult(target: ResultSaveTarget, result: ProcessedResult): Promise<Response> {
+function saveLocalResult(
+  target: ResultSaveTarget,
+  result: ProcessedResult,
+  toolSlug: string | null,
+): Promise<Response> {
   const form = new FormData();
   form.append("file", result.blob, result.fileName);
   form.append("name", result.fileName);
   form.append("organizationId", target.organizationId);
+  if (result.saveIntentKey) {
+    form.append("saveIntentKey", saveIntentKeyForTarget(result.saveIntentKey, target.workspaceId));
+    form.append("saveIntentSource", toolSlug ?? "local-result");
+  }
   return fetch(`/api/workspaces/${encodeURIComponent(target.workspaceId)}/documents/upload`, {
     method: "POST",
     body: form,

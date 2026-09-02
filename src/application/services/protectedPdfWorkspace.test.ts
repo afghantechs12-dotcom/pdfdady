@@ -41,6 +41,7 @@ import { InMemoryDocumentVersionRepository } from "@/src/infrastructure/persiste
 import { LocalFileStorage } from "@/src/infrastructure/storage/LocalFileStorage";
 import { capabilityForSlug } from "@/lib/tools/capability";
 import { DomainError, NotFoundError } from "@/src/domain/errors";
+import { InMemoryWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/InMemoryWorkspaceSaveIntentRepository";
 
 const ORG = "org-alpha";
 const WS = "ws-alpha";
@@ -186,6 +187,7 @@ async function harness() {
     { async getById() { return null; } } as unknown as FolderRepository,
     { async getById() { return null; } } as unknown as ProjectRepository,
     ingestions,
+    new InMemoryWorkspaceSaveIntentRepository(),
   );
   const ingestionService = new DocumentIngestionService(
     logger,

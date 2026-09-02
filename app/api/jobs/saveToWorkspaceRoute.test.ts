@@ -85,6 +85,7 @@ import { PrismaWorkspaceRepository } from "@/src/infrastructure/persistence/Pris
 import { PrismaWorkspaceMembershipRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceMembershipRepository";
 import { PrismaDocumentRecordRepository } from "@/src/infrastructure/persistence/PrismaDocumentRecordRepository";
 import { PrismaDocumentIngestionRepository } from "@/src/infrastructure/persistence/PrismaDocumentIngestionRepository";
+import { PrismaWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceSaveIntentRepository";
 import { PrismaStoredFileRepository } from "@/src/infrastructure/persistence/PrismaStoredFileRepository";
 import { PrismaFolderRepository } from "@/src/infrastructure/persistence/PrismaFolderRepository";
 import { PrismaProjectRepository } from "@/src/infrastructure/persistence/PrismaProjectRepository";
@@ -94,6 +95,7 @@ import { LocalFileStorage } from "@/src/infrastructure/storage/LocalFileStorage"
 import { DOCUMENT_INGESTION_LIMITS } from "@/src/domain/entities/DocumentIngestion";
 import type { ILogger, LogFields } from "@/src/application/ports/Logger";
 import { POST } from "@/app/api/jobs/[id]/save-to-workspace/route";
+import { saveIntentKeyForJob, saveIntentKeyForTarget } from "@/lib/workflow/saveIntent";
 
 const root = process.cwd();
 const prismaExecutable = path.join(root, "node_modules", "prisma", "build", "index.js");
@@ -116,8 +118,17 @@ let clock: Date;
 let audit: Array<{ action: string; resourceId?: string | null; metadata?: unknown }>;
 let world: Awaited<ReturnType<typeof seed>>;
 
-/** The result bytes a completed cloud job left in PDFDadi's own storage. */
-const OUTPUT = Buffer.from("%PDF-1.7\n% compressed cloud result\ntrailer\n<< >>\n%%EOF\n");
+/**
+ * The result bytes a completed cloud job left in PDFDadi's own storage.
+ *
+ * Padded to a few KB so the byte-relay assertion below stays an argument rather
+ * than an accident: the request body carries two ids and a save-intent key, which
+ * is a couple of hundred bytes, and "the request was smaller than the PDF" only
+ * means anything while the PDF is comfortably the larger of the two.
+ */
+const OUTPUT = Buffer.from(
+  `%PDF-1.7\n% compressed cloud result\n% ${"pad ".repeat(1024)}\ntrailer\n<< >>\n%%EOF\n`,
+);
 const NOT_A_PDF = Buffer.from("PK zip of images");
 
 function post(
@@ -130,7 +141,7 @@ function post(
   if (opts.contentType !== null) headers.set("content-type", opts.contentType ?? "application/json");
   const token = opts.session === undefined ? cookieState.session : opts.session;
   if (token) headers.set("cookie", `pdfdadi_session=${token}`);
-  const payload = typeof body === "string" ? body : JSON.stringify(body);
+  const payload = typeof body === "string" ? body : JSON.stringify(withSaveIntent(id, body));
   const request = new NextRequest(`${ORIGIN}/api/jobs/${id}/save-to-workspace`, {
     method: "POST",
     headers,
@@ -141,6 +152,25 @@ function post(
     /** What the browser actually sent — the byte-relay assertion reads this. */
     requestBytes: Buffer.byteLength(payload),
     params: Promise.resolve({ id }),
+  };
+}
+
+/**
+ * What `saveJobResultToWorkspace` actually sends, so these tests exercise the
+ * request the product makes: the save INTENTION, per job and per destination.
+ *
+ * Injected here rather than at each call site because it is not the subject of any
+ * one test — it is the shape of every real request. A body that names no Workspace
+ * (the malformed-body cases) is left exactly as written.
+ */
+function withSaveIntent(id: string, body: unknown): unknown {
+  if (body === null || typeof body !== "object") return body;
+  const named = body as { workspaceId?: unknown; saveIntentKey?: unknown };
+  if (typeof named.workspaceId !== "string") return body;
+  if ("saveIntentKey" in named) return body;
+  return {
+    ...named,
+    saveIntentKey: saveIntentKeyForTarget(saveIntentKeyForJob(id), named.workspaceId),
   };
 }
 
@@ -306,6 +336,7 @@ beforeAll(() => {
       new PrismaFolderRepository(prisma),
       new PrismaProjectRepository(prisma),
       new PrismaDocumentIngestionRepository(prisma),
+      new PrismaWorkspaceSaveIntentRepository(prisma),
     ),
   );
   registry.set(Tokens.AuditLogRepository, {
@@ -588,8 +619,8 @@ describe("POST /api/jobs/:id/save-to-workspace — the save", () => {
     // not asserted. What is asserted is that they agree on the answer.
     expect([a.res.status, b.res.status].sort()).toEqual([200, 201]);
     expect((a.json?.document as { id: string }).id).toBe((b.json?.document as { id: string }).id);
-    // The loser's own row is unwound to `trashed` before it converges, so the
-    // count that matters is the count of documents the Workspace actually shows.
+    // The loser never creates a row at all: the intention's unique index refuses
+    // its claim, so it polls and converges on the winner's document.
     expect(await prisma.documentRecord.count({ where: { lifecycleState: { not: "trashed" } } })).toBe(1);
     expect(await prisma.documentIngestion.count()).toBe(1);
     expect(audit).toHaveLength(1);
@@ -604,8 +635,10 @@ describe("POST /api/jobs/:id/save-to-workspace — the save", () => {
     const team = await call(job.id, { workspaceId: world.workspaces.team });
 
     // Same job, same bytes, two Workspaces the actor may save into: two documents.
-    // The identity is `(workspaceId, checksum)`, so it cannot be replayed into a
-    // Workspace the first request was never authorized for.
+    // Two destinations are two intentions, so the client narrows the job's key to
+    // each — and the server would refuse one key arriving with a second
+    // destination, so a save cannot be replayed into a Workspace the first request
+    // was never authorized for.
     expect(team.res.status).toBe(201);
     expect(team.json?.deduplicated).toBe(false);
     expect((team.json?.document as { id: string }).id).not.toBe(

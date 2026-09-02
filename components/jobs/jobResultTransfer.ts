@@ -16,6 +16,7 @@
  */
 
 import type { ResultSaveTarget } from "@/components/tools/resultWorkflow";
+import { saveIntentKeyForJob, saveIntentKeyForTarget } from "@/lib/workflow/saveIntent";
 
 /**
  * The result's bytes, for `Open in Editor`.
@@ -43,6 +44,13 @@ export async function loadJobResultBytes(jobId: string): Promise<Uint8Array> {
  * The body is two ids, and both are checked rather than trusted — job ownership
  * for the source, Workspace membership for the destination. No signed URL is
  * accepted as evidence of either, because none is sent.
+ *
+ * The third field is the save INTENTION, remembered per job and narrowed to this
+ * destination, so that a retry after a lost response — or after a reload that brings
+ * the user back to the same finished job — is the same intention and answers with the
+ * same document, while saving the job into a second Workspace is its own. The server
+ * binds it to this job id and to the checksum of the bytes it actually read, so a key
+ * minted here for one result cannot be presented for another.
  */
 export function saveJobResultToWorkspace(
   jobId: string,
@@ -54,6 +62,7 @@ export function saveJobResultToWorkspace(
     body: JSON.stringify({
       workspaceId: target.workspaceId,
       organizationId: target.organizationId,
+      saveIntentKey: saveIntentKeyForTarget(saveIntentKeyForJob(jobId), target.workspaceId),
     }),
   });
 }

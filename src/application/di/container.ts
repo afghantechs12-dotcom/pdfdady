@@ -91,6 +91,7 @@ import { PrismaSearchDocumentRepository } from "@/src/infrastructure/persistence
 import { PrismaSearchChunkRepository } from "@/src/infrastructure/persistence/PrismaSearchChunkRepository";
 import { SQLiteSearchIndexAdapter } from "@/src/infrastructure/persistence/SQLiteSearchIndexAdapter";
 import { PrismaDocumentIngestionRepository } from "@/src/infrastructure/persistence/PrismaDocumentIngestionRepository";
+import { PrismaWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceSaveIntentRepository";
 import { PrismaDocumentMetadataRepository } from "@/src/infrastructure/persistence/PrismaDocumentMetadataRepository";
 import { PrismaBookmarkRepository } from "@/src/infrastructure/persistence/PrismaBookmarkRepository";
 import { PrismaOutlineItemRepository } from "@/src/infrastructure/persistence/PrismaOutlineItemRepository";
@@ -120,6 +121,7 @@ import type { SearchDocumentRepository } from "@/src/application/ports/workspace
 import type { SearchChunkRepository } from "@/src/application/ports/workspaces/SearchChunkRepository";
 import type { SearchIndexPort } from "@/src/application/ports/workspaces/SearchIndexPort";
 import type { DocumentIngestionRepository } from "@/src/application/ports/workspaces/DocumentIngestionRepository";
+import type { WorkspaceSaveIntentRepository } from "@/src/application/ports/workspaces/WorkspaceSaveIntentRepository";
 import type { DocumentMetadataRepository } from "@/src/application/ports/workspaces/DocumentMetadataRepository";
 import type { BookmarkRepository } from "@/src/application/ports/workspaces/BookmarkRepository";
 import type { OutlineItemRepository } from "@/src/application/ports/workspaces/OutlineItemRepository";
@@ -541,6 +543,9 @@ export function createContainer(): Container {
   c.register<DocumentIngestionRepository>(Tokens.DocumentIngestionRepository, (cc) => {
     return new PrismaDocumentIngestionRepository(cc.resolve<PrismaClient>(Tokens.PrismaClient));
   });
+  c.register<WorkspaceSaveIntentRepository>(Tokens.WorkspaceSaveIntentRepository, (cc) => {
+    return new PrismaWorkspaceSaveIntentRepository(cc.resolve<PrismaClient>(Tokens.PrismaClient));
+  });
   c.register<WorkspaceAwareUploadService>(Tokens.WorkspaceAwareUploadService, (cc) => {
     return new WorkspaceAwareUploadService(
       cc.resolve<IObjectStorage>(Tokens.ObjectStorage),
@@ -551,6 +556,7 @@ export function createContainer(): Container {
       cc.resolve(Tokens.FolderRepository),
       cc.resolve(Tokens.ProjectRepository),
       cc.resolve<DocumentIngestionRepository>(Tokens.DocumentIngestionRepository),
+      cc.resolve<WorkspaceSaveIntentRepository>(Tokens.WorkspaceSaveIntentRepository),
       cc.resolve<IQueue>(Tokens.Queue),
     );
   });
@@ -600,6 +606,7 @@ export function createContainer(): Container {
       cc.resolve<DocumentVersionRepository>(Tokens.DocumentVersionRepository),
       cc.resolve(Tokens.DocumentRecordRepository),
       cc.resolve<IObjectStorage>(Tokens.ObjectStorage),
+      cc.resolve<IFileMetadataRepository>(Tokens.FileMetadataRepository),
     );
   });
 

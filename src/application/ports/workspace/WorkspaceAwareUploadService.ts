@@ -1,6 +1,7 @@
 import type { UploadInput, UploadInputStream, UploadResult } from "@/src/application/ports/storage/UploadService";
 import type { WorkspaceUploadResult } from "@/src/domain/entities/DocumentIngestion";
 import type { ActorContext } from "@/src/application/services/WorkspaceService";
+import type { SaveIntentRequest } from "@/src/domain/entities/WorkspaceSaveIntent";
 
 export interface IWorkspaceAwareUploadService {
   /**
@@ -14,6 +15,13 @@ export interface IWorkspaceAwareUploadService {
       folderId?: string | null;
       projectId?: string | null;
       name?: string;
+      /**
+       * The user's save INTENTION, when the caller has one. Present: the save is
+       * idempotent per intention and identical bytes may become a second
+       * document. Absent: the legacy content-dedup path, which is still what a
+       * file-manager upload and the editor's first save want.
+       */
+      saveIntent?: SaveIntentRequest | null;
     },
   ): Promise<WorkspaceUploadResult>;
 

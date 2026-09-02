@@ -7,6 +7,20 @@ export interface ProcessedResult {
   blob: Blob;
   fileName: string;
   mimeType: string;
+  /**
+   * This result's save INTENTION, if it has one yet.
+   *
+   * Optional because no processor mints it — `usePdfProcessor` does, once, when a
+   * run succeeds, and that is the narrowest seam that covers all eighteen local
+   * tools. A result assembled without going through the hook (a test, a direct
+   * call) simply has no intention, and saving it falls back to content dedup.
+   *
+   * It travels WITH the result rather than beside it so that "the same result" and
+   * "the same intention" cannot come apart: a retry re-reads this object, a new run
+   * replaces it, and there is no third state where the bytes changed and the key
+   * did not.
+   */
+  saveIntentKey?: string;
 }
 
 export type ToolProcessor = (

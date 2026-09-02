@@ -215,6 +215,7 @@ import {
   makeTextObject,
 } from "@/src/domain/editor/testFactories";
 import { createPlainTextContent } from "@/src/domain/editor/textContent";
+import { InMemoryStoredFileRepository } from "@/src/infrastructure/persistence/InMemoryStoredFileRepository";
 
 const codec = new SerializationService();
 
@@ -322,6 +323,7 @@ beforeEach(() => {
       versionRepository,
       documents as never,
       storage,
+      new InMemoryStoredFileRepository(),
     ),
   };
 });

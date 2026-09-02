@@ -456,6 +456,12 @@ describe("DI Container — durable document versions (M7.6)", () => {
       get: async () => ({ workspace: { id: "ws-a", organizationId: "org-a" }, role: "editor" }),
     }));
     c.register(Tokens.DocumentRecordRepository, () => documents.repository);
+    // Pruning asks this whether a version's artifact is still a stored file before
+    // deleting the object, so an unregistered token here is a resolve-time failure.
+    c.register<IFileMetadataRepository>(
+      Tokens.FileMetadataRepository,
+      () => new InMemoryStoredFileRepository(),
+    );
     c.register<VersionService>(Tokens.VersionService, (cc) => {
       return new VersionService(
         cc.resolve<ILogger>(Tokens.Logger),
@@ -463,6 +469,7 @@ describe("DI Container — durable document versions (M7.6)", () => {
         cc.resolve<DocumentVersionRepository>(Tokens.DocumentVersionRepository),
         cc.resolve(Tokens.DocumentRecordRepository),
         cc.resolve<IObjectStorage>(Tokens.ObjectStorage),
+        cc.resolve<IFileMetadataRepository>(Tokens.FileMetadataRepository),
       );
     });
     return { container: c, documents };
@@ -474,7 +481,7 @@ describe("DI Container — durable document versions (M7.6)", () => {
     expect(repo).toBeInstanceOf(InMemoryDocumentVersionRepository);
   });
 
-  it("resolves VersionService with all five dependencies", () => {
+  it("resolves VersionService with all six dependencies", () => {
     const { container } = createVersionContainer();
     expect(container.resolve<VersionService>(Tokens.VersionService)).toBeInstanceOf(VersionService);
   });

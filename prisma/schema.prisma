@@ -444,11 +444,66 @@ model DocumentIngestion {
   updatedAt      DateTime  @updatedAt
   completedAt    DateTime?
 
-  @@unique([workspaceId, checksum])
+  /*
+   * `(workspaceId, checksum)` is an INDEX, not a constraint.
+   *
+   * It was unique, and that made content the identity of a save operation: the
+   * same bytes could exist in a Workspace once, so two deliberate saves of one
+   * file collapsed into one document under the first name, and save → trash →
+   * save the same bytes again hit the constraint and returned a server error.
+   * Operation identity is `WorkspaceSaveIntent` below; this index is what makes
+   * the *content* lookup (the keyless upload path's dedup) fast.
+   */
+  @@index([workspaceId, checksum])
   @@unique([workspaceId, documentId])
   @@index([workspaceId, status])
   @@index([organizationId, workspaceId])
   @@map("document_ingestions")
+}
+
+// ---- Phase 5: save-operation identity ---------------------------------------
+// One row per INTENTION to save a result into a Workspace — which is not the
+// same thing as one row per set of bytes. A retried request (a lost response, a
+// remounted result panel, a double submit) carries the same key and converges on
+// the document the first attempt produced; a genuinely new save carries a new key
+// and gets its own document even when the bytes are identical.
+//
+// String status (SQLite portability: no Prisma enums), no Json.
+model WorkspaceSaveIntent {
+  id             String   @id @default(cuid())
+  /// Client-minted, high-entropy. Never authorization, never derived from a name.
+  key            String
+  organizationId String
+  /// The actor the key belongs to. Part of the uniqueness scope, so one member's
+  /// key can never reach another member's operation and its existence is not
+  /// observable across actors.
+  userId         String
+  /// The destination this intention named. Part of the intention's MEANING.
+  workspaceId    String
+  /// local-result | processing-job
+  sourceKind     String
+  /// The result or job this intention saves. Also part of its meaning.
+  sourceIdentity String
+  /// sha256 of the bytes the intention carried. Content, checked as meaning.
+  payloadChecksum String
+  /// pending | completed | failed
+  status         String   @default("pending")
+  /// The document the completed intention produced.
+  documentId     String?
+  ingestionId    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  /*
+   * The mutual exclusion. A save claims its row before it does any work, so two
+   * concurrent requests for one intention cannot both proceed — and the claim is
+   * a database constraint rather than a process-local lock, so it holds across
+   * workers, processes and restarts.
+   */
+  @@unique([organizationId, userId, key])
+  @@index([workspaceId, status])
+  @@index([documentId])
+  @@map("workspace_save_intents")
 }
 
 // ---- M7.5: durable autosave drafts -----------------------------------------

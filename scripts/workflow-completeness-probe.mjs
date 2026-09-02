@@ -28,6 +28,9 @@
  *   L  the bytes in the Workspace are the bytes the tool produced
  *   M  two real sessions race, and the stale one gets a real conflict dialog
  *   I' the same non-PDF question again, in the browser, on a REAL job result
+ *   N  a save INTENTION is the identity: a retry, a deliberate re-save of
+ *      identical bytes, and a save after a trash — the three the previous
+ *      closeout got wrong by treating the content checksum as the identity
  *
  * WHAT WOULD MAKE THIS VACUOUS, and how each is guarded:
  *
@@ -2138,6 +2141,252 @@ async function main() {
   );
 
   /* ================= H. signed out: sign-in, never a silent upload ========= */
+  /* ================= N. the INTENTION is the identity, not the bytes ======= */
+  section("N", "a save intention decides whether two saves are one, and content does not");
+  /*
+   * The three counterexamples the previous closeout got wrong, in the browser.
+   *
+   * All three are ordinary product requests: one multipart POST to the same upload
+   * route the Save button uses, from a real signed-in page, carrying the same
+   * `saveIntentKey` field `ResultActions` sends. No test-mode endpoint exists and
+   * none is added — the ONLY thing that differs between the three is the key.
+   *
+   * Fresh bytes, produced here and never saved in this run, so every count below
+   * is a fact about journey N rather than about whatever the earlier journeys left
+   * behind.
+   */
+  const pdfN = await makePdf(join(fixtures, `save-intent-${stamp}.pdf`), "Nu", 2);
+  const nWorkspaceId = workspaceId ?? "";
+  const nDocumentsPath = `/api/workspaces/${encodeURIComponent(nWorkspaceId)}/documents?${wsQuery}`;
+  const nBase64 = readFileSync(pdfN).toString("base64");
+  /** Re-run after every navigation: a fresh document has no `window` state. */
+  const installIntentBytes = () =>
+    evaluate(
+      `(() => { window.__probeIntentBytes = ${JSON.stringify(
+        nBase64,
+      )}; return window.__probeIntentBytes.length; })()`,
+    );
+  await goto(`/workspaces/${encodeURIComponent(nWorkspaceId)}?${wsQuery}`, 3800);
+  await installIntentBytes();
+  const nBaseline = countOf(await api(nDocumentsPath));
+  check(
+    "N: the Workspace list is readable, so a second document would be visible",
+    typeof nBaseline === "number",
+    `count ${nBaseline}`,
+  );
+
+  /**
+   * One press of Save, as the product sends it. `tweak` appends bytes AFTER the
+   * PDF's own EOF — still a PDF by every check the route makes, and a different
+   * checksum — which is how "this key now means something else" is expressed
+   * without inventing an endpoint.
+   */
+  const saveWithIntent = (key, fileName, tweak = "") =>
+    evaluate(`(async () => {
+      const raw = atob(window.__probeIntentBytes);
+      const suffix = ${JSON.stringify(tweak)};
+      const bytes = new Uint8Array(raw.length + suffix.length);
+      for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+      for (let i = 0; i < suffix.length; i += 1) bytes[raw.length + i] = suffix.charCodeAt(i);
+      const form = new FormData();
+      form.append("file", new Blob([bytes], { type: "application/pdf" }), ${JSON.stringify(fileName)});
+      form.append("name", ${JSON.stringify(fileName)});
+      form.append("organizationId", ${JSON.stringify(organizationId)});
+      form.append("saveIntentKey", ${JSON.stringify(key)});
+      const res = await fetch(
+        "/api/workspaces/" + encodeURIComponent(${JSON.stringify(nWorkspaceId)}) + "/documents/upload",
+        { method: "POST", body: form },
+      );
+      return { status: res.status, body: await res.json().catch(() => null) };
+    })()`);
+  const shaOfDocument = (documentId) =>
+    evaluate(`(async () => {
+      const res = await fetch(
+        "/api/workspaces/" + encodeURIComponent(${JSON.stringify(nWorkspaceId)}) +
+          "/documents/" + encodeURIComponent(${JSON.stringify(documentId)}) +
+          "/content?${wsQuery}&artifact=source",
+      );
+      if (!res.ok) return "status " + res.status;
+      const digest = await crypto.subtle.digest("SHA-256", await res.arrayBuffer());
+      return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    })()`);
+
+  /* --- N1: the response was lost and the user pressed Save again ----------- */
+  const nKeyOne = `si-probe-n1-${stamp}`;
+  const nFirstName = `intent-original-${stamp}.pdf`;
+  const nFirst = await saveWithIntent(nKeyOne, nFirstName);
+  const nFirstId = nFirst?.body?.document?.id ?? null;
+  check(
+    "N1: a new intention saves the result and returns its document",
+    nFirst?.status === 201 && typeof nFirstId === "string" && nFirst.body?.deduplicated !== true,
+    `→ ${nFirst?.status} id=${nFirstId} deduplicated=${nFirst?.body?.deduplicated}`,
+  );
+  // A DIFFERENT filename on the retry, because a retry that only works when the
+  // name matches is a name-based identity wearing a key's clothes.
+  const nRetry = await saveWithIntent(nKeyOne, `intent-retry-${stamp}.pdf`);
+  check(
+    "N1: the SAME intention retried returns the SAME document, not a second one",
+    nRetry?.status === 200 &&
+      nRetry.body?.deduplicated === true &&
+      nRetry.body?.document?.id === nFirstId,
+    `→ ${nRetry?.status} id=${nRetry?.body?.document?.id} deduplicated=${nRetry?.body?.deduplicated}`,
+  );
+  check(
+    "N1: and the retry did not rename the document the first request made",
+    nRetry?.body?.document?.name === nFirstName,
+    `name ${nRetry?.body?.document?.name} (saved as ${nFirstName})`,
+  );
+  check(
+    "N1: two requests, exactly one new document in the Workspace",
+    countOf(await api(nDocumentsPath)) === nBaseline + 1,
+    `${countOf(await api(nDocumentsPath))} document(s), baseline ${nBaseline}`,
+  );
+  // Ingestion is asynchronous, so version 1 is polled for rather than assumed —
+  // and what is being watched for is a SECOND one appearing after it.
+  const nVersionsPath = `/api/workspaces/${encodeURIComponent(nWorkspaceId)}/documents/${encodeURIComponent(
+    nFirstId ?? "",
+  )}/versions?${wsQuery}`;
+  for (let attempt = 0; attempt < 14 && nFirstId; attempt += 1) {
+    if (versionNumbersOf(await api(nVersionsPath)).length >= 1) break;
+    await sleep(1500);
+  }
+  // A settled pause after the first version appears: the assertion below is that a
+  // SECOND one never shows up, and reading the moment the first lands would pass
+  // before the retry's ingestion could have cut one.
+  await sleep(2500);
+  const nVersions = nFirstId ? versionNumbersOf(await api(nVersionsPath)) : [];
+  check(
+    "N1: and exactly ONE initial version, not one per request",
+    nVersions.length === 1 && nVersions[0] === 1,
+    `versions [${nVersions.join(",")}]`,
+  );
+
+  /* --- N2: a deliberate second save of identical bytes --------------------- */
+  const nKeyTwo = `si-probe-n2-${stamp}`;
+  const nSecondName = `intent-copy-${stamp}.pdf`;
+  const nSecond = await saveWithIntent(nKeyTwo, nSecondName);
+  const nSecondId = nSecond?.body?.document?.id ?? null;
+  check(
+    "N2: a NEW intention over IDENTICAL bytes is a new document — the recorded defect",
+    nSecond?.status === 201 &&
+      typeof nSecondId === "string" &&
+      nSecondId !== nFirstId &&
+      nSecond.body?.deduplicated !== true,
+    `→ ${nSecond?.status} id=${nSecondId} (first ${nFirstId}) deduplicated=${nSecond?.body?.deduplicated}`,
+  );
+  check(
+    "N2: and it is filed under the name the user chose, not the first save's name",
+    nSecond?.body?.document?.name === nSecondName,
+    `name ${nSecond?.body?.document?.name} (asked for ${nSecondName})`,
+  );
+  check(
+    "N2: both documents are in the Workspace",
+    countOf(await api(nDocumentsPath)) === nBaseline + 2,
+    `${countOf(await api(nDocumentsPath))} document(s), baseline ${nBaseline}`,
+  );
+  // Two logical documents, one physical object: both must download, byte-identical.
+  const [nShaOne, nShaTwo] = [await shaOfDocument(nFirstId ?? ""), await shaOfDocument(nSecondId ?? "")];
+  check(
+    "N2: both download the same bytes — one stored object serves two documents",
+    typeof nShaOne === "string" && nShaOne.length === 64 && nShaOne === nShaTwo,
+    `${nShaOne} vs ${nShaTwo}`,
+  );
+
+  /*
+   * ONE activity entry for N1's two requests, read BEFORE the trash below adds an
+   * event of its own. Counted as feed list items containing the document's name,
+   * the way journey K counts them, so a feed that prints the name twice inside one
+   * entry cannot inflate the number.
+   */
+  await goto(`/workspaces/${encodeURIComponent(nWorkspaceId)}?${wsQuery}`, 6500);
+  const nActivity = await evaluate(`(() => {
+    const list = [...document.querySelectorAll('ul')].find((u) =>
+      /published|saved|uploaded|created/i.test(u.textContent || ''),
+    );
+    if (!list) return null;
+    return [...list.children]
+      .map((n) => (n.textContent || '').replace(/\\s+/g, ' ').trim())
+      .filter((t) => t.indexOf(${JSON.stringify(nFirstName)}) >= 0);
+  })()`);
+  check(
+    "N1: the save and its retry produced ONE activity entry, not two",
+    Array.isArray(nActivity) && nActivity.length === 1,
+    Array.isArray(nActivity)
+      ? `${nActivity.length} entr(ies): ${nActivity.join(" || ").slice(0, 200)}`
+      : `activity feed not found for ${nFirstName}`,
+    Array.isArray(nActivity) ? "PRODUCT" : "PROBE",
+  );
+  await installIntentBytes();
+
+  /* --- N3: trash, then save the same bytes again --------------------------- */
+  const nTrashStatus = await evaluate(
+    `fetch("/api/workspaces/" + encodeURIComponent(${JSON.stringify(nWorkspaceId)}) +
+      "/documents/" + encodeURIComponent(${JSON.stringify(nFirstId ?? "")}) + "/lifecycle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId: ${JSON.stringify(organizationId)}, state: "trashed" }),
+    }).then((r) => r.status).catch(() => 0)`,
+  );
+  check("N3: the first document can be trashed", nTrashStatus === 200, `lifecycle → ${nTrashStatus}`);
+  const nKeyThree = `si-probe-n3-${stamp}`;
+  const nAfterTrashName = `intent-after-trash-${stamp}.pdf`;
+  const nAfterTrash = await saveWithIntent(nKeyThree, nAfterTrashName);
+  const nAfterTrashId = nAfterTrash?.body?.document?.id ?? null;
+  check(
+    "N3: saving those same bytes again AFTER the trash succeeds — no constraint error",
+    nAfterTrash?.status === 201 && typeof nAfterTrashId === "string",
+    `→ ${nAfterTrash?.status} ${JSON.stringify(nAfterTrash?.body ?? "").slice(0, 200)}`,
+  );
+  check(
+    "N3: and it is a NEW document, not the trashed one handed back as a success",
+    nAfterTrashId !== nFirstId && nAfterTrash?.body?.document?.name === nAfterTrashName,
+    `id=${nAfterTrashId} (trashed ${nFirstId}) name=${nAfterTrash?.body?.document?.name}`,
+  );
+  const nShaThree = await shaOfDocument(nAfterTrashId ?? "");
+  check(
+    "N3: the new document downloads, and holds the same bytes that were saved",
+    nShaThree === nShaOne,
+    `${nShaThree} vs ${nShaOne}`,
+  );
+  const nTrashedRead = await api(
+    `/api/workspaces/${encodeURIComponent(nWorkspaceId)}/documents/${encodeURIComponent(
+      nFirstId ?? "",
+    )}?${wsQuery}`,
+  );
+  check(
+    "N3: the trashed document was NOT silently restored by that save",
+    nTrashedRead?.body?.document?.lifecycleState === "trashed",
+    `lifecycleState ${nTrashedRead?.body?.document?.lifecycleState} (status ${nTrashedRead?.status})`,
+  );
+
+  /* --- N4: the same key, a different meaning ------------------------------- */
+  // Not one of the three, but the same identity read from the other side: a key
+  // that has already been settled for one result must not be usable for another,
+  // and the refusal must be a conflict the client can act on rather than a 500.
+  // Counted immediately before, because the list view is `lifecycleState: "active"`
+  // and N3 trashed one of the three: what "created nothing" means is that THIS
+  // request changed the count by zero, not that some absolute total was reached.
+  const nBeforeConflict = countOf(await api(nDocumentsPath));
+  const nConflict = await saveWithIntent(nKeyOne, `intent-different-${stamp}.pdf`, "\n%probe-n4\n");
+  check(
+    "N4: the settled key presented for DIFFERENT bytes is a 409, not a 500 and not a save",
+    nConflict?.status === 409,
+    `→ ${nConflict?.status} ${JSON.stringify(nConflict?.body ?? "").slice(0, 200)}`,
+  );
+  check(
+    "N4: and the refusal names no document, destination or existing save",
+    !JSON.stringify(nConflict?.body ?? "").includes(String(nFirstId)) &&
+      !JSON.stringify(nConflict?.body ?? "").includes(nWorkspaceId) &&
+      nConflict?.body?.document === undefined,
+    JSON.stringify(nConflict?.body ?? "").slice(0, 200),
+  );
+  const nAfterConflict = countOf(await api(nDocumentsPath));
+  check(
+    "N4: the refused request created nothing — the Workspace is exactly as it was",
+    nAfterConflict === nBeforeConflict && nBeforeConflict === nBaseline + 2,
+    `${nAfterConflict} document(s) before ${nBeforeConflict}; baseline ${nBaseline} + 3 saves - 1 trashed`,
+  );
+
   section("H", "a signed-out result offers sign-in and still opens in the editor");
   const logoutStatus = await evaluate(
     `fetch("/api/auth/logout", { method: "POST" }).then((r) => r.status).catch(() => 0)`,

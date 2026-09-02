@@ -11,6 +11,7 @@ import {
   workspaceServices,
 } from "@/src/application/services/workspaceHttp";
 import { ensureWorkerReady } from "@/src/infrastructure/jobs/workerBootstrap";
+import type { SaveIntentRequest } from "@/src/domain/entities/WorkspaceSaveIntent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,24 @@ function optionalField(form: FormData, name: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "null") return null;
   return trimmed;
+}
+
+/**
+ * The save intention this request carries, or null.
+ *
+ * `saveIntentSource` says which local result the key was minted for. It defaults
+ * to a constant rather than to the filename: a name is renamed, retyped and
+ * shared, so inferring identity from it would make two unrelated saves of
+ * "document.pdf" look like one intention.
+ */
+function saveIntent(form: FormData): SaveIntentRequest | null {
+  const key = optionalField(form, "saveIntentKey");
+  if (key === null) return null;
+  return {
+    key,
+    sourceKind: "local-result",
+    sourceIdentity: optionalField(form, "saveIntentSource") ?? "local-result",
+  };
 }
 
 /**
@@ -97,6 +116,21 @@ export async function POST(
       name: optionalField(form, "name") ?? undefined,
       folderId: optionalField(form, "folderId"),
       projectId: optionalField(form, "projectId"),
+      /*
+       * The user's save INTENTION, when the client has one.
+       *
+       * Present for a tool result the user pressed Save on: the same intention
+       * retried converges on the document it already made, and the same bytes saved
+       * again deliberately become a second document under their own name.
+       *
+       * Absent for a file-manager upload and for the editor's first save, which
+       * keep the content-dedup behaviour they have always had — dragging a file in
+       * twice is not two intentions, it is the same file arriving twice.
+       *
+       * Never authorization: everything above has already resolved the actor and
+       * the Workspace, and the key is scoped to that actor inside the service.
+       */
+      saveIntent: saveIntent(form),
     });
 
     /*

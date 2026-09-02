@@ -22,6 +22,7 @@ import {
   serializeManifest,
 } from "@/src/domain/entities/DocumentVersion";
 import { DomainError, NotFoundError } from "@/src/domain/errors";
+import type { IFileMetadataRepository } from "@/src/application/ports/storage/FileMetadataRepository";
 
 export interface VersionServiceOptions {
   /**
@@ -117,6 +118,16 @@ export class VersionService {
     private readonly versions: DocumentVersionRepository,
     private readonly documents: DocumentRecordRepository,
     private readonly storage: IObjectStorage,
+    /**
+     * The StoredFile index, consulted before any artifact is collected.
+     *
+     * Version manifests name content-addressed keys, so an initial `import`
+     * version points at the very object every other document with those bytes
+     * points at. Workspace-scoped reference counting cannot see those — that is
+     * the point of a Workspace scope — so retention needs the one index that is
+     * global to content.
+     */
+    private readonly meta: IFileMetadataRepository,
     options: VersionServiceOptions = {},
   ) {
     const requested = options.maxVersionsPerDocument ?? 0;
@@ -251,7 +262,7 @@ export class VersionService {
         const deleted = await this.versions.delete(workspaceId, version.id);
         if (!deleted) continue;
         for (const key of keys) {
-          if (await this.versions.isArtifactReferenced(workspaceId, key)) continue;
+          if (await this.artifactStillReferenced(workspaceId, key)) continue;
           await this.storage.delete(key);
         }
       }
@@ -262,6 +273,27 @@ export class VersionService {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  /**
+   * Whether anything at all still needs these bytes.
+   *
+   * TWO questions, because there are two kinds of reference and either one alone
+   * loses data:
+   *
+   *  - another version in this Workspace names the key — the ordinary case, and
+   *    Workspace-scoped on purpose so retention cannot probe other tenants;
+   *  - a StoredFile row names it — which is how a *different document* holding the
+   *    same content is visible at all. Keys are content-addressed, so saving one
+   *    file into two Workspaces gives both documents the same object. Asking only
+   *    the first question deletes it out from under the second.
+   *
+   * Errs toward keeping: a failed lookup answers "still referenced". An orphaned
+   * object costs disk; a collected one that was still in use costs a document.
+   */
+  private async artifactStillReferenced(workspaceId: string, key: string): Promise<boolean> {
+    if (await this.versions.isArtifactReferenced(workspaceId, key)) return true;
+    return this.meta.existsByKey(key).catch(() => true);
   }
 
   /**

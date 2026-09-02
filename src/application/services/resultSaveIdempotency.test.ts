@@ -2,28 +2,34 @@
  * C9-C13 — one logical save of one result produces one document, against a real
  * migrated database.
  *
- * WHY A REAL DATABASE. The identity that makes a save idempotent is a unique
- * index — `DocumentIngestion @@unique([workspaceId, checksum])` — and no fake in
- * this repository can fail the way production would: the in-memory ingestion twin
- * only enforces `(workspaceId, documentId)`, so two concurrent saves of the same
- * result would quietly produce two rows there and the suite would stay green while
- * the user collected two documents. The constraint, the transaction boundary and
- * the losing request's rollback are the things under test, so SQLite is real, the
- * migrations are real, and the storage is a real `LocalFileStorage`.
+ * WHY A REAL DATABASE. The identity that makes a save idempotent is a unique index
+ * — `WorkspaceSaveIntent @@unique([organizationId, userId, key])` — and no fake in
+ * this repository can fail the way production would: two concurrent saves that both
+ * "insert" happily would leave the suite green while the user collected two
+ * documents. The constraint, the transaction boundary and the losing request's
+ * rollback are the things under test, so SQLite is real, the migrations are real,
+ * and the storage is a real `LocalFileStorage`.
  *
- * WHAT PROVIDES THE IDENTITY, and why no migration was needed. A result's bytes
- * are fixed the moment the run finishes, and the destination is part of the key,
- * so `(workspaceId, sha256(result))` already IS "this result, saved here" — it is
- * persistent, transactional, survives a process restart, and is written by the
- * same statement that makes the document real. What was missing was not a column
- * but the behaviour around the collision: the request that lost the race used to
- * report a 500 for a save that had demonstrably happened (so a client retried and
- * could produce a second document) and its rollback deleted the content-addressed
- * object the winner's document referenced.
+ * WHAT PROVIDES THE IDENTITY. The save intention's own key, carried with the result
+ * and re-sent by every retry of it. An earlier closeout claimed `(workspaceId,
+ * sha256(result))` was enough; it is not, because it is a fact about CONTENT, not
+ * about an operation — it makes two deliberate saves of one file collapse into one
+ * document and makes a save after trashing collide with the trashed row. The
+ * checksum keeps the job it is right for: one stored object per distinct bytes.
+ * `saveIntentIdentity.test.ts` holds that separation; this file holds the race, the
+ * lost response and the rollback.
+ *
+ * WHAT A KEYLESS SAVE STILL GETS, and does not. A request with no intention key —
+ * a plain Workspace upload, or a client older than the key — keeps the original
+ * content pre-check, so a sequential repeat still converges and a trashed row is
+ * still skipped rather than returned. What it no longer gets is convergence under
+ * genuine CONCURRENCY: that came from the checksum constraint, and nothing content-
+ * shaped can replace it without becoming save identity again. Every save surface in
+ * the product sends a key, which is why the tests below do.
  *
  * The banned mechanisms are all absent by construction: no process-level lock, no
  * timestamp heuristic, no filename uniqueness, no audit row consulted for identity
- * — the document id comes from the ingestion row every time.
+ * — the document id comes from the intention's row every time.
  */
 
 import { execFileSync } from "node:child_process";
@@ -39,6 +45,7 @@ import { PrismaWorkspaceRepository } from "@/src/infrastructure/persistence/Pris
 import { PrismaWorkspaceMembershipRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceMembershipRepository";
 import { PrismaDocumentRecordRepository } from "@/src/infrastructure/persistence/PrismaDocumentRecordRepository";
 import { PrismaDocumentIngestionRepository } from "@/src/infrastructure/persistence/PrismaDocumentIngestionRepository";
+import { PrismaWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceSaveIntentRepository";
 import { PrismaStoredFileRepository } from "@/src/infrastructure/persistence/PrismaStoredFileRepository";
 import { PrismaFolderRepository } from "@/src/infrastructure/persistence/PrismaFolderRepository";
 import { PrismaProjectRepository } from "@/src/infrastructure/persistence/PrismaProjectRepository";
@@ -142,7 +149,14 @@ function actor(seeded: Seed, userId: string): ActorContext {
 }
 
 /** The save both surfaces perform: the result's bytes into a chosen Workspace. */
-function save(seeded: Seed, userId: string, workspaceId: string, data: Buffer, name = "merged.pdf") {
+function save(
+  seeded: Seed,
+  userId: string,
+  workspaceId: string,
+  data: Buffer,
+  name = "merged.pdf",
+  intentKey?: string,
+) {
   return uploads.uploadToWorkspace(actor(seeded, userId), workspaceId, {
     ownerType: "org",
     ownerId: seeded.organizationId,
@@ -150,8 +164,14 @@ function save(seeded: Seed, userId: string, workspaceId: string, data: Buffer, n
     mimeType: "application/pdf",
     originalName: name,
     name,
+    saveIntent: intentKey
+      ? { key: intentKey, sourceKind: "local-result", sourceIdentity: "merge-result" }
+      : null,
   });
 }
+
+/** A key of the shape the server accepts, from a label short enough to read. */
+const saveKey = (label: string) => `si-${label}`.padEnd(24, "0");
 
 beforeAll(() => {
   if (!existsSync(prismaExecutable)) {
@@ -178,6 +198,7 @@ beforeAll(() => {
     new PrismaFolderRepository(prisma),
     new PrismaProjectRepository(prisma),
     new PrismaDocumentIngestionRepository(prisma),
+    new PrismaWorkspaceSaveIntentRepository(prisma),
     // No queue: ingestion promotion is a different test's subject, and a missing
     // queue is a tolerated state the service documents.
   );
@@ -197,9 +218,12 @@ beforeEach(async () => {
 describe("C9/C10 — two concurrent saves of one result create one document", () => {
   it("hands both requests the same canonical document, and stores the bytes once", async () => {
     const data = resultBytes("concurrent");
+    // One intention, pressed twice — the double click, or the retry of a request
+    // still in flight. Both carry the key the result was minted with.
+    const key = saveKey("concurrent");
     const [first, second] = await Promise.all([
-      save(world, world.users.saver!, world.workspaces.Home!, data),
-      save(world, world.users.saver!, world.workspaces.Home!, data),
+      save(world, world.users.saver!, world.workspaces.Home!, data, "merged.pdf", key),
+      save(world, world.users.saver!, world.workspaces.Home!, data, "merged.pdf", key),
     ]);
 
     // Neither request fails. The loser converges instead of reporting an error
@@ -234,8 +258,11 @@ describe("C9/C10 — two concurrent saves of one result create one document", ()
 
   it("holds for a burst, not just for two", async () => {
     const data = resultBytes("burst");
+    const key = saveKey("burst");
     const results = await Promise.all(
-      Array.from({ length: 5 }, () => save(world, world.users.saver!, world.workspaces.Home!, data)),
+      Array.from({ length: 5 }, () =>
+        save(world, world.users.saver!, world.workspaces.Home!, data, "merged.pdf", key),
+      ),
     );
     expect(new Set(results.map((r) => r.document.id)).size).toBe(1);
     expect(results.filter((r) => !r.deduplicated)).toHaveLength(1);
@@ -290,6 +317,7 @@ describe("C11 — a retry after a lost response returns the original document", 
         new PrismaFolderRepository(restarted),
         new PrismaProjectRepository(restarted),
         new PrismaDocumentIngestionRepository(restarted),
+        new PrismaWorkspaceSaveIntentRepository(restarted),
       );
       const retry = await afterRestart.uploadToWorkspace(
         actor(world, world.users.saver!),

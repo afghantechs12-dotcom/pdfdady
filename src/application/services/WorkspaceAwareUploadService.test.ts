@@ -17,6 +17,7 @@ import type { Folder, FolderLifecycleState } from "@/src/domain/entities/Folder"
 import type { Project } from "@/src/domain/entities/Project";
 import { InMemoryStoredFileRepository } from "@/src/infrastructure/persistence/InMemoryStoredFileRepository";
 import { InMemoryDocumentIngestionRepository } from "@/src/infrastructure/persistence/InMemoryDocumentIngestionRepository";
+import { InMemoryWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/InMemoryWorkspaceSaveIntentRepository";
 import { DOCUMENT_INGESTION_LIMITS as L } from "@/src/domain/entities/DocumentIngestion";
 import { DomainError, NotFoundError } from "@/src/domain/errors";
 
@@ -303,6 +304,7 @@ function harness() {
     folders as unknown as FolderRepository,
     projects as unknown as ProjectRepository,
     ingestions,
+    new InMemoryWorkspaceSaveIntentRepository(),
   );
 
   return { service, storage, meta, logger, workspaces, documents, folders, projects, ingestions };
@@ -580,6 +582,7 @@ describe("WorkspaceAwareUploadService authorization and tenant isolation", () =>
       h.folders as unknown as FolderRepository,
       h.projects as unknown as ProjectRepository,
       h.ingestions,
+      new InMemoryWorkspaceSaveIntentRepository(),
     );
 
     await expect(

@@ -48,6 +48,10 @@ const saveTarget = stripComments(
 const workspaceService = stripComments(
   read("src", "application", "services", "WorkspaceService.ts"),
 );
+const processorHook = stripComments(read("hooks", "usePdfProcessor.ts"));
+const uploadRoute = stripComments(
+  read("app", "api", "workspaces", "[workspaceId]", "documents", "upload", "route.ts"),
+);
 
 const READY = { resultAvailable: true, destination: "ready" as SaveDestination };
 
@@ -470,5 +474,69 @@ describe("C1-C4 — a member of several Workspaces chooses one before anything i
     expect(saveTargetRoute).toContain("destinations, defaultWorkspaceId");
     // A default the actor cannot reach is not labelled as one.
     expect(saveTarget).toContain("destinations.some((d) => d.workspaceId === org.defaultWorkspaceId)");
+  });
+});
+
+/**
+ * D21/D22 — where the save INTENTION is minted, and where it is not.
+ *
+ * The key is only worth having if it is attached to the result rather than to the
+ * component showing it: a key minted in a render is a new intention on every
+ * remount, which is a second document for the retry it was supposed to absorb.
+ * `lib/workflow/saveIntent.test.ts` proves the helpers behave; this proves the
+ * surfaces call them in the one place that makes them true.
+ */
+describe("D21/D22 — one key per result, sent only when the user saves", () => {
+  it("mints it with the result, not on the way to the screen", () => {
+    // Beside `setResult` — the moment the bytes exist. Nothing in the render path
+    // and nothing per-press, so a remount reuses the key it already has.
+    expect(processorHook).toContain("saveIntentKey: newSaveIntentKey(),");
+    expect(processorHook.match(/newSaveIntentKey\(\)/g)).toHaveLength(1);
+    // The local surfaces do not mint at all; they forward what the result carries.
+    expect(localResult).not.toContain("newSaveIntentKey(");
+    expect(shared).not.toContain("newSaveIntentKey(");
+  });
+
+  it("keeps a local result private until Save, and sends the key in the body", () => {
+    // The key travels in the form body of the save request. Never in a URL: a
+    // query string is logged, refererred and shared, and this one names an
+    // operation the user may retry.
+    expect(localResult).toContain(
+      'form.append("saveIntentKey", saveIntentKeyForTarget(result.saveIntentKey, target.workspaceId));',
+    );
+    expect(localResult).not.toContain("saveIntentKey=");
+    // Exactly one `fetch` on the local surface, inside the save function.
+    expect(localResult.match(/fetch\(/g)).toHaveLength(1);
+    const beforeSave = localResult.slice(0, localResult.indexOf("function saveLocalResult"));
+    expect(beforeSave).not.toContain("fetch(");
+  });
+
+  it("narrows the job's key to the destination, and still relays no bytes", () => {
+    expect(jobTransfer).toContain(
+      "saveIntentKey: saveIntentKeyForTarget(saveIntentKeyForJob(jobId), target.workspaceId),",
+    );
+    const saveFn = jobTransfer.slice(jobTransfer.indexOf("export function saveJobResultToWorkspace"));
+    expect(saveFn).not.toContain("arrayBuffer");
+    expect(jobTransfer).not.toContain("saveIntentKey=");
+  });
+
+  it("takes the source identity from the server, never from the key's sender", () => {
+    // A key says WHICH operation; it never says what the operation is allowed to
+    // touch. The job route names the job from its own path parameter, and the
+    // upload route defaults the source to a constant rather than to the filename.
+    expect(jobSaveRoute).toContain('sourceKind: "processing-job", sourceIdentity: id }');
+    expect(uploadRoute).toContain('sourceKind: "local-result"');
+    expect(uploadRoute).toContain('optionalField(form, "saveIntentSource") ?? "local-result"');
+    expect(uploadRoute).not.toContain("sourceIdentity: name");
+  });
+
+  it("does not create a save intention on the way to the editor", () => {
+    // Open in Editor is local. It must not claim an identity for a save the user
+    // has not asked for — that would make the later, real Save a conflict.
+    const openHandler = shared.slice(
+      shared.indexOf("const onOpenInEditor"),
+      shared.indexOf("const onSave"),
+    );
+    expect(openHandler).not.toContain("saveIntent");
   });
 });

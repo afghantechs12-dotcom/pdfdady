@@ -7,6 +7,7 @@ import {
 } from "@/lib/pdf/types";
 import { useToolFunnel } from "@/components/tools/ToolAnalyticsProvider";
 import { outputFileName, splitFileName } from "@/lib/workflow/fileNames";
+import { newSaveIntentKey } from "@/lib/workflow/saveIntent";
 import type { LocalToolErrorCategory } from "@/src/domain/jobs/jobErrors";
 
 export type ProcessStatus = "idle" | "processing" | "done" | "error";
@@ -102,11 +103,17 @@ export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
       setResult(null);
       try {
         const res = await task();
-        setResult(
-          sources.length > 0
-            ? { ...res, fileName: personalizeFileName(res.fileName, sources) }
-            : res,
-        );
+        // One intention per successful run, minted HERE — the one seam every local
+        // tool passes through, so a new tool gets save identity without its author
+        // having to know that save identity exists. Not in the processors (eleven
+        // places to forget), and not at the Save button (a second press, or a
+        // remount that re-renders the same result, would each be a new intention
+        // and each cost a duplicate document).
+        setResult({
+          ...res,
+          fileName: sources.length > 0 ? personalizeFileName(res.fileName, sources) : res.fileName,
+          saveIntentKey: newSaveIntentKey(),
+        });
         setStatus("done");
       } catch (err) {
         // The message is chosen for the user; the category is read off the error
