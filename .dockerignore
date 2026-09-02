@@ -13,3 +13,10 @@ SERVER_SETUP.md
 .storage
 coverage
 *.log
+# Developer database files. `prisma/` is copied into the runtime image for
+# `migrate deploy`, so without this a populated local dev database would be
+# baked into a published image alongside the schema it was built from.
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

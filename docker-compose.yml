@@ -15,6 +15,25 @@ services:
       #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
       - ADMIN_SECRET=${ADMIN_SECRET:?ADMIN_SECRET must be set — see .env.example}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://pdfdadi.com}
+      # REQUIRED: the production configuration gate refuses to start without it
+      # (src/infrastructure/config/env.ts). This file previously set no value at
+      # all, so `docker compose up` exited 1 before serving a single request.
+      #
+      # A `file:` URL because `prisma/schema.prisma` declares
+      # `provider = "sqlite"`: that is the only engine this build can talk to, and
+      # a `postgres://` URL is rejected by Prisma at the first query no matter what
+      # the documentation says. Moving to PostgreSQL is a schema-provider change
+      # and a migration rewrite, not a variable — see FINAL_PRELAUNCH_AUDIT.md.
+      #
+      # The path is inside a named volume, which is the point: the default
+      # `file:./dev.db` would put the live database in the container's writable
+      # layer and delete it on the next redeploy.
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/db/pdfdadi.db}
+      # Stored documents and job outputs. Absolute and on a volume for the same
+      # reason: the default `.storage/local` resolves to `/app/.storage/local`,
+      # which is inside the image layer AND inside a root-owned directory the
+      # uid-1001 server cannot create.
+      - STORAGE_LOCAL_ROOT=${STORAGE_LOCAL_ROOT:-/app/data/storage}
       # Optional public-tool API tuning.
       - TOOLS_MAX_CONCURRENCY=${TOOLS_MAX_CONCURRENCY:-4}
       - TOOLS_RATE_LIMIT_PER_MIN=${TOOLS_RATE_LIMIT_PER_MIN:-20}
@@ -24,6 +43,11 @@ services:
     # admin edits — including the operator-set admin password — durable.
     volumes:
       - pdfdadi-data:/app/data/admin
+      # The database and the stored documents. Without these two the app boots,
+      # accepts uploads, and loses every one of them — plus the whole account
+      # table — on the next `docker compose up --build`.
+      - pdfdadi-db:/app/data/db
+      - pdfdadi-storage:/app/data/storage
     # Temp files are written under the OS temp dir inside the container and
     # cleaned up automatically after each job. A tmpfs keeps them in memory
     # and guarantees nothing persists.
@@ -46,6 +70,8 @@ services:
 
 volumes:
   pdfdadi-data:
+  pdfdadi-db:
+  pdfdadi-storage:
 
 networks:
   # Locked-down network: no external egress. Default for the app — blocks the

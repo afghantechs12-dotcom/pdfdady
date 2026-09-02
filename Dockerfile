@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
 # ---------- Dependencies ----------
-FROM node:20-bookworm-slim AS deps
+FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # ---------- Build ----------
-FROM node:20-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -15,7 +15,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------- Runtime ----------
-FROM node:20-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -44,9 +44,33 @@ RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
 
 # Copy the standalone Next.js output.
-COPY --from=builder /app/public ./public
+#
+# There is no `COPY /app/public` line: this repository has no `public/` directory
+# (the favicon is `app/favicon.ico`, which the build inlines), and Docker fails a
+# COPY whose source does not exist — so that line, carried over from the upstream
+# Next.js example, made `docker build` impossible. Should a `public/` ever be
+# added, `next build` places it inside the standalone output and the COPY below
+# already brings it along.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# The migration toolchain, which the standalone output does NOT contain: it traces
+# the generated `@prisma/client` and its query engine, but not the `prisma` CLI and
+# not `prisma/migrations`. Without these a fresh container starts against a
+# database with no tables and 500s on the first query — and, on the no-egress
+# network, cannot fetch the CLI to fix itself. Taken from `deps` so the engine
+# binaries are the linux ones `npm ci` resolved in this image.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --chown=nextjs:nodejs prisma ./prisma
+
+# Writable, mountable state, created HERE so a named volume attached to any of
+# these paths inherits `nextjs` ownership on first use. `/app` itself is
+# root-owned, and the server runs as uid 1001: a directory the app creates lazily
+# under `/app` (the default `.storage/local`) fails with EACCES on the first
+# upload, which surfaces as a 500 on a user's save rather than as a config error.
+RUN mkdir -p /app/data/admin /app/data/db /app/data/storage \
+    && chown -R nextjs:nodejs /app/data
 
 USER nextjs
 EXPOSE 3000
@@ -56,4 +80,9 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+# Migrate, then serve — in that order, and only on success. `migrate deploy`
+# applies pending migrations and is a no-op when there are none, so a restart is
+# safe and a redeploy that adds a migration cannot serve the old schema. A
+# migration failure exits non-zero here rather than leaving a container up and
+# 500ing every request.
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && exec node server.js"]
