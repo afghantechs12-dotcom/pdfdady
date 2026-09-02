@@ -12,6 +12,7 @@ import {
   Loader2,
   TriangleAlert,
 } from "lucide-react";
+import { saveStatusTriggerName } from "@/components/editor/persistence/editorPersistenceWiring";
 import type {
   SaveStatusBreakdown,
   SaveStatusIcon,
@@ -132,6 +133,7 @@ export function SaveStatusIndicator({
 
   const Icon = SAVE_STATUS_ICONS[status.icon];
   const secondary = limitations;
+  const visible = compact ? status.short : status.label;
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-1">
@@ -141,20 +143,30 @@ export function SaveStatusIndicator({
         aria-controls={panelId}
         onClick={() => setOpen((was) => !was)}
         title={status.detail}
-        className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 outline-none hover:bg-editor-subtle focus-visible:ring-2 ${TONE_RING[status.tone]} ${SAVE_STATUS_TONE_TEXT[status.tone]}`}
+        className={`flex min-h-6 items-center gap-1.5 rounded px-1.5 outline-none hover:bg-editor-subtle focus-visible:ring-2 ${TONE_RING[status.tone]} ${SAVE_STATUS_TONE_TEXT[status.tone]}`}
       >
         <Icon
           className={`h-3.5 w-3.5 shrink-0 ${status.icon === "spinner" ? "animate-spin" : ""}`}
           aria-hidden="true"
         />
-        <span className="whitespace-nowrap">{compact ? status.short : status.label}</span>
+        <span aria-hidden="true" className="whitespace-nowrap">
+          {visible}
+        </span>
+        {/*
+          The name, composed in `saveStatusTriggerName` where a test can run it —
+          `compact` renders `status.short`, and `idle`'s is a bare em-dash, so this
+          control's whole accessible name used to be "—". The visible span is hidden
+          from the name only because the helper already includes it verbatim, which
+          is what keeps the visible words inside the name (WCAG 2.5.3).
+        */}
+        <span className="sr-only">{saveStatusTriggerName(status, compact)}</span>
       </button>
 
       {status.retry !== null ? (
         <button
           type="button"
           onClick={() => onRetry(status.retry as "local" | "remote")}
-          className="rounded px-1.5 py-0.5 font-semibold underline outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent"
+          className="inline-flex min-h-6 items-center rounded px-1.5 font-semibold underline outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent"
         >
           Retry
         </button>
@@ -164,7 +176,7 @@ export function SaveStatusIndicator({
         <button
           type="button"
           onClick={onResolve}
-          className="rounded px-1.5 py-0.5 font-semibold text-red-700 underline outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500"
+          className="inline-flex min-h-6 items-center rounded px-1.5 font-semibold text-red-700 underline outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500"
         >
           Resolve
         </button>

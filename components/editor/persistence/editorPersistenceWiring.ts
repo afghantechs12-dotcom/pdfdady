@@ -400,3 +400,36 @@ export function shouldProbeAbandonedGuestDraft(input: {
 }): boolean {
   return input.origin === "guest" && !input.hasOpenDocument && !input.alreadyProbed;
 }
+
+/* ------------------------------------------------------------------ */
+/* The save-status trigger's accessible name                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What a screen reader says for the save-status disclosure button.
+ *
+ * Here rather than inline in the component for the reason at the top of this file:
+ * the suite has no DOM, so a judgement left in JSX is a judgement no test runs. And
+ * this one shipped wrong. In `compact` presentation the trigger's text is
+ * `status.short`, and `idle`'s `short` is a bare em-dash — measured at 320px, the
+ * control's entire accessible name was "—" (WCAG 4.1.2 Name, Role, Value).
+ *
+ * The name is the VISIBLE string plus what it leaves out, never a replacement for
+ * it. That is not stylistic: five of the nine `short` forms are not substrings of
+ * their own `label` ("No local save" / "Not saved on this device", "Not backed up" /
+ * "Not saved — no cloud backup"), so an `aria-label` carrying the label would give a
+ * visible control a name that does not contain its visible words — WCAG 2.5.3 Label
+ * in Name, which is what a speech-input user relies on to say "click Saved here".
+ *
+ * The long form is appended only when it differs, so the wide presentation does not
+ * hear its own label twice. The detail sentence is deliberately absent: it is the
+ * control's DESCRIPTION (`title`), and repeating it in the name means every visit to
+ * the control replays a paragraph.
+ */
+export function saveStatusTriggerName(
+  status: { label: string; short: string },
+  compact: boolean,
+): string {
+  const visible = compact ? status.short : status.label;
+  return visible === status.label ? `${visible}, save status` : `${visible}, ${status.label}, save status`;
+}

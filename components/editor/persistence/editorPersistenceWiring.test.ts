@@ -7,6 +7,11 @@ import { CONFLICT_ACTIONS } from "@/src/application/editor/persistence/conflictR
 import { GUEST_DOCUMENT_MAP_KEY } from "@/src/application/editor/persistence/documentIdentity";
 import type { LoadedDraft } from "@/src/application/editor/persistence/draftRepository";
 import type { SerializedEditorState } from "@/src/application/editor/ports/ISerializer";
+import { deriveSaveStatus } from "@/src/application/editor/persistence/derivedStatus";
+import {
+  INITIAL_PERSISTENCE_STATE,
+  type PersistenceState,
+} from "@/src/application/editor/persistence/persistenceMachine";
 import type { PersistenceLimitation } from "@/src/infrastructure/persistence/browser/createPersistenceRuntime";
 import {
   blockingLimitation,
@@ -18,6 +23,7 @@ import {
   guestIdentityNotice,
   identifyGuestDocument,
   planDraftRestore,
+  saveStatusTriggerName,
   secondaryLimitations,
   shouldCaptureDocument,
   shouldProbeAbandonedGuestDraft,
@@ -555,5 +561,88 @@ describe("shouldProbeAbandonedGuestDraft", () => {
     expect(
       shouldProbeAbandonedGuestDraft({ origin: "workspace", hasOpenDocument: false, alreadyProbed: false }),
     ).toBe(false);
+  });
+});
+
+/**
+ * F2. The save-status control's accessible name.
+ *
+ * Every status is swept rather than listed, because the defect was in exactly the
+ * state a hand-written list forgets: `idle`, whose `short` is a bare em-dash, so the
+ * control's whole accessible name in the narrow presentation was punctuation. A
+ * product sweep of the state machine's own dimensions reaches it without anyone
+ * having to think of it.
+ */
+describe("the save-status trigger is named in every state (F2)", () => {
+  const sweep = (): PersistenceState[] => {
+    const states: PersistenceState[] = [{ ...INITIAL_PERSISTENCE_STATE }];
+    for (const documentId of [null, "doc-1"]) {
+      for (const local of ["idle", "writing", "durable", "failed", "unavailable"] as const) {
+        for (const remote of ["idle", "saving", "synced", "failed", "conflict"] as const) {
+          for (const edit of ["clean", "dirty"] as const) {
+            for (const online of [true, false]) {
+              for (const remoteEnabled of [true, false]) {
+                for (const recovery of ["none", "recovered", "recovery_failed"] as const) {
+                  states.push({
+                    ...INITIAL_PERSISTENCE_STATE,
+                    documentId,
+                    documentSessionId: documentId === null ? null : "session-a",
+                    documentKey: documentId === null ? null : "guest:abc",
+                    local,
+                    remote,
+                    edit,
+                    online,
+                    remoteEnabled,
+                    recovery,
+                    currentRevision: edit === "dirty" ? 3 : 0,
+                    lastLocallyDurableRevision: local === "durable" ? 3 : 0,
+                    lastRemoteAcknowledgedRevision: remote === "synced" ? 3 : 0,
+                    recoveredRevision: recovery === "recovered" ? 3 : null,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return states;
+  };
+
+  const statuses = sweep().map((state) => deriveSaveStatus(state));
+
+  it("reaches the state that broke, and most of the others", () => {
+    // Without this the sweep could narrow to one status and every assertion below
+    // would pass while proving nothing.
+    expect(new Set(statuses.map((s) => s.kind)).size).toBeGreaterThanOrEqual(12);
+    expect(statuses.some((s) => s.short === "—")).toBe(true);
+  });
+
+  it("never names a control with punctuation alone", () => {
+    for (const status of statuses) {
+      for (const compact of [true, false]) {
+        const name = saveStatusTriggerName(status, compact);
+        expect(/[A-Za-z]/u.test(name.replace(/save status/u, "")), `${status.kind}/${compact}`).toBe(
+          true,
+        );
+        expect(name, `${status.kind}/${compact}`).toContain("save status");
+      }
+    }
+  });
+
+  it("starts with the words the user can see, so speech input can say them", () => {
+    // WCAG 2.5.3 Label in Name. Five `short` forms are not substrings of their own
+    // `label`, so a name built from the label alone would fail this for them.
+    for (const status of statuses) {
+      expect(saveStatusTriggerName(status, true).startsWith(status.short)).toBe(true);
+      expect(saveStatusTriggerName(status, false).startsWith(status.label)).toBe(true);
+    }
+  });
+
+  it("always states the long form, and never states it twice", () => {
+    for (const status of statuses) {
+      expect(saveStatusTriggerName(status, true)).toContain(status.label);
+      expect(saveStatusTriggerName(status, false)).toBe(`${status.label}, save status`);
+    }
   });
 });
