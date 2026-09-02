@@ -1015,6 +1015,21 @@ export function DocumentFileManager({
           <div className="flex flex-col items-center justify-center rounded-appcard border border-dashed border-app-border bg-app-subtle py-14 text-center">
             <FileText size={32} aria-hidden="true" className="mb-2 text-app-muted/50" />
             <p className="text-[13px] font-semibold text-app-muted">{VIEW_EMPTY_MESSAGE[view]}</p>
+            {/*
+              A filtered view with nothing in it is otherwise a dead end: the
+              only way back is the sidebar, which is exactly where the user is
+              not looking. A LINK to the canonical `?view=all` URL rather than a
+              local `loadView` call — see the P1-9 note above for why this
+              component must not switch views behind the URL's back.
+            */}
+            {view !== "all" && (
+              <Link
+                href={workspaceHref(workspaceId, organizationId, { view: "all" })}
+                className={cn(GHOST_BUTTON, "mt-3")}
+              >
+                View all documents
+              </Link>
+            )}
           </div>
         )}
 

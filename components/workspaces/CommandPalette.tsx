@@ -222,7 +222,18 @@ export function CommandPalette({
             Command palette
           </h2>
 
-          <div className="flex items-center gap-2 border-b border-softborder pb-3">
+          {/*
+            The input suppressed its outline and replaced it with nothing, so
+            there was no focus indicator anywhere (WCAG 2.4.7). Being autofocused
+            when the palette opens hid the gap — tabbing back from the results
+            list landed on an input that looked unfocused.
+
+            Two changes, neither of them a ring on the input: the row is the
+            visible control (the input is deliberately borderless), so the row's
+            border reacts; and `focus:outline-none` is gone from the input, which
+            lets the browser draw its own keyboard-only outline for free.
+          */}
+          <div className="flex items-center gap-2 border-b border-softborder pb-3 transition-colors focus-within:border-primary">
             <Search className="h-4 w-4 shrink-0 text-navy-soft" aria-hidden="true" />
             <label htmlFor={inputId} className="sr-only">
               Search commands
@@ -240,7 +251,7 @@ export function CommandPalette({
               aria-activedescendant={activeDescendant ?? undefined}
               aria-autocomplete="list"
               placeholder="Search commands…"
-              className="w-full border-0 bg-transparent text-sm text-navy placeholder:text-navy-soft focus:outline-none"
+              className="w-full border-0 bg-transparent text-sm text-navy placeholder:text-navy-soft"
             />
             {loading && (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-navy-soft" aria-hidden="true" />

@@ -312,6 +312,26 @@
    * It also flattens the hero window's resting tilt and the dock tiles' resting
    * rotation, which is the intended trade: a static, upright composition.
    */
+  /*
+   * Tailwind's two utility animations, which are used across ~26 components and
+   * were previously reduced in only four of them by a hand-written
+   * `motion-reduce:animate-none`. Handling them here instead of at each call
+   * site is why the other twenty-two are now correct.
+   *
+   * They get DIFFERENT treatment on purpose. A skeleton's pulse is decoration:
+   * it stops. A spinner is not decoration — it is the only signal that work is
+   * in flight — and freezing it reads as a hung interface, so it slows to a
+   * crawl instead. WCAG 2.2.2 exempts an activity indicator for the same
+   * reason.
+   */
+  .animate-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .animate-spin {
+    animation-duration: 2.4s !important;
+  }
+
   .animate-fade-up,
   .animate-float-slow,
   .animate-float-medium,
