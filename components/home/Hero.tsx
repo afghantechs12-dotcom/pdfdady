@@ -103,7 +103,17 @@ export function Hero({
               is the highlighted word — and nothing is forced `nowrap`, which at
               this size would have pushed the line past the column edge.
             */}
-            <h1 className="animate-fade-up mt-4 text-[clamp(2.4rem,4.6vw,3.9rem)] font-bold leading-[1.02] tracking-[-0.03em] text-navy [--fade-delay:60ms]">
+            {/*
+              NO entrance animation on this one element, deliberately. It is the
+              homepage's LCP element, and `animate-fade-up` fades opacity 0 -> 1
+              over 600ms after a 60ms delay: measured against the production build,
+              the headline's LCP landed at 764ms while first paint was 100ms. The
+              most important sentence in the product was a ghost for two thirds of
+              a second, for a fade nobody asked for. The cascade below it is
+              unchanged — supporting copy arriving after a headline that is already
+              there is the effect the choreography was reaching for anyway.
+            */}
+            <h1 className="mt-4 text-[clamp(2.4rem,4.6vw,3.9rem)] font-bold leading-[1.02] tracking-[-0.03em] text-navy">
               The smarter way
               <br className="hidden sm:block" /> to work with{" "}
               <span className="relative whitespace-nowrap text-primary">

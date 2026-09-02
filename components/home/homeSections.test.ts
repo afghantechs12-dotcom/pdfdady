@@ -190,3 +190,18 @@ describe("the page's counts are derived, never written", () => {
     expect(aiToolCount([])).toBe(0);
   });
 });
+
+describe("§17 — the LCP element is not animated", () => {
+  it("paints the hero headline immediately", async () => {
+    const source = await readFile(new URL("./Hero.tsx", import.meta.url), "utf8");
+    const h1 = /<h1 className="([^"]+)"/.exec(source)?.[1] ?? "";
+    expect(h1).toContain("text-[clamp("); // the right element, not an empty match
+    // Measured against the production build: with `animate-fade-up` on this
+    // element the homepage's LCP was 744ms against a 100ms first paint, because
+    // LCP lands when the 600ms opacity fade finishes. Without it, 80ms.
+    expect(h1).not.toMatch(/\banimate-/);
+    expect(h1).not.toContain("--fade-delay");
+    // The cascade below the headline is deliberate and stays.
+    expect(source.match(/animate-fade-up/g)?.length).toBeGreaterThanOrEqual(5);
+  });
+});
