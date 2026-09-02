@@ -4038,3 +4038,481 @@ Unlike the entry above, **this repository is now under local version control**: 
 `a82aa3a` is a labelled pre-fix baseline, so `git status` is the primary revert evidence
 for the nine mutations, with a 1428-file sha256 manifest as the secondary. No remote is
 configured and nothing was pushed.
+
+## Premium UI/UX system, responsive consistency and accessibility (Phase 6)
+
+Phases 1–5 made the product *true*: capability, save state, round-trip fidelity, plan
+truth and save identity all have one owner each. Phase 6 makes it *look* like that is
+so, and does it without moving a single one of those owners. The rule the whole phase
+was built under: **no visual change may alter product truth or workflow semantics.**
+Every finding below is either a token/layout change, or an accessibility defect that
+was already a bug before anyone asked about design.
+
+The pre-implementation audit is `docs/PHASE6_UI_AUDIT.md` — ten findings, four of them
+real product defects, one of them a defect in the probe rather than the product. The
+design rules Phase 6 leaves behind are `docs/DESIGN_SYSTEM.md`.
+
+### Design principles
+
+Calm, precise, fast, trustworthy, document-focused. The document is the only thing on
+screen that should draw the eye; chrome that competes with it is a defect however
+attractive it looks in isolation. Concretely refused: gradient-per-section,
+glassmorphism, glowing blobs behind text, cards inside cards, low-contrast grey body
+copy, oversized headings, animation carrying meaning it does not have, and any accent
+colour that is not in a token file. Premium here is restraint — the identity is the
+existing PDFDadi violet, unchanged, applied consistently instead of decoratively.
+
+### Token system: one canonical source per decision
+
+`styles/tokens.ts` already existed and was **partly fiction**. Three findings:
+
+- **Two z-index systems.** `tokens.zIndex` was consumed by nothing. What shipped was
+  `z-[55]`, `z-[60]`, `z-[70]`, `z-[75]`, `z-[100]` across four files — the global
+  stacking order written down five times and nowhere authoritative. The named layers
+  now exist as Tailwind utilities (`z-header`, `z-drawer`, `z-dialog`, `z-skiplink`, …)
+  and the literals are gone. Only `menu`, `editor`, `popover` and `skipLink` are new
+  layers, and each replaces a literal rather than inventing a level.
+- **The homepage carried a second, unnamed palette.** Six components wrote raw hexes —
+  `bg-[#3B82F6]/25`, `stopColor="#4F46E5"`, `bg-[#38BDF8]/20`. They are now `aura.*`,
+  a group documented as **decoration only**: no text, border or control surface may use
+  it, because none of those values is contrast-checked. Naming what ships is what lets
+  a later pass see it; two of them (`blue`, `sky`) are not brand-derivable at all and
+  now say so.
+- **A purged utility class.** `tailwind.config.ts` `content` did not include
+  `./styles/**`, where `iconToneClasses` and `focusRing` live as strings. Tailwind
+  purged any utility named *only* there: `teal` was the one icon tone no component
+  referenced directly, so every teal-toned tool — Edit PDF among them — rendered its
+  icon with no tile and no colour. One glob, one whole tone restored.
+
+`tailwind.config.ts` mirrors `styles/tokens.ts` because Tailwind cannot import a TS
+module at config time. `styles/tokens.test.ts` (7 tests) asserts the mirror holds and
+that no component re-opens a token with an arbitrary value, so a divergence fails a
+test instead of shipping.
+
+**The PDF canvas is not a themed surface.** No page-theme token reaches the canvas or
+an exported document; `editor-page` is the document's own white. A token that changed
+the rendered PDF would be a product-truth change wearing a styling change's clothes.
+
+### Component system: states, not appearances
+
+The audit's instruction to itself was *do not rewrite working components to rename
+them*. `components/ui/` already had `Button`, `Badge`, `Icon`, `Modal`,
+`SectionHeading`, `Reveal`, and the variant maps already lived in
+`components/ui/buttonStyles.ts` for a good reason (`lib/utils/cn.ts` is a plain string
+joiner with no Tailwind conflict resolution, and we shipped a white-on-white CTA
+because of it). So Phase 6 changed **states**, not structure:
+
+- **`loading` became a real state.** It rendered a spinner and stayed clickable — a
+  double-submit dressed as feedback. It now implies `disabled` and sets
+  `aria-busy="true"`, applied after the prop spread so a call site cannot un-imply it.
+- **`BUTTON_BASE` names `ring-2` but never a ring colour**, so a dark-surface variant
+  never has to out-sort a light-surface default. `onDark`/`onDarkOutline` carry a white
+  ring with `ring-offset-navy` and a `forced-colors:` border for Windows High Contrast.
+- Every interactive primitive now expresses default · hover · active · focus-visible ·
+  disabled · loading · keyboard operability · an accessible name · a ≥24×24 target.
+
+### Shell and navigation
+
+The public header, the authenticated `AppShell` and the standalone editor shell now
+draw from the named layers rather than from literals, which is what makes their
+relationship legible: the header is 40, an in-flow dropdown 50, the mobile drawer and
+its scrim 60 (one layer on purpose — they are siblings, so DOM order decides, and the
+panel always renders after its scrim), a portalled popover 70, a dialog 80, the skip
+link 100.
+
+The mobile drawer was already a real dialog (`role="dialog"`, `aria-modal`, trapped
+focus, Escape to close, focus returned to the trigger). `components/layout/mobileNavA11y.test.ts`
+(7 tests) now holds that shape in place, because it is the kind of correctness that is
+invisible until it is gone.
+
+**One `<main id="main">` per document.** The root layout ships a skip link targeting
+`#main` on every route, and it pointed at nothing on `/editor` while the Workspace
+editor nested a second `main` inside `AppShell`'s. The editor frame had spent the
+`<main>` on its canvas region. `/editor` now owns the landmark and
+`PremiumEditorFrame` does not, so the one bypass mechanism the page has works (WCAG
+2.4.1). `components/editor/editorLandmarks.test.ts` guards both halves.
+
+### Homepage
+
+The hero advertised a tool that does not exist. `HeroShowcase` named tools in its
+illustration from a hand-written list, and one of them was not in `data/tools.ts` at
+all — a decorative image misrepresenting capability, which is precisely the failure
+mode the brief calls out. The showcase now derives its tiles from the canonical tool
+list, so the illustration cannot drift from the product again;
+`lib/tools/productClaims.test.ts` (18 tests) asserts every claim the marketing surface
+makes resolves to a real, available tool.
+
+`components/home/AIPreview.tsx` carried the phase's one contrast failure: the AI badge
+text did not clear 4.5:1 against its wash. It is now `text-pink-700`, found by
+`styles/contrast.test.ts` (5 tests) rather than by eye.
+
+### Tools directory
+
+The category rail was the last consumer of an inline `z-[…]`; it now uses `z-sticky`,
+the layer that was named for it. Card capability is unchanged and remains derived from
+`data/tools.ts` + `lib/tools/capability.ts` — Phase 4's truth, untouched. What Phase 6
+adds is proof it cannot be locally overridden: making a planned tool render as
+available is mutation **C**, and it fails six tests.
+
+### Result workflow and destination UX
+
+Semantics unchanged, and that is the deliverable. `resultWorkflowActions` remains the
+only source of which actions exist; `ResultWorkflowActions.tsx` renders what it returns
+and holds no opinion of its own. Hardcoding the three actions locally is mutation
+**D**, and `resultWorkflowWiring.test.ts` T7 catches it. `Open in Editor` still does
+not upload local bytes, Workspace saving is still explicit and authorized, Download is
+still distinct from persistence, and a protected PDF is still saveable but not
+editor-openable (mutation **E**, six failures).
+
+`components/tools/destinationSelectorA11y.test.ts` (7 tests) pins the destination
+selector's keyboard and naming behaviour, and `components/jobs/processingStates.test.ts`
+(9 tests) pins that queued, processing, complete and failed remain four visually and
+programmatically distinct states rather than four shades of grey.
+
+### Workspace
+
+`components/workspaces/documentListUx.test.ts` (13 tests) holds two things that were
+one careless class away from breaking:
+
+- **The list stays a semantic table.** The mobile representation restacks; it may not
+  drop the header relationship or an action.
+- **A long filename cannot escape its cell.** A flex child's default
+  `min-width: auto` refuses to shrink below its content, so `min-w-0 flex-1 truncate`
+  on the link *and* `min-w-0` on the table are load-bearing. Removing them is mutation
+  **H**.
+
+Two real accessibility defects were fixed here. `CommandPalette` had no visible focus
+indicator on its own items — a palette is keyboard-first, so this was the worst place
+in the product to be missing one. And the document list's **filtered-empty** state
+offered no way back: a search that matches nothing now renders a recovery action, not
+just a sentence. `DocumentWorkbench`'s tab strip was below 24×24 and is not any more.
+
+### Editor, standalone and Workspace-backed
+
+The audit's F1 was the phase's worst finding, and it was a genuine product defect:
+**the editor tool row was a ~90px window onto 437px of controls, behind a hidden
+scrollbar.** `scrollbar-none` plus `overflow-x: auto` means a control outside the
+client box has no affordance that reveals it — Text, Image, Signature, Note, Shape and
+Highlight were simply gone on a phone, not scrolled. The row now **wraps**:
+`toolbarWraps(width)` with `TOOLBAR_WRAP_MIN_WIDTH = 732`
+(`components/editor/toolbarLayout.ts`), measured by a `ResizeObserver` on the toolbar
+root, and an unmeasured width (0/NaN, first paint) deliberately does not wrap so the
+first frame does not announce a constraint it has not measured.
+
+The save-status control's entire accessible name was an em-dash. It has a name and a
+24×24 target now, and — the part that matters for Phase 2 — it still reads
+`persistence.view.status`, the canonical projection, with no local boolean anywhere
+near it. Introducing one is mutation **F**.
+
+Editor controls meet ≥44×44 on touch, safe-area insets are respected on the floating
+canvas controls, and every essential action stays reachable at 390px — which is now
+*measured*, not asserted: probe gate **H5** walks every button and link, finds its
+nearest hidden-scrollbar scroller, and fails if any control's box falls outside that
+scroller's client box.
+
+### Pricing
+
+Unchanged in substance: `PricingPage` still awaits `getPricingList()` and splits on
+`plan.available`. Phase 4's plan truth is the only source, and
+`app/(marketing)/pricing/pricingTruth.test.ts` (7 tests) is new — replacing it with
+hardcoded copy is mutation **G** and takes 5 of those 7 red.
+
+### Responsive behaviour
+
+Nine audited widths: **320 · 360 · 390 · 412 · 768 · 1024 · 1280 · 1440 · 1920**.
+
+**No global `overflow-x: hidden` was added, and none exists.** Overflow was fixed at
+the element that was too wide, every time. Two measurements worth recording because
+they redirect where the risk actually lives:
+
+- A CSS-injection sweep at 320px removed `min-w-0`, `truncate`, `flex-wrap` and
+  `break-words` from the marketing pages one at a time. The document width did not
+  change: those layouts collapse on their own. Long-text overflow risk lives in the
+  **Workspace and editor** surfaces, which is where the guards and the tests are.
+- `/editor` renders inside `fixed inset-0`, so document-level horizontal overflow is
+  **structurally impossible** on that route. Probe H4's overflow clause can never fail
+  there, which is exactly why the reachability gate H5 exists — the editor's
+  responsiveness is a question about containers, not about the document.
+
+### Accessibility (WCAG 2.2 AA)
+
+Fixed in this phase, all of them bugs before they were design questions: the skip link
+that pointed at nothing on `/editor`; the nested `main` on the Workspace editor; the
+save-status control whose accessible name was an em-dash; the `CommandPalette` items
+with no focus indicator; the filtered-empty document list with no recovery action; the
+workbench tab strip, `StatusBar` page chevrons, `Breadcrumbs`, `WorkspaceShowcase` and
+`WorkspaceCreateDialog` controls below 24×24 (2.5.8); the AI badge below 4.5:1; and
+`Button loading` remaining clickable while claiming to be busy.
+
+Focus is never colour-alone — every indicator is a ring, so it survives greyscale,
+forced colours and colour-vision deficiency. One `focusRing` string, one
+`focus-visible:ring-2` in `BUTTON_BASE`.
+
+### Performance measurements
+
+Measured on the production standalone build over `localhost`, three navigations each,
+`largest-contentful-paint` via `PerformanceObserver` with `buffered: true`.
+
+| | LCP element | LCP | FCP |
+| --- | --- | --- | --- |
+| Before | hero `H1`, inside the fade-up reveal | **744 ms** | 88 ms |
+| After | hero `H1` | **88 / 88 / 96 ms** | 88 / 88 / 96 ms |
+
+The hero heading was the largest contentful paint *and* was gated behind a decorative
+entrance animation, so the page's headline metric measured the animation rather than the
+render. The `H1` no longer waits for a fade; LCP and FCP are now the same event. The
+fade remains on the surrounding composition, where it costs nothing measurable, and is
+cancelled entirely under `prefers-reduced-motion`.
+
+### Motion
+
+`tokens.motion` — 120ms feedback, 200ms colour/shadow, 300ms panels. One `@media
+(prefers-reduced-motion: reduce)` block in `app/globals.css` covers every animation
+utility, including the ~22 uses that a per-call-site `motion-reduce:animate-none` had
+never reached. `animate-pulse` **stops** at `opacity: 1`; `animate-spin` **slows to
+2.4s** rather than stopping — a frozen spinner claims the process died, and WCAG 2.2.2
+exempts an activity indicator for the same reason. Cancelled animations get explicit
+`opacity: 1; transform: none`, because cancelling an animation whose `from` state is
+invisible would otherwise hide the content permanently. Removing this block is mutation
+**I**.
+
+### Tests
+
+**18 files / 252 tests / 0 failures**, of which 11 files are new and 7 are pre-existing
+files extended. U1–U30 map onto them as follows:
+
+| Tests | File | U |
+| --- | --- | --- |
+| 7 | `styles/tokens.test.ts` | U1 |
+| 5 | `styles/contrast.test.ts` | U1, U15 |
+| 10 | `components/ui/buttonStyles.test.ts` | U2 |
+| 6 | `components/ui/focusVisible.test.ts` | U3 |
+| 7 | `components/layout/mobileNavA11y.test.ts` | U4 |
+| 18 | `lib/tools/productClaims.test.ts` | U5, U6, U7 |
+| 9 | `components/jobs/processingStates.test.ts` | U8, U9 |
+| 13 | `components/workspaces/documentListUx.test.ts` | U15, U16, U17, U24, U28 |
+| 7 | `components/tools/destinationSelectorA11y.test.ts` | U13, U14 |
+| 50 | `components/editor/persistence/editorPersistenceWiring.test.ts` | U19, U20 |
+| 31 | `components/editor/toolbarLayout.test.ts` | U21 |
+| 16 | `components/editor/toolbarChrome.test.ts` | U21 |
+| 3 | `components/editor/editorLandmarks.test.ts` | U29 |
+| 13 | `components/ui/dialogChrome.test.ts` | U22, U25 |
+| 7 | `components/ui/reducedMotion.test.ts` | U26 |
+| 7 | `app/(marketing)/pricing/pricingTruth.test.ts` | U23 |
+| 22 | `components/home/homeSections.test.ts` | U5, U27 |
+| 6 | `src/application/services/workspaceRouteWiring.test.ts` | U18, U30 |
+
+U10, U11, U12 and U30 are carried by the Phase 4/5 suites they belong to
+(`lib/tools/capability.test.ts`, `components/tools/resultWorkflowWiring.test.ts`,
+`src/application/services/protectedPdfWorkspace.test.ts`) — Phase 6 added no second
+opinion about capability, and mutations C, D and E confirm those gates still bite.
+U27 and U29 are measured in the browser rather than asserted in Node, which is the
+honest place for them.
+
+The environment has no DOM (`vitest` runs `environment: "node"`, `include:
+["**/*.test.ts"]`), so rendered tests use `renderToStaticMarkup` on real components.
+That is a genuine limit — effects do not run under SSR, so anything effect-derived is
+proven in the browser probe instead of in a unit test. Source scans guard architecture
+only; no layout or interaction claim in this phase rests on one alone.
+
+### Browser verification
+
+Node tests cannot see layout, focus rings or hydration, so every claim in this phase
+that is about what a user sees was measured in a real browser — Chrome headless over
+raw CDP through `scripts/lib/probe-browser.mjs` (`--force-device-scale-factor=1`, and
+`Emulation.setFocusEmulationEnabled` on, without which a headless window matches no
+`:focus` and every focus assertion is vacuous).
+
+**How the server has to be configured, and why.** The permanent probe is
+`scripts/premium-ui-ux-probe.mjs`, run against the production standalone artifact
+(`node .next/standalone/server.js`; `next start` refuses under `output: "standalone"`)
+listening on loopback http, with `scripts/tls-front.mjs` terminating TLS on the LAN
+address in front of it, and `NEXT_PUBLIC_SITE_URL` set to exactly that https origin.
+Three production rules make that the only configuration in which an authenticated
+journey can be measured at all:
+
+* `src/infrastructure/config/env.ts` `productionProblems()` refuses a loopback
+  `NEXT_PUBLIC_SITE_URL`.
+* `workspaceCsrf.trustedOrigins()` trusts only `new URL(config.siteUrl).origin` in
+  production, so a probe on any other origin gets `403 CSRF_ORIGIN_REJECTED`.
+* Session cookies are `Secure` in production, so a plain-http origin silently drops
+  them and every signed-in gate would measure a signed-out page.
+
+Probing `next dev` over `127.0.0.1` is worse than useless: Next 16 blocks cross-origin
+dev resources, React never hydrates, and interaction gates pass while measuring dead
+markup. The probe therefore refuses to continue — it checks for `__react*` keys on the
+root node and exits `2 ENVIRONMENTAL` rather than reporting green. Each run uses a
+throwaway SQLite database (`prisma migrate deploy` into `/tmp`), never the repo's own.
+
+**Result: 111 gates pass · 0 product failures · 0 environmental · 0 not exercised.**
+
+| Scenario | Gates |
+| --- | --- |
+| A — Homepage | 12/12 |
+| B — Tools directory | 13/13 |
+| C — Local tool workflow (Merge PDF) | 8/8 |
+| D — Server tool workflow (Compress PDF) | 7/7 |
+| E — Result workflow and destination | 5/5 |
+| F — Workspace | 13/13 |
+| G — Workspace-backed editor | 11/11 |
+| H — Standalone editor | 10/10 |
+| I — Pricing | 12/12 |
+| J — Responsive global shell | 5/5 |
+| K — Keyboard and accessibility | 11/11 |
+| L — State matrix | 4/4 |
+
+The probe prints a "what actually rendered" list — the route and the character count of
+the text it measured for every scenario — because a scenario that silently landed on a
+sign-in page would otherwise report the same green as one that rendered the product.
+Scenarios D and G are the two that most easily go vacuous: D needs Ghostscript
+(`lib/server/toolProcessing.ts` `compress` shells out to `gs -sDEVICE=pdfwrite`) and
+G needs a real Workspace document created earlier in the same session, so both are
+named in that list with the ids they used.
+
+The six things the phase's brief asks to be inspected separately, and what they were:
+
+* **Browser console** — zero JS errors in all twelve scenarios. The probe deliberately
+  splits JS errors from network entries: a `401` from `/api/auth/me` is the documented
+  signed-out answer, and counting it as a console error would make every page look
+  broken. The ignored network entries are now named in the gate detail line rather than
+  only counted, so they can be reviewed instead of trusted.
+* **Hydration warnings** — none. React hydration is a precondition, not a gate.
+* **Failed network requests** — one, in scenario G: `GET …/documents/<id>/editor-state`
+  answers `404`, which is that route's documented contract for a version that has no
+  stored scene (an imported version legitimately has none, and the client falls back
+  to loading the PDF). Every other scenario recorded none.
+* **Unhandled promise rejections** — zero; they arrive as `Runtime.exceptionThrown` and
+  are counted with JS errors.
+* **Page-level horizontal overflow** — none at any of 320, 360, 390, 412, 768, 1024,
+  1280, 1440 and 1920 CSS px on any measured surface.
+* **Final production route rendering** — the production build renders 63/63 routes, and
+  the routes above were then measured in the browser from that same artifact.
+
+**Prior-phase probes, all re-run at this phase's HEAD.**
+
+| Probe | Result | Configuration |
+| --- | --- | --- |
+| Phase 6 premium UI/UX | 111 pass / 0 product failures | production artifact behind the TLS front |
+| Phase 5 workflow completeness | 149/156 | production artifact behind the TLS front |
+| Phase 4 capability | 49/49 | dev server on `localhost` |
+| Phase 3 round-trip | 91/91 | dev server on `localhost` |
+| Phase 2 save-state | 80/80 | dev server on `localhost` |
+| Phase 1 Workspace reliability | 31/31 | cold dev server on `localhost` |
+| Export fidelity | 35/35 | Node, no browser |
+
+Two of those numbers need their honest footnote.
+
+**Phase 5 measures 149/156 here, not the 155/156 this phase was handed as a baseline —
+and it measures 149/156 with a byte-identical failure list on the commit before Phase 6
+began.** That was checked the only way it can be: the pre-Phase-6 commit was built in a
+separate worktree, served behind its own TLS front, and probed with the same script. The
+seven are the same seven on both trees — journey C's cloud-save success copy and document
+id, journey I's two absence gates (its `outputMimeType` rewrite never fires, so both
+measured a real PDF result), an N3 download `409`, and the documented `ENVIRONMENTAL`
+`415` branch. Phase 6 did not cause them; this machine does not reproduce the stated
+baseline. Nothing in this phase touches the cloud-save path — the diff over
+`app/api/jobs`, `lib/workflow`, `prisma` and `src/infrastructure/persistence` is empty
+apart from one new test file.
+
+**Phase 1 measures 31/31 only on a cold dev server.** On a dev server left warm by
+earlier probe runs it reported 30/31 with `TypeError: Failed to execute 'measure' on
+'Performance': 'WorkspacePage' cannot have a negative time stamp` from
+`flushComponentPerformance` inside `react-server-dom-turbopack` — React's dev-only
+Server Components performance track, not shipped code. The production artifact never
+throws it. Recorded here because the first three runs looked like a Phase 6 regression
+and were not one.
+
+### Mutation results
+
+A green suite proves nothing until a deliberate break makes it red. Ten mutations were
+applied one at a time, each observed failing at a named gate, each reverted through Git
+(`git checkout -- <path>`) and each gate re-run green afterwards.
+
+| # | The break | Where | Gate that caught it |
+| --- | --- | --- | --- |
+| A | dialog panel takes a fixed width instead of a constrained one (`w-full` → `w-[640px]`) | `components/ui/Modal.tsx:72` | `components/ui/dialogChrome.test.ts` U25 — 1 failed / 12 passed |
+| B | shared button base loses `focus-visible:outline-none focus-visible:ring-2` | `components/ui/buttonStyles.ts:38` | `components/ui/focusVisible.test.ts` U3 — 1 failed / 5 passed |
+| C | a planned tool claims to be available (`pdf-to-powerpoint` `planned` → `available`) | `data/tools.ts:292` | `lib/tools/capability.test.ts` U5/U6 — 6 failed / 75 passed |
+| D | result actions hardcoded in the component instead of derived | `components/tools/ResultWorkflowActions.tsx:167` | `components/tools/resultWorkflowWiring.test.ts` T7/U10 — 1 failed / 32 passed |
+| E | protected PDF loses Workspace Save (`workspaceSaveable` excludes `protect-pdf`) | `lib/tools/capability.ts:304` | `src/application/services/protectedPdfWorkspace.test.ts` C6 + 5 more, U11 |
+| F | editor status bar overrides the canonical projection with a local "Saved" | `components/editor/EditorWorkspace.tsx:2032` | `components/editor/persistenceWiring.test.ts` U19 — 1 failed / 2278 passed |
+| G | Pricing renders hardcoded plan copy instead of `getPricingList()` | `app/(marketing)/pricing/page.tsx:58` | `app/(marketing)/pricing/pricingTruth.test.ts` U23 — 5 failed / 2 passed |
+| H | long filename escapes its cell (`min-w-0 … truncate` removed) | `components/workspaces/DocumentFileManager.tsx:515` | `components/workspaces/documentListUx.test.ts` U24 — 1 failed / 12 passed |
+| I | reduced-motion rules deleted from the media block | `app/globals.css:295` | `components/ui/reducedMotion.test.ts` U26 — 1 failed / 6 passed |
+| J | editor toolbar never wraps, so tools leave the viewport on mobile | `components/editor/toolbarLayout.ts:459` | `components/editor/toolbarLayout.test.ts` F1 ×3, U21 — 3 failed / 44 passed |
+
+Two of these changed the work rather than just confirming it.
+
+**Mutation A had to be re-aimed.** The brief names "remove a mobile width constraint",
+and there is no such constraint to remove: the layout is fluid and its narrow behaviour
+comes from wrapping and `min-w-0`, not from a width. The nearest real contract is the
+dialog panel's maximum, which is what a fixed `w-[640px]` breaks at 320px — so that is
+what was mutated, and the substitution is recorded here rather than quietly made.
+
+**Mutation J found a genuine hole in the phase's own verification.** It went red in
+Node but the browser probe stayed green, because scenario H had no gate that measured
+*reachability* — only that the editor rendered and did not scroll sideways. A toolbar
+that overflows a `scrollbar-none` scroller hides controls with no visible affordance,
+which is exactly the mutation's damage and exactly what a source scan cannot see. Gate
+**H5 "every editor control stays inside its own container"** was added: it walks each
+control's ancestors for a hidden-scrollbar horizontal scroller and reports any control
+whose box falls outside it. Verified red under the mutation (`43 controls, 10 out of
+reach` at 390 px, still passing at 1440) and green at HEAD (`44 controls, 0 out of
+reach` at 390; `54, 0` at 1440). The first attempt to measure it was itself invalid —
+taken against an unhydrated dev page — and was re-taken against the production build.
+
+### Remaining visual limitations
+
+Things this phase deliberately did not solve, so the next one does not have to rediscover
+them:
+
+* **No pixel baselines.** Every visual claim here is structural or geometric — token
+  identity, class contracts, measured boxes, focus order, overflow at nine widths. No
+  screenshots are committed, so a change that keeps the structure and ruins the
+  appearance (a wrong shadow, a wrong gradient stop) is not caught by any gate.
+* **Effect-derived UI is only provable in the browser.** `vitest` runs
+  `environment: "node"` with `include: ["**/*.test.ts"]`, so anything that depends on
+  `ResizeObserver`, a focus trap or a layout measurement — the toolbar's wrap mode most
+  of all — has a source contract in Node and its real proof in the probe. A contributor
+  without Chrome can run the suite and still not know whether the editor toolbar wraps.
+* **Three palette families remain three.** Marketing (`primary`/`lavender`/`aura`), app
+  chrome (`app-*`) and editor (`editor-*`) are one system by rule, not one palette by
+  value: crossing from `/` into `/workspaces` is still a visible change of surface. That
+  is intended — a productivity surface should not look like a landing page — but it is
+  the seam a future pass would most likely be asked to soften.
+* **No dark mode.** Out of scope for this phase, and nothing here was built to make it
+  hard: the tokens are named by role, so a dark set is additive.
+* **Tablet portrait keeps a compromise.** At 768 px the editor collapses to a single rail
+  and the canvas takes the rest. Nothing overflows and every control stays reachable, but
+  the composition is denser than desktop rather than re-thought for the width.
+* **Four server tools cannot be exercised on this machine.** `qpdf`, `soffice`,
+  `pdftoppm` and `pdfinfo` are not installed, so the result states of the tools that need
+  them (repair, unlock, flatten, Office conversion, PDF→image) are unmeasured here. The
+  probe classifies that as `ENVIRONMENTAL`, never as a pass.
+* **Phase 5's seven probe non-passes are still open**, unchanged and pre-existing —
+  measured identically on the commit before this phase. They belong to the workflow
+  phase, not to this one.
+
+### Deployment gates
+
+**No migration, no schema change, no dependency change.** `package.json` and
+`package-lock.json` are byte-identical to the pre-phase commit, and the diff over
+`app/api/`, `lib/workflow/`, `prisma/` and `src/infrastructure/persistence/` contains no
+runtime file. This phase is presentation only, which is what makes the invariant list
+above cheap to defend: nothing in it is re-decided by a stylesheet.
+
+Run against the final tree: full suite **366 files / 7172 tests / 0 failures** (from
+355/7069); `tsc --noEmit` clean; `eslint .` **0 errors / 11 pre-existing warnings**;
+`node scripts/next-build.js` exit 0, **63/63** static pages; `prisma validate` and
+`prisma generate` clean. Browser, all after the mutations were reverted and against the
+final production artifact with stale servers stopped: premium UI/UX probe **111 pass / 0
+product failures**, Phase 5 **149/156** (identical pre-phase), Phase 4 **49/49**, Phase 3
+**91/91**, Phase 2 **80/80**, Phase 1 **31/31**, export fidelity **35/35**.
+
+The permanent gate this phase adds is `scripts/premium-ui-ux-probe.mjs`. It exits nonzero
+on a product failure and exits `2` when it cannot measure the product at all — an
+unhydrated page, or a server whose origin does not match `NEXT_PUBLIC_SITE_URL`. Run it
+the way the section above documents: production artifact, TLS front, `--auth`. Run
+against a dev server over `127.0.0.1` it will refuse rather than mislead.
+
+No remote is configured and nothing was pushed.
