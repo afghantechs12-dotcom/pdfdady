@@ -22,6 +22,7 @@ import {
   overflowTools,
   resolveToolbarMode,
   toolActionLabel,
+  toolbarWraps,
   toolAvailability,
   visibleGroups,
   type ToolbarGroup,
@@ -103,17 +104,24 @@ export function EditorToolbar({
 
   // --- Responsive mode from the REAL container width -------------------------
   const rootRef = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<ToolbarMode>("desktop");
+  // The measured width itself is state, not the mode derived from it: the row
+  // makes TWO decisions from one measurement (which controls to show, and
+  // whether they still fit on one line), and two `useState`s fed by one
+  // observer can disagree. `resolveToolbarMode(0)` is `desktop`, so the first
+  // paint is unchanged from when this held the mode directly.
+  const [containerWidth, setContainerWidth] = useState(0);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const update = () => setMode(resolveToolbarMode(el.clientWidth));
+    const update = () => setContainerWidth(el.clientWidth);
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+  const mode: ToolbarMode = resolveToolbarMode(containerWidth);
   const labelled = mode === "desktop";
+  const wraps = toolbarWraps(containerWidth);
 
   // Availability context: the kinds of the selected objects (crop's rule).
   const selectedObjects = state.selection.ids
@@ -378,18 +386,44 @@ export function EditorToolbar({
   return (
     <div
       ref={rootRef}
-      className="flex shrink-0 items-center gap-1.5 border-b border-editor-border bg-editor-surface px-2 py-2 sm:px-3"
+      className={`flex shrink-0 items-center gap-1.5 border-b border-editor-border bg-editor-surface px-2 py-2 sm:px-3 ${
+        wraps ? "flex-wrap gap-y-1.5" : ""
+      }`}
     >
       {/*
-        `min-w-0` + `overflow-x-auto` is the structural backstop behind the
-        priority/cluster model. The cuts are sized from measured button widths,
-        but a longer locale or a larger minimum font can still push the row past
-        its container — and a plain non-wrapping flex row CLIPS, leaving tools
-        that are in the DOM and keyboard-reachable but invisible and unclickable.
-        Scrolling degrades honestly instead. `scrollbar-none` keeps the chrome
-        quiet; the row still scrolls by wheel, trackpad, touch and keyboard.
+        Two layouts, chosen by `toolbarWraps` from the measured container width.
+
+        At or above `TOOLBAR_WRAP_MIN_WIDTH` (732px — the measured worst-case
+        single-row fit, pin toggle present) the row is a single line and `min-w-0` + `overflow-x-auto`
+        is the structural backstop behind the priority/cluster model. The cuts
+        are sized from measured button widths, but a longer locale or a larger
+        minimum font can still push the row past its container — and a plain
+        non-wrapping flex row CLIPS, leaving tools that are in the DOM and
+        keyboard-reachable but invisible and unclickable. Scrolling degrades
+        honestly instead. `scrollbar-none` keeps the chrome quiet; the row still
+        scrolls by wheel, trackpad, touch and keyboard.
+
+        BELOW 609px that backstop was the primary mechanism, and it was not
+        honest: measured at 320px the scroller was a 90px window onto 437px of
+        tools — 21% visible, four fifths of the row reachable only by swiping a
+        scrollbar `scrollbar-none` had removed. So below the fit the row wraps
+        instead. No priority cut can rescue a single line there; see the
+        arithmetic in `toolbarLayout.ts`.
       */}
-      <div ref={menuRootRef} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none">
+      <div
+        ref={menuRootRef}
+        className={
+          wraps
+            ? // Below the measured single-row fit there is no scrolling to do:
+              // the row takes the full width and wraps, and the pinned cluster
+              // wraps with it onto its own line. `basis-full` is what makes the
+              // pinned cluster drop rather than share this line — without it a
+              // flex-wrap container gives the cluster the first line's tail and
+              // the tools wrap around it, which reads as a broken layout.
+              "flex w-full basis-full flex-wrap items-center gap-1"
+            : "flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none"
+        }
+      >
         <div
           /*
            * `shrink-0`, NOT `min-w-0`. This row is a flex ITEM of the scroller
@@ -407,7 +441,7 @@ export function EditorToolbar({
            * scrollWidth becomes true, and an overflow degrades into the sideways
            * scroll the comment below has always claimed it does.
            */
-          className="flex shrink-0 items-center gap-1"
+          className={`flex items-center gap-1 ${wraps ? "flex-wrap" : "shrink-0"}`}
           role="toolbar"
           aria-label="Tools"
           onKeyDown={onToolbarKeyDown}

@@ -73,6 +73,18 @@ only holds tools above the mode's priority cut.
 scrolls rather than clipping."* That was accepted as honest degradation. At 21%
 visibility with no affordance it is not.
 
+**Correction, added when F1 was fixed:** that `≈609` is the file's own arithmetic
+and it does not survive measurement. Swept against the rendered row, the single
+line first fits at a root `clientWidth` of **675** with no pinnable tool active
+and **732** once the pin toggle renders (731 leaves `More tools` 1px outside;
+700 leaves it 32px outside). The estimate was low because it compared a scroller
+requirement against the ROOT's width — the root's `px-2`/`sm:px-3` and the pinned
+cluster take ~238px before the tool row gets any — and because it predates the
+premium pass that moved the cluster onto the 44px control box. The shipped
+threshold is 732, the worst case, so choosing a tool cannot reintroduce the
+defect. Third invalidation of a width constant in this file by a control-metric
+change, which is why it is now a measurement and not a derivation.
+
 Same defect, second instance: `components/editor/FloatingCanvasControls.tsx:220`
 is `overflow-x-auto … scrollbar-none` and measures `scrollWidth 331` against
 `clientWidth 294` at 320px.
@@ -202,7 +214,7 @@ Two more confirmed non-defects, both previously suspected:
 
 | # | Finding | Root-cause fix | Files |
 |---|---|---|---|
-| 1 | F1 | Below the measured `≈609px` container fit, the toolbar wraps instead of scrolling; the floating capsule likewise | `EditorToolbar.tsx`, `toolbarLayout.ts`, `FloatingCanvasControls.tsx` |
+| 1 | F1 | Below the measured `732px` root fit (see the correction above — not the estimated `≈609`), the toolbar wraps instead of scrolling; the floating capsule likewise | `EditorToolbar.tsx`, `toolbarLayout.ts`, `FloatingCanvasControls.tsx` |
 | 2 | F2 | Stable `aria-label` on the trigger for all nine states + a 24px hit area | `SaveStatusIndicator.tsx` |
 | 3 | F3 | The frame's canvas region stops being `<main>`; the standalone shell supplies the real `#main` | `PremiumEditorFrame.tsx`, `StandaloneEditorShell.tsx` |
 | 4 | F4 | Each floater carries the slug it depicts; a test asserts every slug is functional | `HeroShowcase.tsx` + new test |

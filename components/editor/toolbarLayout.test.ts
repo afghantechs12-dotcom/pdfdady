@@ -9,6 +9,8 @@ import {
   overflowTools,
   resolveActiveTool,
   resolveToolbarMode,
+  toolbarWraps,
+  TOOLBAR_WRAP_MIN_WIDTH,
   toolActionLabel,
   toolAvailability,
   toolDefinition,
@@ -319,5 +321,62 @@ describe("editorTypes — tool predicates", () => {
   it("guards untrusted strings", () => {
     expect(isEditorTool("speechBubble")).toBe(true);
     expect(isEditorTool("laser")).toBe(false);
+  });
+});
+
+describe("toolbarLayout — the row wraps rather than hiding tools (F1)", () => {
+  /*
+   * Below ~609px of container no single row fits: at a 320px viewport the root's
+   * content box is 304px, the pinned undo/redo/Open/Export cluster takes ~200px,
+   * and `More` + Organize Pages + the pin toggle alone need ~160px. The row used
+   * to scroll there, which measured as a 90px window onto 437px of tools with
+   * `scrollbar-none` removing the only affordance — 21% of the row reachable.
+   */
+  it("wraps at every phone width the audit measured", () => {
+    // The four viewports from the F1 table. The toolbar's container is narrower
+    // than the viewport, so a wrapping viewport is a wrapping container a
+    // fortiori; these are the widths a reader of the audit will look for.
+    for (const width of [320, 360, 390, 412]) {
+      expect(toolbarWraps(width), `${width}px must wrap`).toBe(true);
+    }
+  });
+
+  it("does not wrap at or above the measured single-row fit", () => {
+    expect(TOOLBAR_WRAP_MIN_WIDTH).toBe(732);
+    expect(toolbarWraps(TOOLBAR_WRAP_MIN_WIDTH)).toBe(false);
+    expect(toolbarWraps(TOOLBAR_WRAP_MIN_WIDTH - 1)).toBe(true);
+  });
+
+  it("wraps the band where only a pinnable tool overflows", () => {
+    /*
+     * 675–731 is the gap between the two measured fits: the bare row fits at 675,
+     * but picking Text, Image, Signature or Annotation renders the pin toggle and
+     * needs 732. A threshold anywhere in this band scrolls `More tools` out of
+     * reach the moment a tool is chosen — measured 32px outside the scroller at
+     * 700px — which is the F1 defect returning through a different door. The
+     * threshold takes the worst case, so the whole band wraps.
+     */
+    for (const width of [675, 700, 731]) {
+      expect(toolbarWraps(width), `${width}px must wrap`).toBe(true);
+    }
+  });
+
+  it("leaves every mode that already fits on one line alone", () => {
+    // The wrap threshold sits far below the compact cut, so tablet and desktop
+    // are untouched: a regression there would grow the toolbar's height and push
+    // the canvas down at widths where the priority model already guarantees fit.
+    for (const width of [768, 1024, 1045, 1280, 1328, 1440, 1920]) {
+      expect(toolbarWraps(width), `${width}px must not wrap`).toBe(false);
+    }
+  });
+
+  it("does not wrap before the container has been measured", () => {
+    // Mirrors `resolveToolbarMode`'s desktop default. Wrapping on the first paint
+    // would announce a constraint that has not been measured, and would flash a
+    // two-line toolbar on every desktop mount.
+    expect(toolbarWraps(0)).toBe(false);
+    expect(toolbarWraps(Number.NaN)).toBe(false);
+    expect(toolbarWraps(-1)).toBe(false);
+    expect(resolveToolbarMode(0)).toBe("desktop");
   });
 });

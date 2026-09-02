@@ -138,6 +138,32 @@ describe("EditorToolbar chrome — the scroller cannot overlap its own row", () 
     for (const g of groups) expect(g, `"${g}" must not shrink inside the scroller`).toContain("shrink-0");
   });
 
+  it("stops being a scroller at all when the row wraps", () => {
+    /*
+     * The wrap layout and the scroll layout are mutually exclusive by
+     * construction: a `flex-wrap` row inside an `overflow-x-auto` box would wrap
+     * away the very overflow the scroller exists to expose, leaving a scroll
+     * container that never scrolls and a `scrollbar-none` that hides nothing.
+     * `basis-full` is the other half — without it flex-wrap hands the pinned
+     * Export cluster the tail of the first line and wraps the TOOLS around it.
+     */
+    const wrap = code.slice(code.indexOf("wraps\n"), code.indexOf("overflow-x-auto scrollbar-none"));
+    expect(wrap).toContain("basis-full");
+    expect(wrap).toContain("flex-wrap");
+    expect(wrap).not.toContain("overflow-x-auto");
+  });
+
+  it("wraps the pinned cluster onto its own line via the root, not a magic width", () => {
+    // `wraps` is derived from ONE measured width by `toolbarWraps`, alongside the
+    // mode. Two `useState`s fed by one ResizeObserver can disagree; a width that
+    // both read cannot.
+    expect(code).toContain("const wraps = toolbarWraps(containerWidth);");
+    expect(code).toContain('wraps ? "flex-wrap gap-y-1.5" : ""');
+    // No second literal threshold in the component — the number lives in
+    // `toolbarLayout.ts` beside the measurements that produced it.
+    expect(code).not.toMatch(/\b609\b/);
+  });
+
   it("still declares the scroller itself shrinkable — it is the thing that scrolls", () => {
     // `min-w-0 flex-1` on the scroller is correct and load-bearing: without it the
     // row pushes the pinned Export cluster off the right edge instead of scrolling.

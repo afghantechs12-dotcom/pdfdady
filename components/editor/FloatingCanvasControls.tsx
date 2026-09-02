@@ -217,7 +217,16 @@ export function FloatingCanvasControls({
        * click-through fix and is no longer; `editor-final-visual-probe.mjs` f03
        * and `editor-responsive-probe.mjs` both assert the current order.)
        */
-      className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-[16px] border border-editor-border bg-editor-surface/95 px-2 py-1.5 shadow-editorfloating backdrop-blur scrollbar-none"
+      /*
+       * WRAPS, and does not scroll. It used to be `overflow-x-auto
+       * scrollbar-none`, which at 320px measured `scrollWidth 331` against
+       * `clientWidth 294`: page navigation and zoom sat 37px outside a window
+       * whose only affordance had been removed. `flex-wrap` needs no width
+       * threshold — it costs nothing until the controls genuinely do not fit,
+       * and the capsule is absolutely positioned over the canvas, so a second
+       * line pushes no layout around.
+       */
+      className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-[16px] border border-editor-border bg-editor-surface/95 px-2 py-1.5 shadow-editorfloating backdrop-blur"
     >
       {/* Pointer mode: the reference's hand/arrow pair. */}
       {show.pointerMode && onPanMode && onSelectMode ? (

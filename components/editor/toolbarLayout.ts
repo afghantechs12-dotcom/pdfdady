@@ -388,6 +388,78 @@ export const TOOLBAR_COMPACT_MAX_WIDTH = 1045;
 export const TOOLBAR_TABLET_MAX_WIDTH = 1328;
 
 /**
+ * The root `clientWidth` below which the row WRAPS instead of scrolling.
+ *
+ * 732, MEASURED, and not the ≈609 the comment above estimates. That figure was
+ * this file's own arithmetic from an earlier control metric, and it is wrong for
+ * the shipped row in two ways: it forgot the root's own `px-2`/`sm:px-3` padding
+ * (the threshold is compared against the ROOT's width, the scroller gets ~238px
+ * less), and it predates the premium pass that put the pinned cluster on the
+ * 44px icon control box. Swept in Chrome against the rendered row:
+ *
+ * | root clientWidth | scroller | content | overflow | clipped |
+ * |---|---|---|---|---|
+ * | 675 | 437 | 437 | 0 | — nothing pinnable active |
+ * | 731 | 493 | 494 | 1 | `More tools` |
+ * | 732 | 494 | 494 | 0 | — |
+ *
+ * The two rows differ by the pin toggle (~53px with its divider and gaps), which
+ * appears whenever a PINNABLE tool is active. 675 is the fit with Select active
+ * (Select and Hand are modal, so no pin control); 732 is the fit once the user
+ * picks Text, Image, Signature or Annotation. The threshold has to be the worst
+ * case or choosing a tool would silently reintroduce the defect: measured at
+ * 700px with Text active, `More tools` sat 32px outside the scroller.
+ *
+ * This is the third time this file's width constants have been invalidated by a
+ * control-metric change, and the second time an estimate here disagreed with the
+ * browser. The rule the file already states applies to this constant too: measure
+ * the rendered row, do not reason about it.
+ *
+ * What the old ≈609 estimate called "honest degradation" cost, measured:
+ *
+ * | viewport | scroller clientWidth | content scrollWidth | visible |
+ * |---|---|---|---|
+ * | 320×800 | 90  | 437 | 21% |
+ * | 360×800 | 130 | 437 | 30% |
+ * | 390×844 | 160 | 437 | 37% |
+ * | 412×915 | 182 | 437 | 42% |
+ *
+ * A 90px window onto 437px of tools is not degradation, it is a hidden row —
+ * and it is hidden behind `scrollbar-none`, which `app/globals.css` documents
+ * with "Do not use this on a region whose only affordance is the scrollbar".
+ * The tools that scroll out of reach are priority-1, so they are not in `More`
+ * either: `More` only holds what sits ABOVE the mode's priority cut.
+ *
+ * Two fixes were considered and killed by arithmetic before this one. A fourth
+ * `phone` mode with every tool in `More` does not fit: at 320px the root's
+ * content box is 304px, the pinned cluster takes ~200px, and `More` + Organize
+ * Pages + the pin toggle alone need ~160px. A tighter priority cut fails the
+ * same way. Below ~609px NO single row fits, so the only honest single-row
+ * layout does not exist and the row has to use a second line.
+ *
+ * Wrapping costs vertical space on the smallest screens — measured, the root
+ * grows from 61px to 207px at 320px and 159px at 360–412px. That is the trade:
+ * every control visible and tappable at its full 44px target, against a row
+ * where five to seven of the eight tool-row controls — `More tools` among them,
+ * so not even the overflow menu was reachable — sat outside an invisible
+ * scrollbar's window.
+ */
+export const TOOLBAR_WRAP_MIN_WIDTH = 732;
+
+/**
+ * Whether the toolbar must wrap onto more than one line at this container width.
+ *
+ * An unmeasured width (0 / NaN — first render, before ResizeObserver fires)
+ * does NOT wrap, mirroring {@link resolveToolbarMode}'s desktop default: the
+ * first paint assumes room rather than announcing a constraint it has not
+ * measured.
+ */
+export function toolbarWraps(width: number): boolean {
+  if (!Number.isFinite(width) || width <= 0) return false;
+  return width < TOOLBAR_WRAP_MIN_WIDTH;
+}
+
+/**
  * Resolves the toolbar's responsive mode from its measured container width.
  * An unmeasured width (0 / NaN — first render before ResizeObserver fires)
  * resolves to desktop so nothing is hidden before a real measurement exists.
