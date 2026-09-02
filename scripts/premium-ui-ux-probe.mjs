@@ -1076,10 +1076,48 @@ async function scenarioH(ctx) {
       l.overflow === false && (!bottom || bottom.bottom <= bottom.vh + 1),
       `scrollW ${l.scrollW}/${l.vw}${bottom ? `, lowest chrome ${bottom.bottom} of ${bottom.vh}` : ""}`,
     );
+    // §10/U21: a control inside a scroller whose scrollbar is HIDDEN
+    // (`scrollbar-none`) and which sits outside that scroller's client box is
+    // unreachable — there is no affordance to scroll it into view. This is the
+    // rendered half of `toolbarLayout.test.ts`'s wrap threshold: the pure test
+    // proves the policy, this proves the pixels obey it. Measured red at 390px
+    // with the threshold removed: an 131px window onto 1060px of tools, with
+    // Text, Image, Signature, Note, Shape and Highlight all outside it.
+    const reach = await ctx.b.evaluate(`(() => {
+      const hiddenScroller = (el) => {
+        for (let n = el.parentElement; n; n = n.parentElement) {
+          const cs = getComputedStyle(n);
+          if (cs.overflowX !== 'auto' && cs.overflowX !== 'scroll') continue;
+          const bare = cs.scrollbarWidth === 'none' ||
+            String(n.className || '').includes('scrollbar-none');
+          return bare ? n : null;
+        }
+        return null;
+      };
+      const out = [];
+      for (const el of document.querySelectorAll('button, [role="button"], a[href]')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const s = hiddenScroller(el);
+        if (!s) continue;
+        const sr = s.getBoundingClientRect();
+        if (r.right > sr.right + 1 || r.left < sr.left - 1) {
+          out.push(((el.getAttribute('aria-label') || el.textContent || el.tagName) + '').trim().slice(0, 24));
+        }
+      }
+      return { out: out.slice(0, 6), count: out.length,
+        considered: document.querySelectorAll('button, [role=button]').length };
+    })()`);
+    gate(
+      S,
+      `H5 every editor control stays inside its own container at ${w}`,
+      reach.count === 0 && reach.considered > 5,
+      `${reach.considered} controls, ${reach.count} out of reach${reach.count ? " (" + reach.out.join(", ") + ")" : ""}`,
+    );
     await ctx.shot("h-standalone-editor", w);
   }
   await ctx.b.resize(1440, 900);
-  ctx.errors(S, "H5 no console errors");
+  ctx.errors(S, "H6 no console errors");
 }
 
 /* ═══════════════════════════════ I — Pricing ══════════════════════════════ */
@@ -1341,6 +1379,41 @@ async function main() {
   const b = await openBrowser({ width: 1440, height: 900 });
   const ctx = helpers(b);
   ctx.email = null;
+
+  /*
+   * Anti-vacuity precheck, and the most expensive lesson this probe taught.
+   *
+   * Next 16 dev blocks cross-origin requests to `/_next/*`, and a probe pointed at
+   * `http://127.0.0.1:<devport>` counts as cross-origin even though it is the same
+   * machine: `/_next/webpack-hmr` is refused, the HMR socket handshake fails, the
+   * dev client runtime never boots and REACT NEVER HYDRATES. The page still looks
+   * right — it is the real SSR markup — so every layout gate passes, while every
+   * effect-derived measurement reads its initial value and every click does
+   * nothing. `EditorToolbar`'s `containerWidth` stays 0, so `toolbarWraps(0)` is
+   * false and the mobile wrap gate H5 fails on a product that is not broken.
+   *
+   * A probe that cannot tell that state apart from a real one is worse than no
+   * probe. So: measure hydration once, and refuse to report rather than emit a
+   * page full of green that was never actually alive.
+   */
+  await b.goto(BASE, "/", 2200);
+  const alive = await b.evaluate(`(() => {
+    const react = (el) => !!el && Object.keys(el).some((k) => k.startsWith('__react'));
+    const root = document.querySelector('#main') || document.body.firstElementChild;
+    return {
+      hydrated: react(root) || [...document.querySelectorAll('header, main, button')].some(react),
+      chars: document.body.innerText.trim().length,
+    };
+  })()`);
+  if (!alive?.hydrated) {
+    b.close();
+    console.log(`\nENVIRONMENTAL: ${BASE} served markup but React never hydrated.`);
+    console.log(`(${alive?.chars ?? 0} chars of text, no __react* keys on any element.)`);
+    console.log("A dev server refuses cross-origin /_next requests: use http://localhost:<port>,");
+    console.log("not http://127.0.0.1:<port>. Or probe the production build, which §21 requires.");
+    console.log("No scenario ran, so no scenario passed.\n");
+    process.exit(2);
+  }
 
   try {
     if (WITH_AUTH) {
