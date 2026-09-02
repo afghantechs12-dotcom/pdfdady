@@ -3,11 +3,13 @@ import { appContainer } from "@/src/application/di/container";
 import { Tokens } from "@/src/application/di/tokens";
 import type { IObjectStorage } from "@/src/application/ports/storage/ObjectStorage";
 import type { IWorkspaceAwareUploadService } from "@/src/application/ports/workspace/WorkspaceAwareUploadService";
+import type { PdfToolJobService } from "@/src/application/services/PdfToolJobService";
 import { DOCUMENT_INGESTION_LIMITS } from "@/src/domain/entities/DocumentIngestion";
 import { resolveJobActor } from "@/lib/server/jobActor";
 import {
   isProcessingJob,
   jobErrorResponse,
+  legacyJobAccessDenied,
   loadJobRow,
   processingJobService,
 } from "@/lib/server/processingJobApi";
@@ -37,12 +39,14 @@ export const dynamic = "force-dynamic";
  *
  * TWO INDEPENDENT AUTHORIZATIONS, and both are required:
  *
- *  1. **The job.** `resolveJobActor` says who is calling and
- *     `ProcessingJobService.getResult` refuses a job that actor does not own, is
- *     not completed, or has expired — the same three gates as the download. So a
- *     job id copied from someone else's session cannot be saved anywhere, and a
- *     signed output URL is not accepted as evidence of anything (this route takes
- *     no URL at all).
+ *  1. **The job.** `resolveSavableOutput` resolves the caller with
+ *     `resolveJobActor` and then refuses a job that actor does not own, is not
+ *     completed, or has expired — via `ProcessingJobService.getResult` for a
+ *     pipeline job and via `legacyJobAccessDenied` + `PdfToolJobService.getStatus`
+ *     for a legacy one, which are the same two gates the legacy download uses. So
+ *     a job id copied from someone else's session cannot be saved anywhere, in
+ *     either shape, and a signed output URL is not accepted as evidence of
+ *     anything (this route takes no URL at all).
  *  2. **The destination.** `getWorkspaceActor` re-resolves the caller's
  *     organization and membership, and `uploadToWorkspace` validates the
  *     Workspace inside the application service. The client names a `workspaceId`,
@@ -94,19 +98,12 @@ export async function POST(
 
   const { id } = await params;
   const row = await loadJobRow(id);
-  if (!isProcessingJob(row)) {
-    return NextResponse.json({ error: "Job not found." }, { status: 404 });
-  }
 
   // Job authorization first: an unauthorized caller must not learn anything about
   // the destination, and a 404 here is indistinguishable from an unknown job.
-  let output;
-  try {
-    const jobActor = await resolveJobActor();
-    ({ output } = await processingJobService().getResult(id, jobActor));
-  } catch (err) {
-    return jobErrorResponse(err);
-  }
+  const resolved = await resolveSavableOutput(id, row);
+  if (resolved instanceof NextResponse) return resolved;
+  const output = resolved;
 
   /*
    * Only a PDF. The editor and the Workspace both treat a document as a PDF, and
@@ -182,4 +179,67 @@ export async function POST(
   } catch (error) {
     return mapWorkspaceError(request, error);
   }
+}
+
+/**
+ * The four facts this route needs about a finished job's output, from whichever
+ * of the two job shapes it is — and the same dispatch, in the same order, that
+ * `/api/jobs/:id/download` already performs.
+ *
+ * WHY THIS EXISTS. The route used to answer `404 "Job not found."` to every job
+ * whose `type` is not `processing`, while `ServerToolRunner` — the result surface
+ * for every server tool that is NOT the pipeline pilot — rendered
+ * `Save to Workspace` and posted here anyway (`saveJobResultToWorkspace`, whose
+ * own docstring names both surfaces). So the button was offered on eleven tools
+ * and could not succeed on ten of them in ANY configuration, nor on the eleventh
+ * in the shipped default one: `isProcessingPipelineEnabled` returns false for
+ * every slug but `compress-pdf`, and false for that one too unless
+ * `PROCESSING_PIPELINE=on` or a `unified_processing_pipeline` flag row says
+ * otherwise, which no deployment file sets. A completed `pdf-tool` job whose
+ * output was a stored PDF answered 404 to the exact request the button sends.
+ * Phase 5's workflow probe passed 155/156 because its journey C exercises the one
+ * pilot slug with the flag on.
+ *
+ * The legacy branch adds no new authority. `legacyJobAccessDenied` is the same
+ * ownership gate the legacy download uses, `PdfToolJobService.getStatus` is the
+ * same completion check, and everything after this function — the PDF rule, the
+ * ceiling, the Workspace actor, `storage.get`, `uploadToWorkspace` — is shared,
+ * so the two shapes converge before anything is written. The bytes still never
+ * pass through the browser: a legacy job's output is a storage key too.
+ */
+async function resolveSavableOutput(
+  id: string,
+  row: Awaited<ReturnType<typeof loadJobRow>>,
+): Promise<{ key: string; mimeType: string; bytes: number; downloadName: string } | NextResponse> {
+  if (isProcessingJob(row)) {
+    try {
+      const jobActor = await resolveJobActor();
+      const { output } = await processingJobService().getResult(id, jobActor);
+      return output;
+    } catch (err) {
+      return jobErrorResponse(err);
+    }
+  }
+
+  const denied = await legacyJobAccessDenied(row);
+  if (denied) return denied;
+
+  const status = await appContainer
+    .resolve<PdfToolJobService>(Tokens.PdfToolJobService)
+    .getStatus(id);
+  if (!status) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  if (status.status !== "completed" || !status.result) {
+    // The same 409 the legacy download answers for a job with no output yet, so a
+    // client polling one endpoint and saving through the other reads one story.
+    return NextResponse.json(
+      { error: "Job output is not available.", status: status.status },
+      { status: 409 },
+    );
+  }
+  return {
+    key: status.result.outputKey,
+    mimeType: status.result.mimeType,
+    bytes: status.result.resultSize,
+    downloadName: status.result.downloadName,
+  };
 }

@@ -80,6 +80,11 @@ import {
   PROCESSING_JOB_TYPE,
   type ProcessingJobResult,
 } from "@/src/application/services/ProcessingJobService";
+import {
+  PdfToolJobService,
+  PDF_TOOL_JOB_TYPE,
+  type PdfToolJobResult,
+} from "@/src/application/services/PdfToolJobService";
 import { InMemoryJobRepository } from "@/src/infrastructure/persistence/InMemoryJobRepository";
 import { PrismaWorkspaceRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceRepository";
 import { PrismaWorkspaceMembershipRepository } from "@/src/infrastructure/persistence/PrismaWorkspaceMembershipRepository";
@@ -227,6 +232,38 @@ async function makeJob(options: JobOptions = {}) {
         mimeType: options.mimeType ?? "application/pdf",
         bytes: options.bytes ?? data.byteLength,
       },
+    };
+    await jobs.update(job.id, { result });
+  }
+  return { id: job.id, key, data };
+}
+
+
+/**
+ * A finished LEGACY (`pdf-tool`) job — the shape every server tool but the
+ * pipeline pilot produces. Same storage, same owner, same recorded output; only
+ * `type` and the result's field names differ.
+ */
+async function makeLegacyJob(options: JobOptions = {}) {
+  const owner = options.owner ?? { ownerType: "user" as const, ownerId: world.users.saver };
+  const data = options.data ?? OUTPUT;
+  const { key } = await storeOutput(data);
+  const job = await jobs.create({
+    type: PDF_TOOL_JOB_TYPE,
+    payload: { slug: "rotate-pdf" },
+    status: options.status ?? "completed",
+    ownerType: owner.ownerType,
+    ownerId: owner.ownerId,
+    toolSlug: "rotate-pdf",
+  });
+  if (!options.omitResult) {
+    const result: PdfToolJobResult = {
+      outputFileId: "legacy-output-file",
+      outputKey: key,
+      downloadName: options.downloadName ?? "rotated.pdf",
+      mimeType: options.mimeType ?? "application/pdf",
+      originalSize: data.byteLength,
+      resultSize: options.bytes ?? data.byteLength,
     };
     await jobs.update(job.id, { result });
   }
@@ -390,6 +427,13 @@ beforeEach(async () => {
       now: () => clock,
     }),
   );
+  /*
+   * The LEGACY service, and the real one: `getStatus` reads the same job
+   * repository the route's own `loadJobRow` reads, so the legacy branch's
+   * completion check is production code over production data. Its queue and
+   * worker are unused by `getStatus` and are not this file's subject.
+   */
+  registry.set(Tokens.PdfToolJobService, new PdfToolJobService({} as never, jobs, {} as never));
   cookieState.session = `tok-${world.users.saver}`;
   cookieState.anon = null;
 });
@@ -692,5 +736,110 @@ describe("POST /api/jobs/:id/save-to-workspace — the save", () => {
     // the accepted first-save polling debt, pinned so it cannot silently change
     // into "the save route cuts a version" without this failing.
     expect(await prisma.documentVersion.count()).toBe(0);
+  });
+});
+
+/**
+ * R2 — the LEGACY (`pdf-tool`) result shape, which is what `ServerToolRunner`
+ * produces for every server tool that is not the pipeline pilot.
+ *
+ * WHY THIS BLOCK EXISTS AT ALL. `ServerToolRunner` renders `Save to Workspace`
+ * and posts here, and this route used to answer `404 "Job not found."` to every
+ * row whose `type` was not `processing` — so the button was offered on eleven
+ * tools and could not succeed on any of them in the shipped default
+ * configuration (`isProcessingPipelineEnabled` is false for every slug but
+ * `compress-pdf`, and false for that one too unless a flag row or
+ * `PROCESSING_PIPELINE` says otherwise, which no deployment file sets). Every
+ * test above used the pipeline shape, which is exactly why a full-green suite
+ * did not notice.
+ *
+ * These are the same four questions the pipeline tests ask, asked of the other
+ * shape: does it save, is it still MY job, is it finished, and is it a PDF. They
+ * drive the route, not a source scan — the assertion is the response and the
+ * bytes in the database.
+ */
+describe("POST /api/jobs/:id/save-to-workspace — a legacy server-tool result", () => {
+  it("stores a completed legacy job's own output bytes", async () => {
+    const job = await makeLegacyJob();
+    const { res, json, requestBytes } = await call(job.id, {
+      workspaceId: world.workspaces.home,
+    });
+
+    expect(res.status).toBe(201);
+    expect((json?.document as { id: string }).id).toEqual(expect.any(String));
+
+    const stored = await storedDocument(world.workspaces.home);
+    // The bytes are the job's, and they came from storage: the request that
+    // asked for the save was two orders of magnitude smaller than the PDF.
+    expect(stored?.bytes?.equals(job.data)).toBe(true);
+    expect(requestBytes).toBeLessThan(job.data.byteLength);
+    // Named the way the download names it, so the two agree.
+    expect(stored?.document?.name).toBe("rotated.pdf");
+    expect(stored?.ingestion.checksum).toBe(
+      crypto.createHash("sha256").update(job.data).digest("hex"),
+    );
+    // One activity line, and it names the tool that produced the result.
+    expect(audit).toHaveLength(1);
+    expect((audit[0].metadata as { toolSlug: string }).toolSlug).toBe("rotate-pdf");
+  });
+
+  it("answers a legacy job that is not yours exactly as it answers an unknown one", async () => {
+    const stranger = await makeLegacyJob({
+      owner: { ownerType: "user", ownerId: world.users.outsider },
+    });
+    const notMine = await call(stranger.id, { workspaceId: world.workspaces.home });
+    const unknown = await call("job_does_not_exist", { workspaceId: world.workspaces.home });
+
+    expect(notMine.res.status).toBe(404);
+    // Indistinguishable, so the endpoint is not an existence oracle for the
+    // legacy shape either.
+    expect(notMine.json).toEqual(unknown.json);
+    expect(await prisma.documentRecord.count()).toBe(0);
+    expect(audit).toHaveLength(0);
+  });
+
+  it("refuses a legacy job that has not finished, and one with no recorded output", async () => {
+    const running = await makeLegacyJob({ status: "running", omitResult: true });
+    const unfinished = await call(running.id, { workspaceId: world.workspaces.home });
+    expect(unfinished.res.status).toBe(409);
+    // The same words the legacy download answers, so a client polling one
+    // endpoint and saving through the other reads one story.
+    expect(unfinished.json?.error).toBe("Job output is not available.");
+    expect(unfinished.json?.status).toBe("running");
+
+    const empty = await makeLegacyJob({ omitResult: true });
+    expect((await call(empty.id, { workspaceId: world.workspaces.home })).res.status).toBe(409);
+    expect(await prisma.documentRecord.count()).toBe(0);
+  });
+
+  it("refuses a legacy result that is not a PDF, and one too large to store", async () => {
+    const zip = await makeLegacyJob({
+      data: NOT_A_PDF,
+      mimeType: "application/zip",
+      downloadName: "pages.zip",
+    });
+    const unsupported = await call(zip.id, { workspaceId: world.workspaces.home });
+    expect(unsupported.res.status).toBe(415);
+    expect((unsupported.json?.error as { code: string }).code).toBe("UNSUPPORTED_OUTPUT");
+
+    const huge = await makeLegacyJob({ bytes: DOCUMENT_INGESTION_LIMITS.maxUploadBytes + 1 });
+    const tooLarge = await call(huge.id, { workspaceId: world.workspaces.home });
+    expect(tooLarge.res.status).toBe(413);
+    expect(await prisma.documentRecord.count()).toBe(0);
+  });
+
+  it("answers a retry with the first document, and adds no second event", async () => {
+    const job = await makeLegacyJob();
+    const first = await call(job.id, { workspaceId: world.workspaces.home });
+    const again = await call(job.id, { workspaceId: world.workspaces.home });
+
+    expect(first.res.status).toBe(201);
+    expect(again.res.status).toBe(200);
+    expect((again.json?.document as { id: string }).id).toBe(
+      (first.json?.document as { id: string }).id,
+    );
+    expect(again.json?.deduplicated).toBe(true);
+    expect(await prisma.documentRecord.count()).toBe(1);
+    expect(audit).toHaveLength(1);
   });
 });
