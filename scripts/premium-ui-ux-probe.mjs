@@ -45,6 +45,16 @@
  *                                                    # account and run F and G
  *   node scripts/premium-ui-ux-probe.mjs --shots docs/screenshots/phase6
  *
+ * F and G need a session, and session cookies are `Secure` in production, so a
+ * plain-http origin drops them and registration never lands. The repo's existing
+ * answer is `scripts/tls-front.mjs` — serve the standalone artifact on loopback
+ * http and put a self-signed https listener on a LAN address in front of it, with
+ * `NEXT_PUBLIC_SITE_URL` set to exactly that origin (the CSRF gate trusts one
+ * origin, and the boot gate refuses a loopback hostname for it):
+ *
+ *   node scripts/tls-front.mjs --listen 3001 --target 3002   # prints the origin
+ *   node scripts/premium-ui-ux-probe.mjs --url https://<lan-ip>:3001 --auth
+ *
  * `--auth` MUTATES DATA: it registers one throwaway account per run
  * (`phase6.<stamp>@example.test`) and creates a Workspace and a document in it.
  * Without it, F and G report NOT EXERCISED rather than guessing.
@@ -59,6 +69,14 @@ const arg = (flag, fallback) => {
 const has = (flag) => process.argv.includes(flag);
 
 const BASE = arg("--url", "http://localhost:3001");
+/**
+ * A `https://` base means the self-signed `scripts/tls-front.mjs` terminator, so
+ * both clients have to be told to accept it: node's `fetch` for the reachability
+ * precheck, Chrome for everything else. The same two lines as
+ * `workflow-completeness-probe.mjs`, for the same reason.
+ */
+const SECURE_FRONT = BASE.startsWith("https:");
+if (SECURE_FRONT) process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const SHOTS = arg("--shots", null);
 const WITH_AUTH = has("--auth");
 const PASSWORD = "Phase6-Probe-Password!";
@@ -342,7 +360,15 @@ function helpers(b) {
           `${foreign.length} error(s) name an origin other than ${origin} — NEXT_PUBLIC_SITE_URL does not match this server: ${foreign[0].slice(0, 110)}`,
         );
       }
-      gate(scenario, id, mine.length === 0, mine.length ? mine.slice(0, 3).join(" | ") : `clean (${net.length} network entries ignored)`);
+      // §21 asks for failed network requests to be INSPECTED, so the ignored
+      // entries are named, not just counted: "2 ignored" cannot be reviewed.
+      const netDetail = net.length ? `: ${net.slice(0, 2).map((e) => e.slice(0, 200)).join(" | ")}` : "";
+      gate(
+        scenario,
+        id,
+        mine.length === 0,
+        mine.length ? mine.slice(0, 3).join(" | ") : `clean (${net.length} network entries ignored${netDetail})`,
+      );
     },
     /** Overflow across the nine audit widths. Reported per width, once. */
     async responsive(scenario, id, widths = VIEWPORTS) {
@@ -1376,7 +1402,7 @@ async function main() {
     process.exit(2);
   }
 
-  const b = await openBrowser({ width: 1440, height: 900 });
+  const b = await openBrowser({ width: 1440, height: 900, insecure: SECURE_FRONT });
   const ctx = helpers(b);
   ctx.email = null;
 
