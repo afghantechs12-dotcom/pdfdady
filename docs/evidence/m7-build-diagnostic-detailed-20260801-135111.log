@@ -1,0 +1,219 @@
+﻿M7.0 detailed isolated production-build diagnostic
+start_time=2026-08-01T13:51:11.1961459+02:00
+cwd=D:\AndroidStudioProjects\Backup\PDFMaster
+command=node npm-cli.js run build
+diagnostic_shell_pid=4292
+raw_combined_output=D:\Temp\pdfmaster-m7-build-20260801-135111.raw.log
+no_progress_ceiling_seconds=600
+--- activity samples ---
+runner_cmd_pid=14480
+process_discovered time=2026-08-01T13:51:11.9833109+02:00 role=child pid=21688 ppid=14480 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+process_discovered time=2026-08-01T13:51:12.0037449+02:00 role=npm_node pid=2896 ppid=14480 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe"  "C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node_modules\npm\bin\npm-cli.js" run build 
+activity time=2026-08-01T13:51:12.1292317+02:00 output_bytes=0 next_files=1 next_bytes=102 next_latest=.next\cache\.rscinfo next_latest_utc=2026-08-01T11:48:15.9173740Z lock=False
+process_discovered time=2026-08-01T13:51:13.4043051+02:00 role=prisma pid=4860 ppid=2896 name=cmd.exe command=C:\WINDOWS\system32\cmd.exe /d /s /c prisma generate && next build
+process_discovered time=2026-08-01T13:51:13.4182281+02:00 role=prisma pid=20448 ppid=4860 name=node.exe command="node"   "D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.bin\\..\prisma\build\index.js" generate
+activity time=2026-08-01T13:51:13.4360000+02:00 output_bytes=56 next_files=1 next_bytes=102 next_latest=.next\cache\.rscinfo next_latest_utc=2026-08-01T11:48:15.9173740Z lock=False
+activity time=2026-08-01T13:51:16.0750421+02:00 output_bytes=282 next_files=1 next_bytes=102 next_latest=.next\cache\.rscinfo next_latest_utc=2026-08-01T11:48:15.9173740Z lock=False
+process_discovered time=2026-08-01T13:51:17.3710739+02:00 role=prisma pid=8496 ppid=20448 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\prisma\build\child "{\"product\":\"prisma\",\"version\":\"6.19.3\",\"cli_install_type\":\"local\",\"information\":\"\",\"local_timestamp\":\"2026-08-01T13:51:16+02:00\",\"project_hash\":\"9a64a9ea\",\"cli_path\":\"D:\\AndroidStudioProjects\\Backup\\PDFMaster\\node_modules\\prisma\\build\\index.js\",\"cli_path_hash\":\"05f39729\",\"endpoint\":\"https://checkpoint.prisma.io\",\"disable\":false,\"arch\":\"x64\",\"os\":\"win32\",\"node_version\":\"v22.22.2\",\"ci\":false,\"ci_name\":\"\",\"command\":\"generate\",\"schema_providers\":[\"sqlite\"],\"schema_preview_features\":[],\"schema_generators_providers\":[\"prisma-client-js\"],\"cache_file\":\"C:\\Users\\Faisal Arifi\\AppData\\Local\\checkpoint-nodejs\\Cache\\prisma-05f39729\",\"cache_duration\":43200000,\"remind_duration\":172800000,\"force\":false,\"timeout\":5000,\"unref\":true,\"child_path\":\"D:\\AndroidStudioProjects\\Backup\\PDFMaster\\node_modules\\prisma\\build\\child\",\"client_event_id\":\"\",\"previous_client_event_id\":\"\",\"check_if_update_available\":false}"
+activity time=2026-08-01T13:51:17.3888915+02:00 output_bytes=368 next_files=1 next_bytes=102 next_latest=.next\cache\.rscinfo next_latest_utc=2026-08-01T11:48:15.9173740Z lock=False
+process_discovered time=2026-08-01T13:51:18.6673645+02:00 role=prisma pid=14884 ppid=20448 name=node.exe command="C:\Program Files\nodejs\node.exe" "D:\New folder (4)\WorkBuddyAI\resources\app.asar.unpacked\cli\vendor\shim\safe-delete-bulk-guard.cjs" check --target D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.prisma\client\default.js
+process_discovered time=2026-08-01T13:51:18.6673645+02:00 role=child pid=26144 ppid=14884 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+process_discovered time=2026-08-01T13:51:19.9492482+02:00 role=prisma pid=24128 ppid=20448 name=node.exe command="C:\Program Files\nodejs\node.exe" "D:\New folder (4)\WorkBuddyAI\resources\app.asar.unpacked\cli\vendor\shim\safe-delete-bulk-guard.cjs" check --target D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.prisma\client\index-browser.js
+process_discovered time=2026-08-01T13:51:19.9553022+02:00 role=child pid=4420 ppid=24128 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+process_discovered time=2026-08-01T13:51:21.2755195+02:00 role=prisma pid=3392 ppid=20448 name=node.exe command="C:\Program Files\nodejs\node.exe" "D:\New folder (4)\WorkBuddyAI\resources\app.asar.unpacked\cli\vendor\shim\safe-delete-bulk-guard.cjs" check --target D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.prisma\client\edge.d.ts
+process_discovered time=2026-08-01T13:51:21.2755195+02:00 role=child pid=5376 ppid=3392 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+process_discovered time=2026-08-01T13:51:22.5438705+02:00 role=prisma pid=15064 ppid=20448 name=node.exe command="C:\Program Files\nodejs\node.exe" "D:\New folder (4)\WorkBuddyAI\resources\app.asar.unpacked\cli\vendor\shim\safe-delete-bulk-guard.cjs" check --target D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.prisma\client\client.d.ts
+process_discovered time=2026-08-01T13:51:22.5582364+02:00 role=child pid=22184 ppid=15064 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+process_discovered time=2026-08-01T13:51:25.1015955+02:00 role=prisma pid=20852 ppid=20448 name=win32-x64.exe command="D:\New folder (4)\WorkBuddyAI\resources\vendor\genie-trash\win32-x64.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.prisma\client\wasm.d.ts
+process_discovered time=2026-08-01T13:51:26.3736141+02:00 role=next_build pid=17860 ppid=4860 name=node.exe command="node"   "D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.bin\\..\next\dist\bin\next" build
+activity time=2026-08-01T13:51:26.3967666+02:00 output_bytes=654 next_files=1 next_bytes=102 next_latest=.next\cache\.rscinfo next_latest_utc=2026-08-01T11:48:15.9173740Z lock=False
+activity time=2026-08-01T13:51:28.9481737+02:00 output_bytes=753 next_files=9 next_bytes=42135 next_latest=.next\diagnostics\build-diagnostics.json next_latest_utc=2026-08-01T11:51:28.3368635Z lock=True
+activity time=2026-08-01T13:51:30.3114758+02:00 output_bytes=753 next_files=10 next_bytes=42135 next_latest=.next\package.json next_latest_utc=2026-08-01T11:51:29.3606547Z lock=True
+process_discovered time=2026-08-01T13:51:34.4257939+02:00 role=child pid=24152 ppid=17860 name=node.exe command="node" D:\AndroidStudioProjects\Backup\PDFMaster\.next\build\56416d4ae4ce586f.js 56711
+activity time=2026-08-01T13:51:34.4504478+02:00 output_bytes=753 next_files=23 next_bytes=904278 next_latest=.next\build\chunks\node_modules_20v-8wl._.js.map next_latest_utc=2026-08-01T11:51:33.9358114Z lock=True
+activity time=2026-08-01T13:51:52.5232240+02:00 output_bytes=753 next_files=1254 next_bytes=40918428 next_latest=.next\server\app\tools\rotate-pdf\page\react-loadable-manifest.json next_latest_utc=2026-08-01T11:51:52.2128463Z lock=True
+process_discovered time=2026-08-01T13:51:53.8647811+02:00 role=child pid=6068 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+activity time=2026-08-01T13:51:54.3155533+02:00 output_bytes=813 next_files=1510 next_bytes=41727117 next_latest=.next\diagnostics\build-diagnostics.json next_latest_utc=2026-08-01T11:51:52.5110716Z lock=True
+activity time=2026-08-01T13:52:08.0629175+02:00 output_bytes=813 next_files=1511 next_bytes=42133291 next_latest=.next\cache\.tsbuildinfo next_latest_utc=2026-08-01T11:52:06.4520241Z lock=True
+process_discovered time=2026-08-01T13:52:29.6479889+02:00 role=child pid=26936 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6540545+02:00 role=child pid=13864 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6641506+02:00 role=child pid=13588 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6742284+02:00 role=child pid=24064 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6802849+02:00 role=child pid=14268 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6863409+02:00 role=child pid=7364 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.6965998+02:00 role=child pid=23352 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.7072806+02:00 role=child pid=16008 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.7170208+02:00 role=child pid=20944 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.7249829+02:00 role=child pid=4156 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+process_discovered time=2026-08-01T13:52:29.7350811+02:00 role=child pid=12952 ppid=17860 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\next\dist\compiled\jest-worker/processChild.js
+activity time=2026-08-01T13:52:30.4022959+02:00 output_bytes=892 next_files=1514 next_bytes=42156850 next_latest=.next\app-path-routes-manifest.json next_latest_utc=2026-08-01T11:52:28.7477542Z lock=True
+activity time=2026-08-01T13:52:32.4625185+02:00 output_bytes=892 next_files=1515 next_bytes=42156850 next_latest=.next\trace next_latest_utc=2026-08-01T11:52:31.5413024Z lock=True
+activity time=2026-08-01T13:52:35.6045500+02:00 output_bytes=947 next_files=1684 next_bytes=44011797 next_latest=.next\server\app\tools\annotate-pdf.segments\tools\annotate-pdf.segment.rsc next_latest_utc=2026-08-01T11:52:34.9871270Z lock=True
+activity time=2026-08-01T13:52:40.1213718+02:00 output_bytes=1055 next_files=2042 next_bytes=50617958 next_latest=.next\server\app\tools\organize-pdf.segments\tools\organize-pdf.segment.rsc next_latest_utc=2026-08-01T11:52:38.7549222Z lock=True
+activity time=2026-08-01T13:52:42.9865777+02:00 output_bytes=1109 next_files=2330 next_bytes=55459026 next_latest=.next\server\app\tools\compress-pdf.segments\tools\$d$slug.segment.rsc next_latest_utc=2026-08-01T11:52:42.1297493Z lock=True
+process_discovered time=2026-08-01T13:52:44.3242565+02:00 role=child pid=27408 ppid=17860 name=win32-x64.exe command="D:\New folder (4)\WorkBuddyAI\resources\vendor\genie-trash\win32-x64.exe" D:\AndroidStudioProjects\Backup\PDFMaster\.next\export
+activity time=2026-08-01T13:52:45.1887376+02:00 output_bytes=1207 next_files=2339 next_bytes=55621828 next_latest=.next\export-marker.json next_latest_utc=2026-08-01T11:52:44.2504913Z lock=True
+activity time=2026-08-01T13:52:48.0536738+02:00 output_bytes=1207 next_files=3117 next_bytes=169560888 next_latest=.next\standalone\package.json next_latest_utc=2026-08-01T11:52:45.1261555Z lock=True
+activity time=2026-08-01T13:52:51.2326401+02:00 output_bytes=4189 next_files=5503 next_bytes=198986938 next_latest=.next\trace-build next_latest_utc=2026-08-01T11:52:49.4192644Z lock=False
+--- full combined stdout/stderr ---
+
+> pdfdadi@0.1.0 build
+> prisma generate && next build
+
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+âœ” Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 8.93s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+â–² Next.js 16.2.12 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+âœ“ Compiled successfully in 23.1s
+  Running TypeScript ...
+  Finished TypeScript in 36.2s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/105) ...
+  Generating static pages using 11 workers (26/105) 
+  Generating static pages using 11 workers (52/105) 
+  Generating static pages using 11 workers (78/105) 
+âœ“ Generating static pages using 11 workers (105/105) in 9.6s
+  Finalizing page optimization ...
+
+Route (app)
+â”Œ â—‹ /
+â”œ â—‹ /_not-found
+â”œ â—‹ /about
+â”œ â—‹ /admin
+â”œ â—‹ /admin/ai-tools
+â”œ â—‹ /admin/blog
+â”œ â—‹ /admin/faq
+â”œ â—‹ /admin/features
+â”œ Æ’ /admin/login
+â”œ â—‹ /admin/nav
+â”œ â—‹ /admin/pages
+â”œ â—‹ /admin/pricing
+â”œ â—‹ /admin/seo
+â”œ â—‹ /admin/server-tools
+â”œ Æ’ /admin/setup
+â”œ â—‹ /admin/site
+â”œ â—‹ /admin/tools
+â”œ â—‹ /admin/tools/categories
+â”œ â—‹ /admin/trust
+â”œ â—‹ /admin/use-cases
+â”œ Æ’ /api/admin/ai-tools/[id]
+â”œ Æ’ /api/admin/blog/[slug]
+â”œ Æ’ /api/admin/blog/author
+â”œ Æ’ /api/admin/faq/[id]
+â”œ Æ’ /api/admin/features/[id]
+â”œ Æ’ /api/admin/login
+â”œ Æ’ /api/admin/logout
+â”œ Æ’ /api/admin/nav
+â”œ Æ’ /api/admin/pages/[key]
+â”œ Æ’ /api/admin/password
+â”œ Æ’ /api/admin/pricing/[id]
+â”œ Æ’ /api/admin/reorder
+â”œ Æ’ /api/admin/seo
+â”œ Æ’ /api/admin/server-tools/[slug]
+â”œ Æ’ /api/admin/setup
+â”œ Æ’ /api/admin/site
+â”œ Æ’ /api/admin/store
+â”œ Æ’ /api/admin/tool-categories/[id]
+â”œ Æ’ /api/admin/tools
+â”œ Æ’ /api/admin/tools/[slug]
+â”œ Æ’ /api/admin/tools/bulk
+â”œ Æ’ /api/admin/trust/[id]
+â”œ Æ’ /api/admin/use-cases/[id]
+â”œ Æ’ /api/auth/login
+â”œ Æ’ /api/auth/logout
+â”œ Æ’ /api/auth/me
+â”œ Æ’ /api/auth/register
+â”œ Æ’ /api/health
+â”œ Æ’ /api/health/dependencies
+â”œ Æ’ /api/health/ready
+â”œ Æ’ /api/jobs
+â”œ Æ’ /api/jobs/[id]
+â”œ Æ’ /api/jobs/[id]/cancel
+â”œ Æ’ /api/jobs/[id]/download
+â”œ Æ’ /api/jobs/[id]/progress
+â”œ Æ’ /api/storage/file
+â”œ Æ’ /api/storage/multipart
+â”œ Æ’ /api/storage/multipart/[...segments]
+â”œ Æ’ /api/tools/[slug]
+â”œ â—‹ /blog
+â”œ â— /blog/[slug]
+â”‚ â”œ /blog/how-to-merge-pdf-files-online
+â”‚ â”œ /blog/how-to-compress-a-pdf-for-email
+â”‚ â”œ /blog/how-to-protect-private-documents
+â”‚ â”” [+6 more paths]
+â”œ â— /blog/-/opengraph-image
+â”‚ â”œ /blog/how-to-merge-pdf-files-online/opengraph-image
+â”‚ â”œ /blog/how-to-compress-a-pdf-for-email/opengraph-image
+â”‚ â”œ /blog/how-to-protect-private-documents/opengraph-image
+â”‚ â”” [+6 more paths]
+â”œ Æ’ /brand-logo
+â”œ â—‹ /contact
+â”œ â—‹ /editor
+â”œ â—‹ /icon
+â”œ â—‹ /opengraph-image
+â”œ â—‹ /pricing
+â”œ â—‹ /privacy-policy
+â”œ â—‹ /robots.txt
+â”œ Æ’ /server-status
+â”œ â—‹ /sitemap.xml
+â”œ â—‹ /terms
+â”œ â—‹ /tools
+â”œ â— /tools/[slug]
+â”‚ â”œ /tools/compress-pdf
+â”‚ â”œ /tools/repair-pdf
+â”‚ â”œ /tools/ocr-pdf
+â”‚ â”” [+24 more paths]
+â”œ â—‹ /tools/add-page-numbers
+â”œ â—‹ /tools/add-watermark
+â”œ â—‹ /tools/annotate-pdf
+â”œ â—‹ /tools/crop-pdf
+â”œ â—‹ /tools/delete-pdf-pages
+â”œ â—‹ /tools/edit-pdf
+â”œ â—‹ /tools/extract-pdf-pages
+â”œ â—‹ /tools/fill-pdf-forms
+â”œ â—‹ /tools/image-to-pdf
+â”œ â—‹ /tools/jpg-to-pdf
+â”œ â—‹ /tools/merge-pdf
+â”œ â—‹ /tools/organize-pdf
+â”œ â—‹ /tools/png-to-pdf
+â”œ â—‹ /tools/remove-pdf-metadata
+â”œ â—‹ /tools/reorder-pdf-pages
+â”œ â—‹ /tools/rotate-pdf
+â”œ â—‹ /tools/sign-pdf
+â”” â—‹ /tools/split-pdf
+
+
+Æ’ Proxy (Middleware)
+
+â—‹  (Static)   prerendered as static content
+â—  (SSG)      prerendered as static HTML (uses generateStaticParams)
+Æ’  (Dynamic)  server-rendered on demand
+
+
+--- final result ---
+end_time=2026-08-01T13:52:52.2474249+02:00
+duration_seconds=101.051
+exit_code=0
+last_output_line=Æ’  (Dynamic)  server-rendered on demand
+diagnostic_shell_pid=4292
+runner_cmd_pid=14480
+npm_pids=2896
+next_pids=17860
+next_exists=True
+next_lock_exists=False
+next_file_count=5503
+next_total_bytes=198986938
+next_latest_path=.next\trace-build
+next_latest_utc=2026-08-01T11:52:49.4192644Z

@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified Processing Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #f6f8f8;
+    --surface: #ffffff;
+    --surface-sunk: #eef2f2;
+    --ink: #101a1d;
+    --ink-soft: #5a6b70;
+    --ink-faint: #8a9a9e;
+    --hairline: #dce3e4;
+    --hairline-strong: #c3cfd1;
+    --accent: #0e7c86;
+    --accent-quiet: #e2f0f1;
+    --good: #1b7f4b;
+    --good-bg: #e4f3ea;
+    --warn: #9c5c0a;
+    --warn-bg: #fbeedb;
+    --info: #34549e;
+    --info-bg: #e6ecf9;
+    --crit: #a52017;
+    --crit-bg: #fbe8e6;
+    --muted-bg: #eaefef;
+    --shadow: 0 1px 2px rgba(16, 26, 29, .05), 0 8px 24px -16px rgba(16, 26, 29, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0c1214;
+      --surface: #131c1f;
+      --surface-sunk: #0f1719;
+      --ink: #e6edee;
+      --ink-soft: #93a5a9;
+      --ink-faint: #6c7f83;
+      --hairline: #223034;
+      --hairline-strong: #314347;
+      --accent: #4cc9d4;
+      --accent-quiet: #102a2e;
+      --good: #48c98a;
+      --good-bg: #10261c;
+      --warn: #e5a54a;
+      --warn-bg: #2a1f0d;
+      --info: #85a8f0;
+      --info-bg: #131d33;
+      --crit: #ff7c6f;
+      --crit-bg: #2c1512;
+      --muted-bg: #182225;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c1214;
+    --surface: #131c1f;
+    --surface-sunk: #0f1719;
+    --ink: #e6edee;
+    --ink-soft: #93a5a9;
+    --ink-faint: #6c7f83;
+    --hairline: #223034;
+    --hairline-strong: #314347;
+    --accent: #4cc9d4;
+    --accent-quiet: #102a2e;
+    --good: #48c98a;
+    --good-bg: #10261c;
+    --warn: #e5a54a;
+    --warn-bg: #2a1f0d;
+    --info: #85a8f0;
+    --info-bg: #131d33;
+    --crit: #ff7c6f;
+    --crit-bg: #2c1512;
+    --muted-bg: #182225;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 clamp(18px, 5vw, 56px) 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, .lbl, .pill, th, .stat-n, .num {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  }
+  code, .mono, td.n, .stat-n, .num {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    padding: clamp(40px, 7vw, 76px) 0 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(34px, 5.4vw, 55px);
+    line-height: 1.04;
+    font-weight: 700;
+    letter-spacing: -.022em;
+    text-wrap: balance;
+    margin: 0 0 20px;
+  }
+  .standfirst {
+    font-size: clamp(18px, 2.1vw, 21px);
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 34px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 30px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    padding-bottom: 30px;
+  }
+  .meta b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---------- stat band ---------- */
+  .band {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 40px 0 8px;
+  }
+  .stat { background: var(--surface); padding: 20px 22px; }
+  .stat-n {
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    line-height: 1.1;
+  }
+  .stat-l {
+    font-family: Archivo, sans-serif;
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 7px;
+    display: block;
+  }
+  .stat.is-good .stat-n { color: var(--good); }
+  .stat.is-warn .stat-n { color: var(--warn); }
+
+  /* ---------- sections ---------- */
+  section { padding-top: 62px; }
+  h2 {
+    font-size: clamp(21px, 2.6vw, 26px);
+    font-weight: 600;
+    letter-spacing: -.014em;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  h2 .sec {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: .08em;
+    flex: none;
+  }
+  .dek {
+    color: var(--ink-soft);
+    margin: 0 0 26px;
+    max-width: 66ch;
+  }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -.006em;
+    margin: 34px 0 10px;
+  }
+  p { margin: 0 0 15px; }
+  .col p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  code {
+    font-size: .875em;
+    background: var(--surface-sunk);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    padding: .08em .34em;
+    word-break: break-word;
+  }
+
+  /* ---------- tables ---------- */
+  .tw {
+    overflow-x: auto;
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 12px 16px;
+    background: var(--surface-sunk);
+    border-bottom: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.k { color: var(--ink); font-weight: 400; }
+  td.n, td.mono, th.n {
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.n { color: var(--ink); }
+  .ok { color: var(--good); font-weight: 500; }
+  .bad { color: var(--crit); font-weight: 500; }
+  .zero { color: var(--good); }
+
+  /* ---------- pills ---------- */
+  .pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .p-done { background: var(--good-bg); color: var(--good); }
+  .p-part { background: var(--warn-bg); color: var(--warn); }
+  .p-env  { background: var(--info-bg); color: var(--info); }
+  .p-def  { background: var(--muted-bg); color: var(--ink-soft); }
+  .p-crit { background: var(--crit-bg); color: var(--crit); }
+
+  /* ---------- findings ---------- */
+  .find {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--hairline-strong);
+    border-radius: 3px;
+    padding: 24px 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .find.f-fixed { border-left-color: var(--good); }
+  .find.f-open  { border-left-color: var(--crit); }
+  .find.f-scope { border-left-color: var(--warn); }
+  .find-h {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .find-h .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: .06em;
+  }
+  .find-h h3 { margin: 0; font-size: 17px; flex: 1 1 auto; min-width: 15ch; }
+  .find p { font-size: 15.5px; max-width: 74ch; }
+  .find p:last-child { margin-bottom: 0; }
+  .ev {
+    background: var(--surface-sunk);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 13px 15px;
+    margin: 14px 0;
+    overflow-x: auto;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+
+  /* ---------- ledger ---------- */
+  .ledger {
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    background: var(--surface);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .grp {
+    font-family: Archivo, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: var(--surface-sunk);
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--hairline);
+    border-top: 1px solid var(--hairline);
+  }
+  .grp:first-child { border-top: 0; }
+  .row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 6px 16px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--hairline);
+    align-items: baseline;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .num {
+    font-size: 12.5px;
+    color: var(--accent);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .row .t {
+    font-family: Archivo, sans-serif;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -.004em;
+  }
+  .row .e {
+    grid-column: 2;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .row .e code { font-size: .84em; }
+  @media (max-width: 620px) {
+    .row { grid-template-columns: 40px minmax(0, 1fr); }
+    .row .pill { grid-column: 2; justify-self: start; margin-top: 4px; }
+  }
+
+  /* ---------- checklist ---------- */
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: 15px;
+    color: var(--ink-soft);
+    align-items: start;
+  }
+  ul.checks li:last-child { border-bottom: 0; }
+  ul.checks .mk { color: var(--good); font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+  ul.checks .mk.warn { color: var(--crit); }
+  ul.checks b { color: var(--ink); font-weight: 600; font-family: Archivo, sans-serif; font-size: 14.5px; }
+
+  .note {
+    border-left: 2px solid var(--accent);
+    padding: 2px 0 2px 18px;
+    margin: 24px 0;
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    max-width: 70ch;
+  }
+  hr.rule { border: 0; border-top: 1px solid var(--hairline); margin: 0; }
+  footer {
+    padding-top: 58px;
+    color: var(--ink-faint);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    line-height: 1.9;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Verification record · PDFDadi</p>
+  <h1>Unified Processing Pilot</h1>
+  <p class="standfirst">A durable job architecture for work that should not run inside a Next.js request — with one heavy tool migrated behind a feature flag, and browser-local tools left exactly where they were.</p>
+  <div class="meta">
+    <span><b>Pilot</b> compress-pdf</span>
+    <span><b>Flag</b> unified_processing_pipeline</span>
+    <span><b>Default</b> disabled</span>
+    <span><b>Date</b> 24 Aug 2026</span>
+    <span><b>Stack</b> Next 16.2.12 · React 19.2.7 · Prisma 6.19.3 / SQLite · Node 26.7.0</span>
+  </div>
+</header>
+
+<div class="band">
+  <div class="stat is-good"><span class="stat-n">7/7</span><span class="stat-l">Gates green</span></div>
+  <div class="stat is-good"><span class="stat-n">5,522</span><span class="stat-l">Tests, 263 files</span></div>
+  <div class="stat is-good"><span class="stat-n">39/39</span><span class="stat-l">Pilot browser checks</span></div>
+  <div class="stat"><span class="stat-n">×1.0</span><span class="stat-l">Pipeline latency vs ×41 input</span></div>
+  <div class="stat is-warn"><span class="stat-n">4</span><span class="stat-l">Findings, 2 fixed</span></div>
+</div>
+
+<section>
+  <h2><span class="sec">SUM</span>What happened</h2>
+  <div class="col">
+    <p>The architecture is in place and the pilot works end to end in a real production build: <code>compress-pdf</code> submissions return a job record in about 10&nbsp;ms instead of holding the request open for the length of a Ghostscript run, and the same request with the flag off still takes the legacy path byte for byte. All seven validation gates pass. Every local tool still processes in the browser and creates no job.</p>
+    <p>Four things were found along the way, and two of them are still open on purpose. Both fixed items were real defects with silent failure modes; both open ones are pre-existing gaps whose repairs require changes this phase was explicitly told not to make. They are written up in full below rather than folded into a summary line, because in both cases the honest version is more useful than the tidy one.</p>
+    <p>One process note that matters more than any single result: a green test run turned out not to be proof of a green test suite. The suite reported all-pass, then failed on a later identical run — an intermittent failure in my own integration test, caused by colliding job identifiers rather than by the code under test. It is fixed at the root and pinned by a deterministic assertion, and the whole suite was then run repeatedly rather than once.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">FIND</span>Findings</h2>
+  <p class="dek">Ordered by what a user would notice, not by when I found them.</p>
+
+  <div class="find f-fixed">
+    <div class="find-h">
+      <span class="tag">A</span>
+      <h3>The pilot silently dropped the compression result summary</h3>
+      <span class="pill p-done">Fixed</span>
+    </div>
+    <p>A job that compressed a file to 79% of its original size rendered a bare <em>“Your file is ready”</em> with no numbers at all, while the legacy runner it replaces showed the comparison. Nothing errored and no test failed — the panel guards its size display on <code>outputBytes != null</code>, so absent data renders as absent UI.</p>
+    <p>The counts were dropped in two independent places: the status projection never carried them onto the wire, and the pilot runner passed the literal <code>outputBytes={null}</code> into the panel. Either one alone would have hidden the display, which is why the fix touches three layers — the wire type, the projection, and the runner — and why <code>showSizeComparison: true</code> being set for this tool is what proves the display was intended rather than optional.</p>
+    <div class="ev">before   job 10250 → 8118 bytes, panel: "Your file is ready"
+after    panel: "10 KB → 7.9 KB (21% smaller)"
+tests    6 added · mutation M-c 2 kills · M-d 1 kill
+probe    39/39 in the production build</div>
+    <p>The regression test asserts the projection carries the counts <em>and</em> still withholds <code>storageKey</code>, <code>outputKey</code>, <code>ownerId</code>, <code>userId</code>, <code>workspaceId</code>, <code>payload</code>, <code>result</code> and <code>processorMessage</code> — the point was never “send more”, it was “send sizes, which say nothing about contents”.</p>
+  </div>
+
+  <div class="find f-open">
+    <div class="find-h">
+      <span class="tag">C</span>
+      <h3>The legacy job routes perform no ownership check</h3>
+      <span class="pill p-crit">Open · pre-existing</span>
+    </div>
+    <p>This is the most serious item in the report and it is not a pilot regression — it sits on the pre-existing path and is reachable in production today. A caller with no session can read any legacy job's status and download its output. I verified it rather than inferring it: I gave a completed legacy job an owner, then fetched it from a fresh cookie jar.</p>
+    <div class="ev">job owner set to        user/owner_alice
+stranger GET /api/jobs/{id}           → HTTP 200  (full status)
+stranger GET /api/jobs/{id}/download  → HTTP 302  → signed URL
+stranger follows the signed URL       → HTTP 200  78,359 bytes  %PDF-1.5
+
+same stranger, a PIPELINE job:
+  GET /api/jobs/{id}          → 404
+  GET /api/jobs/{id}/result   → 404
+  POST /api/jobs/{id}/cancel  → 404</div>
+    <p>The pipeline path is correct — it resolves the actor server-side, requires an owner match, and returns 404 rather than 403 so job ids cannot be enumerated by probing. The legacy branch of the same two route files simply never resolves an actor. The routes' own comments already describe this split, one of them calling the legacy behaviour unauthorized in as many words.</p>
+    <p>I did not fix it, and the reason is not scope alone. Legacy jobs are created anonymously with <code>ownerType</code> and <code>ownerId</code> both null, and the ownership predicate correctly treats a job with no owner as belonging to nobody. Adding the check as a one-line guard would therefore make every anonymous legacy job undownloadable by the user who just created it — trading a disclosure bug for a total outage of the pre-pilot runner. It needs an anonymous-ownership token or an owner backfill, which is a design change to the legacy path this phase was told to leave intact. <strong>It should be the next piece of work.</strong></p>
+  </div>
+
+  <div class="find f-scope">
+    <div class="find-h">
+      <span class="tag">B</span>
+      <h3><code>Content-Disposition</code> does not survive the redirect to storage</h3>
+      <span class="pill p-def">Deferred · scoped</span>
+    </div>
+    <p>Both the pilot and legacy download routes set <code>Content-Disposition</code> on a 302, and a redirect's headers do not survive being followed. Neither the local signed-URL route nor an R2 presign carries one — the presign builds a bare <code>GetObjectCommand</code> with no <code>ResponseContentDisposition</code> — so the header reads null for both runners, in dev and in production alike. The pilot did not regress this; the legacy route has the same shape and its own comment calls the header a best-effort hint.</p>
+    <p>Fixing it properly means adding a download-name parameter to the signed-URL port, which is a storage-architecture change this phase forbids. Forcing <code>attachment</code> on the shared storage route was the other option and is worse: other consumers use signed GETs for inline viewing, including the editor loading PDFs. The download still arrives with a correct filename derived from the submitted name, which is why this is a defect and not a broken feature.</p>
+    <p class="note"><strong>Extension point:</strong> <code>ISignedUrlService.signedUrl(key, verb, ttl)</code> — add an optional response-disposition argument there and both runners get correct filenames from one change.</p>
+  </div>
+
+  <div class="find f-fixed">
+    <div class="find-h">
+      <span class="tag">D</span>
+      <h3>Colliding job ids made a cleanup test blame itself</h3>
+      <span class="pill p-done">Fixed</span>
+    </div>
+    <p>The suite reported a leaked scratch directory after a job finished. It had not leaked — the shared scratch root was empty after every run, and the failure named a different test each time. The in-memory job repository mints ids from a module-level counter that restarts at 1 in each process; the test runner runs files in parallel forks against one machine-wide scratch root; so two forks both mint <code>inmem-job-11</code>, and a directory belonging to a sibling test file matched this job's prefix. Observed directly in the live root: <code>inmem-job-11</code> held three distinct directories at once.</p>
+    <p>The fix adds per-process entropy to the identifier rather than loosening the assertion, because two repositories handing out the same id is the actual defect and a work directory is only the first thing to trip over it.</p>
+    <p>What makes this worth reporting is the second half. Reverting the fix and running the full suite twice did <em>not</em> reproduce the failure — the race needs a specific interleaving, so the surviving mutant proved the suite could not defend the invariant it had just failed on. A guard that reproduces two runs in three is not a guard, so the invariant is now asserted directly: loading the module twice stands in for two processes, since the counter is module state.</p>
+    <div class="ev">before fix   full suite 2 runs → 2 failures (different test each time)
+after fix    full suite 4 runs → 4 × 263 files / 5,522 tests pass
+mutation     M-e bare counter        → killed
+             M-f constant tag        → killed
+             M-g base64 tag          → survived; proven a weak mutant
+                                       (base64 of "0.xxx" is always alphanumeric)
+             M-g2 tag = "a/../b"     → killed (2 of 3 assertions)</div>
+    <p>M-g is included because it survived. Chasing it down showed the mutant never violated the invariant rather than the test failing to catch it — and the path-safety assertion it was meant to test does fail correctly on a genuinely unsafe identifier, which matters because these ids become directory names and storage key segments.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">32</span>Validation gates</h2>
+  <p class="dek">Run in full on the final tree, unfiltered, in the order the brief specifies. Exit codes as observed.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Gate</th><th class="n">Exit</th><th>Observed</th></tr></thead>
+      <tbody>
+        <tr><td class="k mono">npx prisma validate</td><td class="n zero">0</td><td>Schema valid. One deprecation notice: <code>package.json#prisma</code> config, removed in Prisma 7.</td></tr>
+        <tr><td class="k mono">npx prisma generate</td><td class="n zero">0</td><td>Client v6.19.3 generated in 67&nbsp;ms.</td></tr>
+        <tr><td class="k mono">npm run typecheck</td><td class="n zero">0</td><td><code>tsc --noEmit</code>, no diagnostics. Run with <code>--max-old-space-size=6144</code> as specified.</td></tr>
+        <tr><td class="k mono">npm run lint</td><td class="n zero">0</td><td>6 warnings, 0 errors. All six pre-existing and all in editor code or an editor probe; none in a file this phase touched.</td></tr>
+        <tr><td class="k mono">node scripts/next-build.js</td><td class="n zero">0</td><td>Zero warnings. 105 pages generated. <code>/tools/[slug]</code> emitted twice, dynamic and prerendered — 44 tool pages prerendered, <code>compress-pdf</code> deliberately not among them.</td></tr>
+        <tr><td class="k mono">npx vitest run</td><td class="n zero">0</td><td>263 files, 5,522 tests, all passed. Run three consecutive times after the flake fix; also 4/4 during verification.</td></tr>
+        <tr><td class="k mono">npm run test:export-fidelity</td><td class="n zero">0</td><td>32/32 fixtures within threshold.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>The six lint warnings, named</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>File</th><th>Warning</th></tr></thead>
+      <tbody>
+        <tr><td class="k mono">components/editor/EditorCanvas.tsx</td><td><code>compose</code>, <code>makeScale</code>, <code>makeTranslate</code> unused</td></tr>
+        <tr><td class="k mono">components/editor/EditorWorkspace.tsx</td><td><code>REPLACE_FLUSH_ATTEMPTS</code> unused</td></tr>
+        <tr><td class="k mono">lib/editor/loadPdf.ts</td><td><code>MAX_PAGE_DIM</code> unused</td></tr>
+        <tr><td class="k mono">scripts/editor-final-visual-probe.mjs</td><td><code>click</code> unused</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">27</span>Browser verification</h2>
+  <p class="dek">The pilot and a representative local tool, driven over the DevTools protocol against a real production build — not a dev server. Twelve editor probes run alongside to show the phase moved nothing.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Probe</th><th class="n">Pass</th><th class="n">Fail</th><th class="n">Exit</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="k mono">processing-pilot-probe</td><td class="n ok">39</td><td class="n">0</td><td class="n zero">0</td><td>Pilot end to end, plus a local merge in the same run.</td></tr>
+        <tr><td class="k mono">editor-bottom-controls</td><td class="n ok">71</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-shape-draw</td><td class="n ok">46</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-persistence</td><td class="n ok">41</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-final-visual</td><td class="n ok">37</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-responsive</td><td class="n ok">21</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-object-toolbar</td><td class="n ok">19</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-p0</td><td class="n ok">18</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-source-text</td><td class="n ok">14</td><td class="n">0</td><td class="n zero">0</td><td></td></tr>
+        <tr><td class="k mono">editor-inspector</td><td class="n">25</td><td class="n bad">12</td><td class="n bad">1</td><td>Selection heading reports <code>Page</code> where the probe expects <code>Text</code>; the other 11 are downstream of that one selection.</td></tr>
+        <tr><td class="k mono">editor-find</td><td class="n">9</td><td class="n bad">2</td><td class="n bad">1</td><td>“no text found on canvas to search for” — the probe's own fixture setup.</td></tr>
+        <tr><td class="k mono">editor-inspector-states</td><td class="n">—</td><td class="n">—</td><td class="n bad">2</td><td>Refuses to run without <code>--cookie/--ws/--org/--doc</code>: “a dedicated fixture, never real user data”.</td></tr>
+        <tr><td class="k mono">editor-load-states</td><td class="n">—</td><td class="n">—</td><td class="n bad">2</td><td>Same fixture gate.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The two failing editor probes produce <strong>byte-identical failure sets with the pipeline flag on and off</strong>, on the same build. That is the strongest available evidence that they are pre-existing and editor-scoped rather than caused by this phase — see the caveat under §30. The two <code>exit 2</code> probes are refusing by design, which is correct behaviour, not a broken run. <code>scripts/editor-audit.mjs</code> exists but is an audit script rather than a probe and was not run.</p>
+  <h3>What the pilot probe actually asserted</h3>
+  <p class="col">Beyond “it completed”: that the delivered bytes begin <code>%PDF-</code>, that the byte count the API reports equals the bytes delivered, that the output differs from the input so work genuinely happened, and that the panel's rendered text matches the delivered size. The probe reimplements the app's byte formatter on purpose — importing the app's own would let a formatting bug agree with itself on both sides.</p>
+  <div class="ev">10,249 bytes in → 8,118 bytes out (21% smaller)
+panel said:  "10 KB → 7.9 KB (21% smaller)"
+local merge: 0 jobs created · 0 server tool calls · no request carried a body</div>
+</section>
+
+<section>
+  <h2><span class="sec">28</span>Performance</h2>
+  <p class="dek">The claim is not that the pipeline is faster — it is that expensive processing no longer owns the request lifecycle. That is a statement about scaling, so a single measurement cannot support it.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Input</th><th class="n">Legacy (sync)</th><th class="n">Pipeline</th><th>Response body</th></tr></thead>
+      <tbody>
+        <tr><td class="k n">4,035 B</td><td class="n">271 ms</td><td class="n">10 ms</td><td>legacy returns the output · pipeline returns a 37-byte job record</td></tr>
+        <tr><td class="k n">167,221 B</td><td class="n">510 ms</td><td class="n">10 ms</td><td></td></tr>
+        <tr><td class="k">×41 input</td><td class="n bad">×1.9</td><td class="n ok">×1.0</td><td>pipeline submission is bounded by the upload, not the work</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="col" style="margin-top:20px">All three pipeline jobs were confirmed to reach <code>completed</code>/<code>done</code> in the database, so the flat submission time is genuinely work moving off the request rather than work not happening. Status polling over HTTP returns 404 to a script with no session — correct ownership enforcement — so settlement was verified against the job records instead.</p>
+</section>
+
+<section>
+  <h2><span class="sec">29</span>Security review</h2>
+  <p class="dek">Every item evidenced from source; the last three tested empirically against a running production build.</p>
+  <ul class="checks">
+    <li><span class="mk">✓</span><span><b>No shell concatenation of user input.</b> <code>execFile</code> with an argv array and no shell, so nothing a user supplies can be reinterpreted as a command.</span></li>
+    <li><span class="mk">✓</span><span><b>Identity resolved server-side.</b> The actor comes from <code>resolveJobActor()</code>; the port's own documentation states it is never read from a request body. No <code>userId</code>, <code>workspaceId</code> or owner is trusted from the client.</span></li>
+    <li><span class="mk">✓</span><span><b>Ownership is strict on three points.</b> A job with no owner belongs to nobody, <code>ownerType</code> must match, and workspace scope must match.</span></li>
+    <li><span class="mk">✓</span><span><b>Job ids cannot be enumerated.</b> “Not found” and “not yours” throw the same error and return the same 404, so response codes leak nothing.</span></li>
+    <li><span class="mk">✓</span><span><b>Cross-actor access refused in practice.</b> Two cookie jars: the owner reads its job (200); a different actor gets 404 on status, on the result bytes, and on cancel.</span></li>
+    <li><span class="mk">✓</span><span><b>Work directories are unpredictable.</b> <code>mkdtemp</code> supplies the random suffix; the job id alone would be guessable, since a cuid embeds a timestamp and a counter.</span></li>
+    <li><span class="mk">✓</span><span><b>No original filename in a path.</b> The id is sanitized to a safe segment before it reaches the filesystem.</span></li>
+    <li><span class="mk">✓</span><span><b>No traversal on cleanup.</b> The removal helper refuses any path that is not under the processing root.</span></li>
+    <li><span class="mk">✓</span><span><b>Cleanup holds on every exit path.</b> After roughly ten job runs across success, failure and a worker restart, the scratch root held <code>0</code> entries at mode <code>drwx------</code>.</span></li>
+    <li><span class="mk">✓</span><span><b>No internals reach users.</b> Messages are derived from a fixed category set; no stack traces, filesystem paths, command-line arguments or service addresses. Diagnostic context is logged separately.</span></li>
+    <li><span class="mk">✓</span><span><b>No document contents recorded.</b> The worker's event carries tool, mode, job id, owner type, result, attempt, byte counts, size buckets, duration, error category and page count — no filename, no paths, no text. A targeted scan for PDF and Ghostscript signatures in logs returned zero matches.</span></li>
+    <li><span class="mk warn">✗</span><span><b>The legacy status and download routes do not check ownership.</b> Finding C above. Pre-existing, reachable in production, and demonstrated by fetching another owner's 78&nbsp;KB output from a session-less client. The pipeline path is unaffected.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="sec">1–34</span>Item ledger</h2>
+  <p class="dek">Every item in the brief, numbered as the brief numbers it, with the evidence that settles it.</p>
+
+  <div class="ledger">
+    <div class="grp">Foundations</div>
+    <div class="row"><span class="num">1</span><span class="t">Audit before building</span><span class="pill p-done">Complete</span><span class="e">All 20 listed areas audited first; the audit is what identified the pilot candidate and the two queue shapes with different failure modes.</span></div>
+    <div class="row"><span class="num">2</span><span class="t">One authoritative execution-mode type</span><span class="pill p-done">Complete</span><span class="e"><code>ToolExecutionMode = "local" | "remote_job"</code>, defined once and derived from policy rather than restated in components and routes.</span></div>
+    <div class="row"><span class="num">3</span><span class="t">Explicit tool execution matrix</span><span class="pill p-done">Complete</span><span class="e">Every tool's mode declared in one place; the UI and the API both read it instead of deciding independently.</span></div>
+    <div class="row"><span class="num">4</span><span class="t">Local-tool regression protection</span><span class="pill p-done">Complete</span><span class="e">Merge, Split, Rotate and Organize: no job created, no pipeline call, no upload, no worker, no polling. 4/4 mutations killed, and confirmed in the browser — the merge run issued one request, for a static chunk.</span></div>
+
+    <div class="grp">Job model and state</div>
+    <div class="row"><span class="num">5</span><span class="t">Durable job model</span><span class="pill p-done">Complete</span><span class="e">Full field and timestamp set — <code>queuedAt</code>, <code>startedAt</code>, <code>finishedAt</code>, <code>cancelRequestedAt</code>, <code>expiresAt</code>, attempts, category, byte counts. No single vague boolean.</span></div>
+    <div class="row"><span class="num">6</span><span class="t">Pure state machine, exhaustively tested</span><span class="pill p-done">Complete</span><span class="e">Rejects COMPLETED→PROCESSING, FAILED→COMPLETED, CANCELLED→COMPLETED and EXPIRED→QUEUED, as required.</span></div>
+    <div class="row"><span class="num">7</span><span class="t">Shared job application service</span><span class="pill p-done">Complete</span><span class="e">Routes call the service; no route manipulates a job record directly.</span></div>
+    <div class="row"><span class="num">8</span><span class="t">Narrow queue port</span><span class="pill p-done">Complete</span><span class="e">The message carries only the job id. Correctness rests on a guarded compare-and-swap claim, so two workers can pull the same id and only one runs it.</span></div>
+
+    <div class="grp">Worker and processors</div>
+    <div class="row"><span class="num">9</span><span class="t">Separately runnable worker</span><span class="pill p-done">Complete</span><span class="e">Verified with the web server dead: reset a job to <code>queued</code>, deleted its output, ran <code>npm run worker</code> — drained in ~1.5&nbsp;s and recreated the output. The byte count differed by one from the earlier run, which is itself proof of real reprocessing rather than a cached artifact.</span></div>
+    <div class="row"><span class="num">10</span><span class="t">Processor registry</span><span class="pill p-done">Complete</span><span class="e">Handlers register by type; no if/else chain in the worker.</span></div>
+    <div class="row"><span class="num">11</span><span class="t">One pilot tool</span><span class="pill p-done">Complete</span><span class="e"><code>compress-pdf</code> — heavy, already working, and the flag guards on the slug so a flag flip cannot sweep unmigrated tools in.</span></div>
+    <div class="row"><span class="num">12</span><span class="t">Migrate only the pilot; fast creation</span><span class="pill p-done">Complete</span><span class="e">~10&nbsp;ms flat submission regardless of input size; see §28.</span></div>
+
+    <div class="grp">Reliability</div>
+    <div class="row"><span class="num">13</span><span class="t">API-level idempotency</span><span class="pill p-done">Complete</span><span class="e">Honours an <code>idempotency-key</code> header at the API, not a disabled button; a repeat submission returns the existing job as deduplicated.</span></div>
+    <div class="row"><span class="num">14</span><span class="t">Retry policy with classification</span><span class="pill p-done">Complete</span><span class="e">Retryable set is explicit — timeout, processor failure, dependency unavailable, internal error — bounded by <code>maxAttempts</code> (3), with every attempt recorded on the row.</span></div>
+    <div class="row"><span class="num">15</span><span class="t">Per-processor timeout ceiling</span><span class="pill p-done">Complete</span><span class="e">Bounded run, no partial output published, cleanup runs regardless.</span></div>
+    <div class="row"><span class="num">16</span><span class="t">Honest cancellation</span><span class="pill p-done">Complete</span><span class="e">A result is never published after a successful cancel, and the UI does not claim instantaneous cancellation it cannot deliver.</span></div>
+    <div class="row"><span class="num">17</span><span class="t">Temp work directory</span><span class="pill p-done">Complete</span><span class="e">One deliberate deviation, stated plainly: the root is <code>os.tmpdir()/pdfdadi</code>, not the literal <code>/tmp/pdfdadi</code> — on macOS that resolves under <code>/var/folders/…/T/</code>. Respecting <code>TMPDIR</code> is what makes the path correct on every platform, and <code>mkdtemp</code> is what makes it unpredictable.</span></div>
+
+    <div class="grp">Interface</div>
+    <div class="row"><span class="num">18</span><span class="t">Shared job API endpoints</span><span class="pill p-done">Complete</span><span class="e">Status, result and cancel, dispatching on the stored job type so one endpoint serves both pipelines while the flag is in play.</span></div>
+    <div class="row"><span class="num">19</span><span class="t">Real progress stages</span><span class="pill p-done">Complete</span><span class="e">Named stages the worker actually reaches — no invented percentages. Verified: the panel shows no terminal state before anything has run.</span></div>
+    <div class="row"><span class="num">20</span><span class="t">Reusable job UI primitives</span><span class="pill p-done">Complete</span><span class="e">One panel serves queued, running, success, failure and cancelled. Its size claim is guarded on a positive saving, so a file the compressor inflates renders <code>4.8 KB → 8 KB</code> with no false “% smaller” — matching the legacy runner's guard exactly.</span></div>
+    <div class="row"><span class="num">21</span><span class="t">Stable safe error categories</span><span class="pill p-done">Complete</span><span class="e">A fixed category set drives user-facing text; processor error strings never reach the client.</span></div>
+    <div class="row"><span class="num">22</span><span class="t">Usage events without contents</span><span class="pill p-done">Complete</span><span class="e">Field list enumerated in §29. Byte counts and size buckets only.</span></div>
+    <div class="row"><span class="num">23</span><span class="t">Messaging derived from policy</span><span class="pill p-done">Complete</span><span class="e">The merge page states local processing because the policy says local, not because the copy was written to say so.</span></div>
+
+    <div class="grp">Rollout and proof</div>
+    <div class="row"><span class="num">24</span><span class="t">Feature flag with rollback</span><span class="pill p-done">Complete</span><span class="e">Verified in both directions with one request: flag off creates a <code>pdf-tool</code> row, flag on creates a <code>processing</code> row. Disabled by default through three independent fail-safes — absent flag row, thrown resolver, and an env override that works without a healthy database or admin UI.</span></div>
+    <div class="row"><span class="num">25</span><span class="t">Test requirements</span><span class="pill p-done">Complete</span><span class="e">263 files, 5,522 tests. Real in-memory adapters rather than mocks, per house convention, with mutation testing as the defence against vacuous green. Finding D is the honest asterisk.</span></div>
+    <div class="row"><span class="num">26</span><span class="t">End-to-end pilot integration test</span><span class="pill p-done">Complete</span><span class="e">Success and failure paths, across both queue shapes. Scratch-cleanup, staged-input retention and the retry clock are all asserted; five mutations killed.</span></div>
+    <div class="row"><span class="num">27</span><span class="t">Browser verification</span><span class="pill p-done">Complete</span><span class="e">39/39 on the production build, pilot and a local tool in the same run. Full table above.</span></div>
+    <div class="row"><span class="num">28</span><span class="t">Performance check</span><span class="pill p-done">Complete</span><span class="e">Scaling measured, not a single number. ×41 input: legacy ×1.9, pipeline ×1.0.</span></div>
+    <div class="row"><span class="num">29</span><span class="t">Security review</span><span class="pill p-done">Complete</span><span class="e">All twelve items checked; eleven pass, one is Finding C. The review is complete — the gap it found is deliberately left open.</span></div>
+    <div class="row"><span class="num">30</span><span class="t">Preserve existing product work</span><span class="pill p-part">Partial</span><span class="e">The honest limit of this phase. Zero import coupling proven in both directions between phase files and editor code, and the two failing editor probes fail identically with the flag on and off. But <strong>this working copy is not a git repository</strong>, so no before/after diff was possible and “nothing regressed” rests on probe parity rather than on a baseline.</span></div>
+    <div class="row"><span class="num">31</span><span class="t">Out of scope, extension points only</span><span class="pill p-done">Complete</span><span class="e">No AI or OCR, no editor or workspace redesign, no storage or database architecture change, no rebuild of working tools. Extension points named below.</span></div>
+    <div class="row"><span class="num">32</span><span class="t">Validation gates, unfiltered</span><span class="pill p-done">Complete</span><span class="e">7/7 at exit 0, plus twelve editor probes. Nothing filtered; the failures and the two refusals are reported as they came.</span></div>
+
+    <div class="grp">Closing</div>
+    <div class="row"><span class="num">33</span><span class="t">Definition of Done</span><span class="pill p-done">Complete</span><span class="e">Production code compiles, focused tests green and repeatedly so, the pilot sits behind a flag that defaults off, and existing behaviour is intact.</span></div>
+    <div class="row"><span class="num">34</span><span class="t">Next unfinished step</span><span class="pill p-def">Stated</span><span class="e">Ownership on the legacy job routes (Finding C), which needs an anonymous-owner design rather than a guard. Then the disposition parameter on the signed-URL port (Finding B).</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">31</span>Extension points left open</h2>
+  <div class="col">
+    <p>Three, each a named seam rather than a to-do:</p>
+  </div>
+  <div class="tw" style="margin-top:18px">
+    <table>
+      <thead><tr><th>Seam</th><th>What it unlocks</th></tr></thead>
+      <tbody>
+        <tr><td class="k mono">ISignedUrlService.signedUrl</td><td>An optional response-disposition argument fixes download filenames for both runners at once (Finding B).</td></tr>
+        <tr><td class="k mono">Legacy job ownership</td><td>An anonymous-owner token or owner backfill lets the legacy routes enforce ownership without breaking anonymous jobs (Finding C).</td></tr>
+        <tr><td class="k mono">Processor registry</td><td>Migrating a second heavy tool is a registration plus a matrix entry — no worker changes, no new endpoints.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The worker's own documentation is honest about one operational limit worth carrying forward: a crash currently needs a requeue rather than self-healing. That is recorded in the source, not hidden by it.</p>
+</section>
+
+<hr class="rule">
+<footer>
+  Gates run on the final tree · vitest executed 3 consecutive times after the Finding D fix · probes driven over the DevTools protocol against <code>next start</code>, not a dev server · all server processes stopped and the scratch root left empty on completion.
+</footer>
+
+</div>
+
+</body>
+</html>

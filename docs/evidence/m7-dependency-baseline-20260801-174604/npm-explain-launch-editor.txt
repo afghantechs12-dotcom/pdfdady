@@ -1,0 +1,5 @@
+launch-editor@2.2.1
+node_modules/launch-editor
+  launch-editor@"2.2.1" from next@9.3.3
+  node_modules/next
+    next@"^9.3.3" from the root project

@@ -1,0 +1,25 @@
+﻿M7.0 detailed isolated production-build diagnostic
+start_time=2026-08-01T13:42:53.4221779+02:00
+cwd=D:\AndroidStudioProjects\Backup\PDFMaster
+command=npm run build
+diagnostic_shell_pid=19144
+raw_combined_output=D:\Temp\pdfmaster-m7-build-20260801-134253.raw.log
+no_progress_ceiling_seconds=600
+--- activity samples ---
+runner_cmd_pid=11256
+activity time=2026-08-01T13:42:53.9413053+02:00 output_bytes=0 next_files=0 next_bytes=0 next_latest= next_latest_utc= lock=False
+--- full combined stdout/stderr ---
+--- final result ---
+end_time=2026-08-01T13:42:54.9920049+02:00
+duration_seconds=1.57
+exit_code=1
+last_output_line=
+runner_cmd_pid=11256
+npm_pids=
+next_pids=
+next_exists=False
+next_lock_exists=False
+next_file_count=0
+next_total_bytes=0
+next_latest_path=
+next_latest_utc=

@@ -1,0 +1,266 @@
+add fsevents 2.3.3
+change @esbuild/win32-ia32 undefined => 0.25.12
+change @esbuild/win32-arm64 undefined => 0.25.12
+change @esbuild/sunos-x64 undefined => 0.25.12
+change @esbuild/openharmony-arm64 undefined => 0.25.12
+change @esbuild/openbsd-x64 undefined => 0.25.12
+change @esbuild/netbsd-x64 undefined => 0.25.12
+change @esbuild/openbsd-arm64 undefined => 0.25.12
+change @esbuild/netbsd-arm64 undefined => 0.25.12
+change @esbuild/linux-x64 undefined => 0.25.12
+change @esbuild/linux-s390x undefined => 0.25.12
+change @esbuild/linux-riscv64 undefined => 0.25.12
+change @esbuild/linux-ppc64 undefined => 0.25.12
+change @esbuild/linux-mips64el undefined => 0.25.12
+change @esbuild/linux-loong64 undefined => 0.25.12
+change @esbuild/linux-ia32 undefined => 0.25.12
+change @esbuild/linux-arm64 undefined => 0.25.12
+change @esbuild/freebsd-x64 undefined => 0.25.12
+change @esbuild/linux-arm undefined => 0.25.12
+change @esbuild/freebsd-arm64 undefined => 0.25.12
+change @esbuild/darwin-x64 undefined => 0.25.12
+change @esbuild/android-arm64 undefined => 0.25.12
+change @esbuild/darwin-arm64 undefined => 0.25.12
+change @esbuild/android-x64 undefined => 0.25.12
+change @esbuild/android-arm undefined => 0.25.12
+change @esbuild/aix-ppc64 undefined => 0.25.12
+change @rollup/rollup-win32-ia32-msvc undefined => 4.62.3
+change @rollup/rollup-openharmony-arm64 undefined => 4.62.3
+change @rollup/rollup-win32-arm64-msvc undefined => 4.62.3
+change @rollup/rollup-linux-x64-musl undefined => 4.62.3
+change @rollup/rollup-linux-s390x-gnu undefined => 4.62.3
+change @rollup/rollup-openbsd-x64 undefined => 4.62.3
+change @rollup/rollup-linux-x64-gnu undefined => 4.62.3
+change @rollup/rollup-linux-riscv64-musl undefined => 4.62.3
+change @rollup/rollup-linux-riscv64-gnu undefined => 4.62.3
+change @rollup/rollup-linux-ppc64-musl undefined => 4.62.3
+change @rollup/rollup-linux-loong64-musl undefined => 4.62.3
+change @rollup/rollup-linux-ppc64-gnu undefined => 4.62.3
+change @rollup/rollup-linux-arm64-gnu undefined => 4.62.3
+change @rollup/rollup-linux-loong64-gnu undefined => 4.62.3
+change @rollup/rollup-linux-arm64-musl undefined => 4.62.3
+change @rollup/rollup-linux-arm-musleabihf undefined => 4.62.3
+change @rollup/rollup-linux-arm-gnueabihf undefined => 4.62.3
+change @rollup/rollup-freebsd-arm64 undefined => 4.62.3
+change @rollup/rollup-darwin-x64 undefined => 4.62.3
+change @rollup/rollup-darwin-arm64 undefined => 4.62.3
+change @rollup/rollup-freebsd-x64 undefined => 4.62.3
+change @rollup/rollup-android-arm64 undefined => 4.62.3
+change @rollup/rollup-android-arm-eabi undefined => 4.62.3
+change @next/swc-win32-arm64-msvc undefined => 16.2.12
+change @next/swc-linux-x64-musl undefined => 16.2.12
+change @next/swc-linux-x64-gnu undefined => 16.2.12
+change @next/swc-linux-arm64-musl undefined => 16.2.12
+change @next/swc-linux-arm64-gnu undefined => 16.2.12
+change @next/swc-darwin-x64 undefined => 16.2.12
+change @next/swc-darwin-arm64 undefined => 16.2.12
+change @napi-rs/canvas-win32-arm64-msvc undefined => 1.0.2
+change @napi-rs/canvas-linux-x64-musl undefined => 1.0.2
+change @napi-rs/canvas-linux-x64-gnu undefined => 1.0.2
+change @napi-rs/canvas-linux-arm64-musl undefined => 1.0.2
+change @napi-rs/canvas-linux-riscv64-gnu undefined => 1.0.2
+change @napi-rs/canvas-linux-arm64-gnu undefined => 1.0.2
+change @napi-rs/canvas-darwin-x64 undefined => 1.0.2
+change @napi-rs/canvas-linux-arm-gnueabihf undefined => 1.0.2
+change @napi-rs/canvas-android-arm64 undefined => 1.0.2
+change @napi-rs/canvas-darwin-arm64 undefined => 1.0.2
+change @img/sharp-win32-ia32 undefined => 0.34.5
+change @img/sharp-win32-arm64 undefined => 0.34.5
+change @img/sharp-wasm32 undefined => 0.34.5
+change @img/sharp-linuxmusl-x64 undefined => 0.34.5
+change @img/sharp-linuxmusl-arm64 undefined => 0.34.5
+change @img/sharp-linux-x64 undefined => 0.34.5
+change @img/sharp-linux-s390x undefined => 0.34.5
+change @img/sharp-linux-ppc64 undefined => 0.34.5
+change @img/sharp-linux-riscv64 undefined => 0.34.5
+change @img/sharp-linux-arm64 undefined => 0.34.5
+change @img/sharp-linux-arm undefined => 0.34.5
+change @img/sharp-libvips-linuxmusl-arm64 undefined => 1.2.4
+change @img/sharp-libvips-linuxmusl-x64 undefined => 1.2.4
+change @img/sharp-libvips-linux-x64 undefined => 1.2.4
+change @img/sharp-libvips-linux-s390x undefined => 1.2.4
+change @img/sharp-libvips-linux-ppc64 undefined => 1.2.4
+change @img/sharp-libvips-linux-riscv64 undefined => 1.2.4
+change @img/sharp-libvips-linux-arm64 undefined => 1.2.4
+change @img/sharp-libvips-darwin-x64 undefined => 1.2.4
+change @img/sharp-libvips-linux-arm undefined => 1.2.4
+change @img/sharp-libvips-darwin-arm64 undefined => 1.2.4
+change @img/sharp-darwin-x64 undefined => 0.34.5
+change @img/sharp-darwin-arm64 undefined => 0.34.5
+change @esbuild/win32-ia32 undefined => 0.28.1
+change @esbuild/win32-arm64 undefined => 0.28.1
+change @esbuild/sunos-x64 undefined => 0.28.1
+change @esbuild/openbsd-x64 undefined => 0.28.1
+change @esbuild/openharmony-arm64 undefined => 0.28.1
+change @esbuild/openbsd-arm64 undefined => 0.28.1
+change @esbuild/linux-s390x undefined => 0.28.1
+change @esbuild/netbsd-x64 undefined => 0.28.1
+change @esbuild/netbsd-arm64 undefined => 0.28.1
+change @esbuild/linux-x64 undefined => 0.28.1
+change @esbuild/linux-riscv64 undefined => 0.28.1
+change @esbuild/linux-ppc64 undefined => 0.28.1
+change @esbuild/linux-mips64el undefined => 0.28.1
+change @esbuild/linux-loong64 undefined => 0.28.1
+change @esbuild/linux-ia32 undefined => 0.28.1
+change @esbuild/linux-arm64 undefined => 0.28.1
+change @esbuild/linux-arm undefined => 0.28.1
+change @esbuild/freebsd-arm64 undefined => 0.28.1
+change @esbuild/freebsd-x64 undefined => 0.28.1
+change @esbuild/darwin-arm64 undefined => 0.28.1
+change @esbuild/darwin-x64 undefined => 0.28.1
+change @esbuild/android-arm64 undefined => 0.28.1
+change @esbuild/android-x64 undefined => 0.28.1
+change @esbuild/android-arm undefined => 0.28.1
+change @esbuild/aix-ppc64 undefined => 0.28.1
+{
+  "added": 1,
+  "removed": 0,
+  "changed": 113,
+  "audited": 486,
+  "funding": 116,
+  "audit": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {
+      "next": {
+        "name": "next",
+        "severity": "high",
+        "isDirect": true,
+        "via": [
+          "postcss",
+          "sharp"
+        ],
+        "effects": [],
+        "range": "9.3.4-canary.0 - 16.3.0-preview.7",
+        "nodes": [
+          "node_modules/next"
+        ],
+        "fixAvailable": {
+          "name": "next",
+          "version": "9.3.3",
+          "isSemVerMajor": true
+        }
+      },
+      "postcss": {
+        "name": "postcss",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          {
+            "source": 1117015,
+            "name": "postcss",
+            "dependency": "postcss",
+            "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+            "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-79"
+            ],
+            "cvss": {
+              "score": 6.1,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+            },
+            "range": "<8.5.10"
+          },
+          {
+            "source": 1124252,
+            "name": "postcss",
+            "dependency": "postcss",
+            "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+            "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+            "severity": "high",
+            "cwe": [
+              "CWE-22",
+              "CWE-200"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": "<=8.5.11"
+          },
+          {
+            "source": 1124288,
+            "name": "postcss",
+            "dependency": "postcss",
+            "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+            "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+            "severity": "high",
+            "cwe": [
+              "CWE-22"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": "<=8.5.17"
+          }
+        ],
+        "effects": [
+          "next"
+        ],
+        "range": "<=8.5.17",
+        "nodes": [
+          "node_modules/next/node_modules/postcss"
+        ],
+        "fixAvailable": {
+          "name": "next",
+          "version": "9.3.3",
+          "isSemVerMajor": true
+        }
+      },
+      "sharp": {
+        "name": "sharp",
+        "severity": "high",
+        "isDirect": false,
+        "via": [
+          {
+            "source": 1124066,
+            "name": "sharp",
+            "dependency": "sharp",
+            "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+            "url": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
+            "severity": "high",
+            "cwe": [
+              "CWE-1395"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": "<0.35.0"
+          }
+        ],
+        "effects": [
+          "next"
+        ],
+        "range": "<0.35.0",
+        "nodes": [
+          "node_modules/sharp"
+        ],
+        "fixAvailable": {
+          "name": "next",
+          "version": "9.3.3",
+          "isSemVerMajor": true
+        }
+      }
+    },
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 3,
+        "critical": 0,
+        "total": 3
+      },
+      "dependencies": {
+        "prod": 158,
+        "dev": 280,
+        "optional": 126,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 485
+      }
+    }
+  }
+}

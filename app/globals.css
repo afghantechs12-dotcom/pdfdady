@@ -1,0 +1,331 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #7c3aed;
+  --color-navy: #1e1b2e;
+  --color-lavender: #f5f3ff;
+  --color-border: #e9e5f5;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-navy antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply text-navy font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  /*
+   * Vertical rhythm.
+   *
+   * These were clamp(56px, 7vw, 104px), which put up to 208px of nothing
+   * between two adjacent sections and made the page read as unfinished rather
+   * than spacious. The target composition sits at roughly 64-96px between
+   * sections, so the standard pad is half of that per side.
+   *
+   * `--tight` is for two blocks that belong to one idea (hero → tool strip,
+   * tool strip → AI preview). `--loose` is reserved for a deliberate break.
+   */
+  .section-pad {
+    /*
+      Two adjacent sections both contribute their padding, so the number a
+      visitor actually sees between one section's last line and the next one's
+      heading is roughly double this. At clamp(36px, 3.6vw, 52px) that measured
+      104px at 1440 — above the 64-96px band this pass is aiming for. 42px is
+      the ceiling that keeps the sum inside it while leaving the small-screen
+      floor alone. Measured with scripts/responsive-qa.mjs, not estimated.
+    */
+    padding-top: clamp(34px, 3vw, 42px);
+    padding-bottom: clamp(34px, 3vw, 42px);
+  }
+
+  .section-pad-tight {
+    padding-top: clamp(22px, 2.2vw, 32px);
+    padding-bottom: clamp(22px, 2.2vw, 32px);
+  }
+
+  .section-pad-loose {
+    padding-top: clamp(48px, 5vw, 72px);
+    padding-bottom: clamp(48px, 5vw, 72px);
+  }
+
+  /* Dotted decorative pattern used in hero background */
+  .dotted-pattern {
+    background-image: radial-gradient(
+      circle,
+      rgba(124, 58, 237, 0.18) 1.5px,
+      transparent 1.5px
+    );
+    background-size: 22px 22px;
+  }
+
+  /*
+   * Scrollable without a visible scrollbar — used by the editor toolbar's tool
+   * row, where a 6-14px scrollbar inside a 44px control strip reads as a
+   * rendering fault. The element still scrolls by wheel, trackpad, touch and
+   * keyboard focus, so nothing becomes unreachable; only the track is hidden.
+   * Do not use this on a region whose only affordance is the scrollbar.
+   */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── Homepage motion ──────────────────────────────────────────────────────
+   *
+   * All of it is CSS. The homepage is the LCP-critical page on the site, and
+   * an animation library on its critical path buys choreography at the cost of
+   * the thing the animation is decorating. Framer Motion stays where it earns
+   * its weight — the editor's drag-reorder grid, loaded on demand.
+   *
+   * Every animation here is disabled wholesale in the reduced-motion block at
+   * the bottom of this file. That is why none of these rules set a final state
+   * that differs from the element's resting state: turning the animation off
+   * must leave the content visible, never stuck at `opacity: 0`.
+   */
+
+  /* Hero entrance. Applied directly (not via IntersectionObserver) because the
+     hero is above the fold — waiting for an observer callback to reveal the
+     LCP element would delay it for no reason. */
+  .animate-fade-up {
+    animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: var(--fade-delay, 0ms);
+  }
+
+  /* Floating hero cards. Three durations so the cards drift out of phase with
+     each other; a single shared duration reads as one rigid object. */
+  .animate-float-slow {
+    animation: float-drift 9s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0ms);
+  }
+  .animate-float-medium {
+    animation: float-drift 7s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0ms);
+  }
+  .animate-float-fast {
+    animation: float-drift 5.5s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0ms);
+  }
+
+  /* Background glow behind the hero mockup. */
+  .animate-glow-pulse {
+    animation: glow-pulse 8s ease-in-out infinite;
+  }
+
+  /*
+   * The hero's editor window itself: a 3px idle drift, slow enough that it
+   * reads as the object breathing rather than moving. It carries a static
+   * perspective transform, so the keyframes must re-declare it — a bare
+   * `translateY` would flatten the window the moment the animation started.
+   */
+  .animate-editor-float {
+    animation: editor-float 11s ease-in-out infinite;
+  }
+
+  /*
+   * The format dock under the hero visual. Each tile sets its own
+   * `--float-delay` so the row ripples instead of rising as one bar.
+   */
+  .animate-dock-float {
+    animation: dock-float 6.5s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0ms);
+  }
+
+  /* The decorative shield beside the hero. Opacity only — no movement. */
+  .animate-shield-breathe {
+    animation: shield-breathe 6s ease-in-out infinite;
+  }
+
+  /*
+   * Ambient movement inside the final CTA's gradient. Animates
+   * `background-position` on an oversized gradient, so nothing reflows.
+   */
+  .animate-gradient-drift {
+    background-size: 200% 200%;
+    animation: gradient-drift 18s ease-in-out infinite;
+  }
+
+  /*
+   * Scroll reveal, driven by components/ui/Reveal.tsx.
+   *
+   * The resting state is the VISIBLE one. `.reveal` only hides the element
+   * once `.reveal-armed` is added by the client component, which it does only
+   * after confirming an IntersectionObserver exists and reduced motion is off.
+   * Without that ordering, a JS failure or a crawler would leave the whole page
+   * invisible — content must never depend on script to exist.
+   */
+  .reveal-armed {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .reveal-visible {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes float-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--float-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-12px) rotate(var(--float-rotate, 0deg));
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.06);
+  }
+}
+
+/*
+ * The hero window's idle drift. `--editor-tilt` carries the resting perspective
+ * so the animation does not discard it; the default is the flat case, which is
+ * what the mobile layout uses.
+ */
+@keyframes editor-float {
+  0%,
+  100% {
+    transform: var(--editor-tilt, none) translateY(0);
+  }
+  50% {
+    transform: var(--editor-tilt, none) translateY(-3px);
+  }
+}
+
+@keyframes dock-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--float-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-7px) rotate(var(--float-rotate, 0deg));
+  }
+}
+
+@keyframes shield-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes gradient-drift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/*
+ * Popover entry — the 120-160ms tier of the motion scale, used by the editor's
+ * colour picker and any other anchored panel.
+ *
+ * TWO keyframes deliberately, not one plus a global off-switch. Under
+ * `prefers-reduced-motion` the popover must still read as ARRIVING (an
+ * instantly-present panel over the canvas is easy to miss), so the reduced
+ * variant keeps the opacity fade and drops only the scale and the translate.
+ * Suppressing the animation entirely would remove the only cue that a new
+ * surface appeared.
+ */
+@keyframes colorPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes colorPopFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /*
+   * The single off-switch for every homepage animation.
+   *
+   * `Reveal` also checks the media query in JS and skips arming itself, so this
+   * is the second of two independent guards. Both are needed: the JS check
+   * handles a user who has reduced motion set before load, this handles one who
+   * changes the setting after it, and it covers the pure-CSS animations that
+   * have no JS involvement at all.
+   *
+   * Note the explicit `opacity: 1` and `transform: none`: cancelling an
+   * animation whose `from` state is invisible would otherwise leave the element
+   * hidden forever. Reduced motion must remove the movement, not the content.
+   * It also flattens the hero window's resting tilt and the dock tiles' resting
+   * rotation, which is the intended trade: a static, upright composition.
+   */
+  .animate-fade-up,
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-fast,
+  .animate-glow-pulse,
+  .animate-editor-float,
+  .animate-dock-float,
+  .animate-shield-breathe,
+  .animate-gradient-drift,
+  .reveal-armed,
+  .reveal-visible {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

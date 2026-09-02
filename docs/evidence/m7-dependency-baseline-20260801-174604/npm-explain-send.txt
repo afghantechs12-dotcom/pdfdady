@@ -1,0 +1,5 @@
+send@0.17.1
+node_modules/send
+  send@"0.17.1" from next@9.3.3
+  node_modules/next
+    next@"^9.3.3" from the root project

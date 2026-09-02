@@ -1,0 +1,8 @@
+﻿M7.0 detailed isolated production-build diagnostic
+start_time=2026-08-01T13:47:22.8045990+02:00
+cwd=D:\AndroidStudioProjects\Backup\PDFMaster
+command=node npm-cli.js run build
+diagnostic_shell_pid=18480
+raw_combined_output=D:\Temp\pdfmaster-m7-build-20260801-134722.raw.log
+no_progress_ceiling_seconds=600
+--- activity samples ---

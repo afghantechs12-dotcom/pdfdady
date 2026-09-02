@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "ERESOLVE",
+    "summary": "unable to resolve dependency tree",
+    "detail": "While resolving: pdfdadi@0.1.0\nFound: react@19.2.7\nnode_modules/react\n  react@\"19.2.7\" from the root project\n\nCould not resolve dependency:\npeer react@\"^16.6.0\" from next@9.5.5\nnode_modules/next\n  next@\"^9.3.3\" from the root project\n\nFix the upstream dependency conflict, or retry\nthis command with --force or --legacy-peer-deps\nto accept an incorrect (and potentially broken) dependency resolution.\n\n\nFor a full report see:\nD:\\Caches\\npm-cache\\_logs\\2026-08-01T15_48_38_945Z-eresolve-report.txt"
+  }
+}

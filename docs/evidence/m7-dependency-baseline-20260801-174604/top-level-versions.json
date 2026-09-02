@@ -1,0 +1,21 @@
+{
+  "version": "0.1.0",
+  "name": "pdfdadi",
+  "dependencies": {
+    "@prisma/client": {
+      "version": "6.19.3",
+      "resolved": "https://registry.npmjs.org/@prisma/client/-/client-6.19.3.tgz",
+      "overridden": false
+    },
+    "next": {
+      "version": "9.3.3",
+      "resolved": "https://registry.npmjs.org/next/-/next-9.3.3.tgz",
+      "overridden": false
+    },
+    "prisma": {
+      "version": "6.19.3",
+      "resolved": "https://registry.npmjs.org/prisma/-/prisma-6.19.3.tgz",
+      "overridden": false
+    }
+  }
+}

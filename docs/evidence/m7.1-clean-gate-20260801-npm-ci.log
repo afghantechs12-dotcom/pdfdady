@@ -1,0 +1,2 @@
+npm error [safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED] {"count":112,"threshold":50,"scope":"turn","targets":["d:\\AndroidStudioProjects\\Backup\\PDFMaster\\node_modules\\.adjust-sourcemap-loader-Rg1uoos7"],"targetCount":1}
+npm error A complete log of this run can be found in: D:\Caches\npm-cache\_logs\2026-08-01T16_23_51_657Z-debug-0.log

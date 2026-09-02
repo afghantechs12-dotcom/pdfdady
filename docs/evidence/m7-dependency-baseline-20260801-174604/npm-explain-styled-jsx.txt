@@ -1,0 +1,5 @@
+styled-jsx@3.2.5
+node_modules/next/node_modules/styled-jsx
+  styled-jsx@"3.2.5" from next@9.3.3
+  node_modules/next
+    next@"^9.3.3" from the root project

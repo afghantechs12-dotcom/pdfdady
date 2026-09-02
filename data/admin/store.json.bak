@@ -1,0 +1,59 @@
+{
+  "site": {
+    "name": "PDFDadi",
+    "url": "https://pdfdadi.com",
+    "logoUrl": "/brand-logo",
+    "ogImageUrl": "/opengraph-image",
+    "twitter": "@pdfdadi",
+    "locale": "en_US",
+    "description": "Merge, split, compress, convert and protect PDF files online with fast, secure and simple PDF tools.",
+    "defaultTitle": "PDFDadi — Free Online PDF Tools",
+    "titleTemplate": "%s — PDFDadi",
+    "social": {
+      "twitterUrl": "https://twitter.com/pdfdadi",
+      "githubUrl": "https://github.com/pdfdadi"
+    },
+    "footerTagline": "Fast, secure and simple PDF tools for everyday document work.",
+    "footerCardTitle": "Processing transparency",
+    "footerCardSubtitle": "Every tool tells you whether your file is handled in your browser, in our secure cloud, or in your Workspace.",
+    "trustBullets": [
+      "Browser tools need no account",
+      "Every tool shows where it runs",
+      "Works on any device"
+    ]
+  },
+  "seo": {
+    "sitemapExcluded": [],
+    "robotsDisallow": [],
+    "defaultOgAuthor": "PDFDadi Team",
+    "defaultArticleSection": "Guides"
+  },
+  "tools": {},
+  "toolCategories": {},
+  "nav": {},
+  "faq": {},
+  "features": {},
+  "pricing": {},
+  "useCases": {},
+  "trust": {},
+  "aiTools": {},
+  "blog": {
+    "posts": {},
+    "author": {
+      "name": "PDFDadi Team",
+      "url": "/about",
+      "bio": "The PDFDadi Team builds fast, private, browser-based PDF tools. We write practical guides to help you get everyday document work done without installing software or uploading sensitive files."
+    }
+  },
+  "pages": {
+    "about": {},
+    "contact": {},
+    "privacy": {},
+    "terms": {},
+    "pricing": {},
+    "serverStatus": {}
+  },
+  "settings": {
+    "adminPasswordHash": ""
+  }
+}

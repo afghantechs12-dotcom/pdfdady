@@ -1,0 +1,5 @@
+path-to-regexp@6.1.0
+node_modules/path-to-regexp
+  path-to-regexp@"6.1.0" from next@9.3.3
+  node_modules/next
+    next@"^9.3.3" from the root project

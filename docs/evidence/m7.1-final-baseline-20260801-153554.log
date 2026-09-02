@@ -1,0 +1,166 @@
+M7.1 retained sequential quality gates
+start_time=2026-08-01T15:35:55+02:00
+command=npx prisma validate && npx prisma generate && npm run typecheck && npm run lint && npm run test && npm run build
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+The schema at prisma\schema.prisma is valid 🚀
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 4.47s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+
+> pdfdadi@0.1.0 typecheck
+> tsc --noEmit
+
+
+> pdfdadi@0.1.0 lint
+> eslint .
+
+
+> pdfdadi@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.6 [39m[90md:/AndroidStudioProjects/Backup/PDFMaster[39m
+
+ [32m✓[39m src/application/editor/shortcuts/ShortcutResolver.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 172[2mms[22m[39m
+ [32m✓[39m src/application/editor/imageValidation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m src/application/editor/text/TextExtraction.security.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m lib/editor/extractText.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m lib/admin/passwords.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 801[2mms[22m[39m
+   [33m[2m✓[22m[39m admin password helpers[2m > [22mproduces unique salts for the same password [33m 402[2mms[22m[39m
+ [32m✓[39m src/infrastructure/storage/LocalFileStorage.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 819[2mms[22m[39m
+   [33m[2m✓[22m[39m LocalFileStorage[2m > [22mputStream then getStream round-trips a large-ish payload [33m 452[2mms[22m[39m
+ [32m✓[39m src/application/services/AuthService.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1063[2mms[22m[39m
+[90mstderr[2m | src/application/editor/export/PdfExportService.test.ts[2m > [22m[2mPdfExportService.exportPdf[2m > [22m[2mskips a throwing object without aborting the export (per-object try/catch, F2)
+[22m[39meditor export: skipping object obj-1 Error: simulated draw failure
+    at PdfExportService.<anonymous> [90m(d:\AndroidStudioProjects\Backup\PDFMaster\[39msrc\application\editor\export\PdfExportService.test.ts:437:60[90m)[39m
+    at PdfExportService.mockCall [90m(file:///d:/AndroidStudioProjects/Backup/PDFMaster/[39mnode_modules/[4m@vitest/spy[24m/dist/index.js:96:15[90m)[39m
+    at PdfExportService.drawObject [90m(file:///d:/AndroidStudioProjects/Backup/PDFMaster/[39mnode_modules/[4mtinyspy[24m/dist/index.js:47:80[90m)[39m
+    at PdfExportService.exportPdf [90m(d:\AndroidStudioProjects\Backup\PDFMaster\[39msrc\application\editor\export\PdfExportService.ts:348:22[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90md:\AndroidStudioProjects\Backup\PDFMaster\[39msrc\application\editor\export\PdfExportService.test.ts:439:19
+    at [90mfile:///d:/AndroidStudioProjects/Backup/PDFMaster/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:752:20
+
+ [32m✓[39m src/infrastructure/storage/LocalMultipartUpload.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m src/application/editor/serialization/SerializationService.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m src/application/editor/export/PdfExportService.test.ts [2m([22m[2m51 tests[22m[2m)[22m[33m 533[2mms[22m[39m
+ [32m✓[39m src/infrastructure/queue/queue.advanced.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 136[2mms[22m[39m
+ [32m✓[39m src/domain/editor/textMetrics.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+[90mstderr[2m | lib/admin/session.test.ts[2m > [22m[2madmin session tokens[2m > [22m[2mallows the insecure fallback only with the explicit dev opt-in
+[22m[39m[security] ADMIN_SECRET is not set — using the PUBLIC dev fallback because PDFDADI_ALLOW_INSECURE_DEV_SECRET=1. Admin cookies are forgeable. Set ADMIN_SECRET in .env.local for local dev.
+
+ [32m✓[39m lib/admin/session.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/domain/editor/shapeGeometry.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m src/infrastructure/config/env.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/cropIntegration.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 166[2mms[22m[39m
+ [32m✓[39m lib/server/zip.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1746[2mms[22m[39m
+   [33m[2m✓[22m[39m streamZipFiles[2m > [22mhandles many entries (streaming — never holds the whole archive) [33m 1406[2mms[22m[39m
+ [32m✓[39m lib/server/storeLock.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m src/application/editor/text/TextLayoutEngine.test.ts [2m([22m[2m44 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/cropMath.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/application/editor/EditorDocumentService.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/domain/editor/pageOperations.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/application/editor/EditorDocumentService.m4.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/application/editor/EditorDocumentService.pages.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/application/editor/commands/commands.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/application/services/UploadService.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/PathBuilder.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/application/editor/commands/pageCommands.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m src/application/editor/coordinates/PageRotation.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/application/editor/text/TextExtraction.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/application/services/WorkspaceAuthorizationResolver.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m components/editor/toolbarLayout.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/infrastructure/jobs/PdfToolWorkerHandler.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 2080[2mms[22m[39m
+   [33m[2m✓[22m[39m PdfToolWorkerHandler + PdfToolJobService[2m > [22mcancels a running job by aborting the processor's signal [33m 300[2mms[22m[39m
+   [33m[2m✓[22m[39m PdfToolWorkerHandler + PdfToolJobService[2m > [22mprocesses up to `concurrency` jobs in parallel [33m 421[2mms[22m[39m
+   [33m[2m✓[22m[39m PdfToolBatchHandler[2m > [22mzips the per-input outputs into one stored archive [33m 409[2mms[22m[39m
+ [32m✓[39m src/application/editor/extensions/RulerEngine.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/application/editor/extensions/AlignmentEngine.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/application/editor/plugins/PluginRegistry.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/application/editor/clipboard/ClipboardService.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/application/editor/grouping/GroupService.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/drawingGeometry.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/domain/editor/geometry.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/application/editor/layers/LayerService.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/domain/editor/objectFactories.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/strokeOutline.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m lib/editor/fontSubstitution.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/application/editor/transform/TransformService.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/application/editor/selection/SelectionService.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/pathCreation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/domain/editor/objects.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/application/editor/hitTesting/HitTestService.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/application/editor/coordinates/CoordinateSpace.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/strokeSmoothing.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/infrastructure/observability/observability.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/application/editor/extensions/SnapStrategies.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m components/editor/viewport/zoom.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/domain/editor/layers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/eraserHitTest.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m lib/editor/color.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/application/editor/extensions/Extensions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m components/editor/canvas/contextMenuLogic.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/eraserGesture.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m components/editor/panels/propertiesPanelLogic.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/infrastructure/queue/InMemoryQueue.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m src/domain/editor/textContent.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/application/editor/extensions/Snapping.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m components/editor/viewport/pointerSubject.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m components/editor/statusBarLogic.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/application/editor/commands/commands.layer.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/domain/editor/document.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/infrastructure/logging/ConsoleLogger.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/application/services/workspaceHttp.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/application/editor/editor.di.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/application/editor/commands/SetTextStyleCommand.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m components/editor/toolbarIcons.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m lib/editor/loadPdf.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m components/editor/panels/pagesPanelLogic.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/application/editor/commands/CommandHistory.jump.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/domain/editor/grouping.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/panTool.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/application/services/DownloadService.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/server/toolProcessing.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/application/editor/tools/cropEligibility.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/application/services/FeatureFlagService.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/server/rateLimit.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/infrastructure/storage/LocalSignedUrlService.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/domain/entities/Role.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/a11y/focusTrap.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m components/workspaces/workspaceNavigation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/application/services/workspaceNormalization.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/application/di/container.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m89 passed[39m[22m[90m (89)[39m
+[2m      Tests [22m [1m[32m978 passed[39m[22m[90m (978)[39m
+[2m   Start at [22m 15:36:22
+[2m   Duration [22m 10.95s[2m (transform 8.69s, setup 0ms, collect 31.59s, tests 9.83s, environment 37ms, prepare 23.83s)[22m
+
+
+> pdfdadi@0.1.0 build
+> prisma generate && next build
+
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 4.53s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+

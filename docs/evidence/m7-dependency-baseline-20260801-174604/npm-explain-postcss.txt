@@ -1,0 +1,494 @@
+postcss@7.0.39
+node_modules/css-blank-pseudo/node_modules/postcss
+  postcss@"^7.0.5" from css-blank-pseudo@0.1.4
+  node_modules/css-blank-pseudo
+    css-blank-pseudo@"^0.1.4" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/css-has-pseudo/node_modules/postcss
+  postcss@"^7.0.6" from css-has-pseudo@0.10.0
+  node_modules/css-has-pseudo
+    css-has-pseudo@"^0.10.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/css-loader/node_modules/postcss
+  postcss@"^7.0.23" from css-loader@3.3.0
+  node_modules/css-loader
+    css-loader@"3.3.0" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/css-prefers-color-scheme/node_modules/postcss
+  postcss@"^7.0.5" from css-prefers-color-scheme@3.1.1
+  node_modules/css-prefers-color-scheme
+    css-prefers-color-scheme@"^3.1.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/cssnano-preset-simple/node_modules/postcss
+  postcss@"^7.0.32" from cssnano-preset-simple@1.3.1
+  node_modules/cssnano-preset-simple
+    cssnano-preset-simple@"^1.0.0" from cssnano-simple@1.0.0
+    node_modules/cssnano-simple
+      cssnano-simple@"1.0.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/cssnano-simple/node_modules/postcss
+  postcss@"^7.0.18" from cssnano-simple@1.0.0
+  node_modules/cssnano-simple
+    cssnano-simple@"1.0.0" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/icss-utils/node_modules/postcss
+  postcss@"^7.0.14" from icss-utils@4.1.1
+  node_modules/icss-utils
+    icss-utils@"^4.1.1" from css-loader@3.3.0
+    node_modules/css-loader
+      css-loader@"3.3.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+    icss-utils@"^4.1.1" from postcss-modules-local-by-default@3.0.3
+    node_modules/postcss-modules-local-by-default
+      postcss-modules-local-by-default@"^3.0.2" from css-loader@3.3.0
+      node_modules/css-loader
+        css-loader@"3.3.0" from next@9.3.3
+        node_modules/next
+          next@"^9.3.3" from the root project
+    icss-utils@"^4.0.0" from postcss-modules-values@3.0.0
+    node_modules/postcss-modules-values
+      postcss-modules-values@"^3.0.0" from css-loader@3.3.0
+      node_modules/css-loader
+        css-loader@"3.3.0" from next@9.3.3
+        node_modules/next
+          next@"^9.3.3" from the root project
+
+postcss@8.5.18 dev
+node_modules/postcss
+  dev postcss@"8.5.18" from the root project
+  peer postcss@"^8.1.0" from autoprefixer@10.4.20
+  node_modules/autoprefixer
+    dev autoprefixer@"10.4.20" from the root project
+  peer postcss@"^8.0.0" from postcss-import@15.1.0
+  node_modules/postcss-import
+    postcss-import@"^15.1.0" from tailwindcss@3.4.17
+    node_modules/tailwindcss
+      dev tailwindcss@"3.4.17" from the root project
+  peer postcss@"^8.4.21" from postcss-js@4.1.0
+  node_modules/postcss-js
+    postcss-js@"^4.0.1" from tailwindcss@3.4.17
+    node_modules/tailwindcss
+      dev tailwindcss@"3.4.17" from the root project
+  peer postcss@"^8.2.14" from postcss-nested@6.2.0
+  node_modules/postcss-nested
+    postcss-nested@"^6.2.0" from tailwindcss@3.4.17
+    node_modules/tailwindcss
+      dev tailwindcss@"3.4.17" from the root project
+  postcss@"^8.4.47" from tailwindcss@3.4.17
+  node_modules/tailwindcss
+    dev tailwindcss@"3.4.17" from the root project
+  peerOptional postcss@">=8.0.9" from postcss-load-config@4.0.2
+  node_modules/tailwindcss/node_modules/postcss-load-config
+    postcss-load-config@"^4.0.2" from tailwindcss@3.4.17
+    node_modules/tailwindcss
+      dev tailwindcss@"3.4.17" from the root project
+  postcss@"^8.5.3" from vite@6.4.3
+  node_modules/vite
+    dev vite@"6.4.3" from the root project
+    vite@"^5.0.0 || ^6.0.0 || ^7.0.0-0" from vite-node@3.2.4
+    node_modules/vite-node
+      vite-node@"3.2.4" from vitest@3.2.6
+      node_modules/vitest
+        dev vitest@"3.2.6" from the root project
+    vite@"^5.0.0 || ^6.0.0 || ^7.0.0-0" from vitest@3.2.6
+    node_modules/vitest
+      dev vitest@"3.2.6" from the root project
+    peerOptional vite@"^5.0.0 || ^6.0.0 || ^7.0.0-0" from @vitest/mocker@3.2.6
+    node_modules/vitest/node_modules/@vitest/mocker
+      @vitest/mocker@"3.2.6" from vitest@3.2.6
+      node_modules/vitest
+        dev vitest@"3.2.6" from the root project
+
+postcss@7.0.39
+node_modules/postcss-attribute-case-insensitive/node_modules/postcss
+  postcss@"^7.0.2" from postcss-attribute-case-insensitive@4.0.2
+  node_modules/postcss-attribute-case-insensitive
+    postcss-attribute-case-insensitive@"^4.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-color-functional-notation/node_modules/postcss
+  postcss@"^7.0.2" from postcss-color-functional-notation@2.0.1
+  node_modules/postcss-color-functional-notation
+    postcss-color-functional-notation@"^2.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-color-gray/node_modules/postcss
+  postcss@"^7.0.5" from postcss-color-gray@5.0.0
+  node_modules/postcss-color-gray
+    postcss-color-gray@"^5.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-color-hex-alpha/node_modules/postcss
+  postcss@"^7.0.14" from postcss-color-hex-alpha@5.0.3
+  node_modules/postcss-color-hex-alpha
+    postcss-color-hex-alpha@"^5.0.3" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-color-mod-function/node_modules/postcss
+  postcss@"^7.0.2" from postcss-color-mod-function@3.0.3
+  node_modules/postcss-color-mod-function
+    postcss-color-mod-function@"^3.0.3" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-color-rebeccapurple/node_modules/postcss
+  postcss@"^7.0.2" from postcss-color-rebeccapurple@4.0.1
+  node_modules/postcss-color-rebeccapurple
+    postcss-color-rebeccapurple@"^4.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-custom-media/node_modules/postcss
+  postcss@"^7.0.14" from postcss-custom-media@7.0.8
+  node_modules/postcss-custom-media
+    postcss-custom-media@"^7.0.8" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-custom-properties/node_modules/postcss
+  postcss@"^7.0.17" from postcss-custom-properties@8.0.11
+  node_modules/postcss-custom-properties
+    postcss-custom-properties@"^8.0.11" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-custom-selectors/node_modules/postcss
+  postcss@"^7.0.2" from postcss-custom-selectors@5.1.2
+  node_modules/postcss-custom-selectors
+    postcss-custom-selectors@"^5.1.2" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-dir-pseudo-class/node_modules/postcss
+  postcss@"^7.0.2" from postcss-dir-pseudo-class@5.0.0
+  node_modules/postcss-dir-pseudo-class
+    postcss-dir-pseudo-class@"^5.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-double-position-gradients/node_modules/postcss
+  postcss@"^7.0.5" from postcss-double-position-gradients@1.0.0
+  node_modules/postcss-double-position-gradients
+    postcss-double-position-gradients@"^1.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-env-function/node_modules/postcss
+  postcss@"^7.0.2" from postcss-env-function@2.0.2
+  node_modules/postcss-env-function
+    postcss-env-function@"^2.0.2" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-flexbugs-fixes/node_modules/postcss
+  postcss@"^7.0.26" from postcss-flexbugs-fixes@4.2.0
+  node_modules/postcss-flexbugs-fixes
+    postcss-flexbugs-fixes@"4.2.0" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-focus-visible/node_modules/postcss
+  postcss@"^7.0.2" from postcss-focus-visible@4.0.0
+  node_modules/postcss-focus-visible
+    postcss-focus-visible@"^4.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-focus-within/node_modules/postcss
+  postcss@"^7.0.2" from postcss-focus-within@3.0.0
+  node_modules/postcss-focus-within
+    postcss-focus-within@"^3.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-font-variant/node_modules/postcss
+  postcss@"^7.0.2" from postcss-font-variant@4.0.1
+  node_modules/postcss-font-variant
+    postcss-font-variant@"^4.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-gap-properties/node_modules/postcss
+  postcss@"^7.0.2" from postcss-gap-properties@2.0.0
+  node_modules/postcss-gap-properties
+    postcss-gap-properties@"^2.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-image-set-function/node_modules/postcss
+  postcss@"^7.0.2" from postcss-image-set-function@3.0.1
+  node_modules/postcss-image-set-function
+    postcss-image-set-function@"^3.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-initial/node_modules/postcss
+  postcss@"^7.0.2" from postcss-initial@3.0.4
+  node_modules/postcss-initial
+    postcss-initial@"^3.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-lab-function/node_modules/postcss
+  postcss@"^7.0.2" from postcss-lab-function@2.0.1
+  node_modules/postcss-lab-function
+    postcss-lab-function@"^2.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-loader/node_modules/postcss
+  postcss@"^7.0.0" from postcss-loader@3.0.0
+  node_modules/postcss-loader
+    postcss-loader@"3.0.0" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-logical/node_modules/postcss
+  postcss@"^7.0.2" from postcss-logical@3.0.0
+  node_modules/postcss-logical
+    postcss-logical@"^3.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-media-minmax/node_modules/postcss
+  postcss@"^7.0.2" from postcss-media-minmax@4.0.0
+  node_modules/postcss-media-minmax
+    postcss-media-minmax@"^4.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-modules-extract-imports/node_modules/postcss
+  postcss@"^7.0.5" from postcss-modules-extract-imports@2.0.0
+  node_modules/postcss-modules-extract-imports
+    postcss-modules-extract-imports@"^2.0.0" from css-loader@3.3.0
+    node_modules/css-loader
+      css-loader@"3.3.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-modules-local-by-default/node_modules/postcss
+  postcss@"^7.0.32" from postcss-modules-local-by-default@3.0.3
+  node_modules/postcss-modules-local-by-default
+    postcss-modules-local-by-default@"^3.0.2" from css-loader@3.3.0
+    node_modules/css-loader
+      css-loader@"3.3.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-modules-scope/node_modules/postcss
+  postcss@"^7.0.6" from postcss-modules-scope@2.2.0
+  node_modules/postcss-modules-scope
+    postcss-modules-scope@"^2.1.1" from css-loader@3.3.0
+    node_modules/css-loader
+      css-loader@"3.3.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-modules-values/node_modules/postcss
+  postcss@"^7.0.6" from postcss-modules-values@3.0.0
+  node_modules/postcss-modules-values
+    postcss-modules-values@"^3.0.0" from css-loader@3.3.0
+    node_modules/css-loader
+      css-loader@"3.3.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-nesting/node_modules/postcss
+  postcss@"^7.0.2" from postcss-nesting@7.0.1
+  node_modules/postcss-nesting
+    postcss-nesting@"^7.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-overflow-shorthand/node_modules/postcss
+  postcss@"^7.0.2" from postcss-overflow-shorthand@2.0.0
+  node_modules/postcss-overflow-shorthand
+    postcss-overflow-shorthand@"^2.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-page-break/node_modules/postcss
+  postcss@"^7.0.2" from postcss-page-break@2.0.0
+  node_modules/postcss-page-break
+    postcss-page-break@"^2.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-place/node_modules/postcss
+  postcss@"^7.0.2" from postcss-place@4.0.1
+  node_modules/postcss-place
+    postcss-place@"^4.0.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-preset-env/node_modules/postcss
+  postcss@"^7.0.17" from postcss-preset-env@6.7.0
+  node_modules/postcss-preset-env
+    postcss-preset-env@"6.7.0" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project
+  postcss@"^7.0.32" from autoprefixer@9.8.8
+  node_modules/postcss-preset-env/node_modules/autoprefixer
+    autoprefixer@"^9.6.1" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-pseudo-class-any-link/node_modules/postcss
+  postcss@"^7.0.2" from postcss-pseudo-class-any-link@6.0.0
+  node_modules/postcss-pseudo-class-any-link
+    postcss-pseudo-class-any-link@"^6.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-replace-overflow-wrap/node_modules/postcss
+  postcss@"^7.0.2" from postcss-replace-overflow-wrap@3.0.0
+  node_modules/postcss-replace-overflow-wrap
+    postcss-replace-overflow-wrap@"^3.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-selector-matches/node_modules/postcss
+  postcss@"^7.0.2" from postcss-selector-matches@4.0.0
+  node_modules/postcss-selector-matches
+    postcss-selector-matches@"^4.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.39
+node_modules/postcss-selector-not/node_modules/postcss
+  postcss@"^7.0.2" from postcss-selector-not@4.0.1
+  node_modules/postcss-selector-not
+    postcss-selector-not@"^4.0.0" from postcss-preset-env@6.7.0
+    node_modules/postcss-preset-env
+      postcss-preset-env@"6.7.0" from next@9.3.3
+      node_modules/next
+        next@"^9.3.3" from the root project
+
+postcss@7.0.21
+node_modules/resolve-url-loader/node_modules/postcss
+  postcss@"7.0.21" from resolve-url-loader@3.1.1
+  node_modules/resolve-url-loader
+    resolve-url-loader@"3.1.1" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project

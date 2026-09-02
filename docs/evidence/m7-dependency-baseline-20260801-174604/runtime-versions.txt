@@ -1,0 +1,3 @@
+node=v22.22.2
+npm=10.9.7
+node_modules_marker=1785598079513768200:780

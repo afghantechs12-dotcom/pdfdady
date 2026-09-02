@@ -1,0 +1,33 @@
+node-fetch@2.6.7
+node_modules/cross-fetch/node_modules/node-fetch
+  node-fetch@"2.6.7" from cross-fetch@3.1.5
+  node_modules/cross-fetch
+    cross-fetch@"3.1.5" from @ampproject/toolbox-core@2.10.1
+    node_modules/@ampproject/toolbox-core
+      @ampproject/toolbox-core@"^2.0.0" from @ampproject/toolbox-optimizer@2.0.1
+      node_modules/@ampproject/toolbox-optimizer
+        @ampproject/toolbox-optimizer@"2.0.1" from next@9.3.3
+        node_modules/next
+          next@"^9.3.3" from the root project
+    cross-fetch@"3.1.5" from @ampproject/toolbox-core@2.10.0
+    node_modules/@ampproject/toolbox-runtime-version/node_modules/@ampproject/toolbox-core
+      @ampproject/toolbox-core@"2.10.0" from @ampproject/toolbox-runtime-version@2.10.1
+      node_modules/@ampproject/toolbox-runtime-version
+        @ampproject/toolbox-runtime-version@"^2.0.0" from @ampproject/toolbox-optimizer@2.0.1
+        node_modules/@ampproject/toolbox-optimizer
+          @ampproject/toolbox-optimizer@"2.0.1" from next@9.3.3
+          node_modules/next
+            next@"^9.3.3" from the root project
+    cross-fetch@"3.1.5" from @ampproject/toolbox-validator-rules@2.10.1
+    node_modules/@ampproject/toolbox-validator-rules
+      @ampproject/toolbox-validator-rules@"^2.0.0" from @ampproject/toolbox-optimizer@2.0.1
+      node_modules/@ampproject/toolbox-optimizer
+        @ampproject/toolbox-optimizer@"2.0.1" from next@9.3.3
+        node_modules/next
+          next@"^9.3.3" from the root project
+
+node-fetch@2.6.0
+node_modules/node-fetch
+  node-fetch@"2.6.0" from next@9.3.3
+  node_modules/next
+    next@"^9.3.3" from the root project

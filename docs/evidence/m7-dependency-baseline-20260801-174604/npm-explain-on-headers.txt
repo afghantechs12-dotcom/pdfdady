@@ -1,0 +1,7 @@
+on-headers@1.0.2
+node_modules/on-headers
+  on-headers@"~1.0.2" from compression@1.7.4
+  node_modules/compression
+    compression@"1.7.4" from next@9.3.3
+    node_modules/next
+      next@"^9.3.3" from the root project

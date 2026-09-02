@@ -1,0 +1,1347 @@
+// PDFDadi data model — provider-agnostic.
+//
+// Local dev uses SQLite (file:./prisma/dev.db, zero external services).
+// Production switches to PostgreSQL by changing `provider` to "postgresql"
+// and pointing DATABASE_URL at a Postgres connection string, then running
+// `prisma migrate deploy`. The schema itself is identical on both providers.
+//
+// Portability rules baked in below:
+//  - No Prisma `enum` (unsupported on SQLite) — status/role/scope fields are
+//    String with app-level validation.
+//  - No `Json` type — JSON payloads are stored as String and (de)serialized in
+//    the repository layer.
+//  - `cuid()` ids, `@updatedAt`, `@@index`, `@@unique` all work on both.
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---- M2.1: foundation -------------------------------------------------------
+
+/// Runtime feature flags, evaluated through the FeatureFlagService.
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean  @default(false)
+  /// Optional JSON-serializable value for nuanced flags (rollout %, variants).
+  value     String?
+  updatedAt DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+/// Generic key/value application settings (KV store for the service layer).
+model AppSetting {
+  key   String @id
+  value String
+
+  @@map("app_settings")
+}
+
+/// Background jobs (queue state + history).
+/// status: created|queued|running|completed|failed|cancelled|expired
+/// ("running" is the PROCESSING state; see src/domain/jobs/jobStateMachine.ts).
+///
+/// Every column added for the unified processing pipeline is nullable: the many
+/// job types that predate it (ingestion, retention, scheduled sweeps) do not
+/// have an owner or a tool, and existing rows must stay readable without a
+/// backfill.
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  status      String    @default("queued")
+  /// JSON-serialized payload. Input *references* (storage keys, sizes, options)
+  /// only — never document bytes.
+  payload     String
+  /// JSON-serialized output references. Null until the job completes.
+  result      String?
+  /// Internal diagnostic text. Never returned to a browser; see safeErrorMessage.
+  error       String?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  /// "user" | "anon" | "system". Ownership is resolved server-side, never trusted
+  /// from the request body.
+  ownerType         String?
+  /// User id, or a stable per-visitor anonymous session id.
+  ownerId           String?
+  /// Set when the job was started from inside a workspace.
+  workspaceId       String?
+  /// Tool slug this job runs, e.g. "compress-pdf".
+  toolSlug          String?
+  /// Caller-supplied de-duplication key, unique per (ownerType, ownerId).
+  idempotencyKey    String?
+  /// Named progress stage: preparing|queued|processing|finalizing|done.
+  progressStage     String?
+  /// Stable failure class from src/domain/jobs/jobErrors.ts.
+  errorCategory     String?
+  /// The only failure text that may be shown to a user.
+  safeErrorMessage  String?
+  /// When the job was handed to the queue (distinct from createdAt).
+  queuedAt          DateTime?
+  /// When cancellation was requested; the worker may still be winding down.
+  cancelRequestedAt DateTime?
+  /// When the staged input / stored output stops being available.
+  expiresAt         DateTime?
+  /// Retained for usage reporting after the objects themselves are purged.
+  inputBytes        Int?
+  outputBytes       Int?
+
+  @@unique([ownerType, ownerId, idempotencyKey], name: "job_owner_idempotency")
+  @@index([status])
+  @@index([type])
+  @@index([ownerType, ownerId])
+  @@index([toolSlug])
+  @@index([expiresAt])
+  @@map("jobs")
+}
+
+// ---- M2.2: storage (forward-looking) ---------------------------------------
+
+model StoredFile {
+  id           String    @id @default(cuid())
+  /// "anon" | "user" | "org" — tenant scope for the object key.
+  ownerType    String
+  ownerId      String
+  /// Object-storage key (content-addressed for inputs).
+  key          String
+  sha256       String?
+  size         Int
+  mimeType     String
+  originalName String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+
+  @@index([ownerType, ownerId])
+  @@index([sha256])
+  @@map("stored_files")
+}
+
+// ---- M2.4: auth + enterprise (forward-looking) -----------------------------
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  /// Display name captured at signup. Nullable: users created before the
+  /// signup form existed (and Clerk-mirrored users) have none.
+  name               String?
+  /// "local" | "clerk" — which identity provider owns this record.
+  provider           String   @default("local")
+  providerExternalId String?
+  /// Local auth only — null for external (Clerk) users.
+  passwordHash       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Organization {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  plan               String   @default("free")
+  /// Authoritative pointer to the organization's default Workspace.
+  defaultWorkspaceId String?
+  createdAt          DateTime @default(now())
+
+  @@index([defaultWorkspaceId])
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  /// owner | admin | member | viewer
+  role           String   @default("member")
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId, organizationId])
+  @@map("organization_memberships")
+}
+
+/// M7.1 tenant-scoped document-productivity boundary.
+model Workspace {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  normalizedName String
+  slug           String
+  normalizedSlug String
+  description    String?
+  /// active | archived | trashed
+  lifecycleState String    @default("active")
+  createdById    String
+  revision       Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+  trashedAt      DateTime?
+  archivedById   String?
+  trashedById    String?
+
+  @@unique([organizationId, normalizedName])
+  @@unique([organizationId, normalizedSlug])
+  @@index([organizationId, lifecycleState])
+  @@index([organizationId, createdAt])
+  @@map("workspaces")
+}
+
+/// M7.1 explicit Workspace access. Organization inheritance is derived.
+model WorkspaceMembership {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  /// owner | editor | commenter | viewer
+  role        String    @default("viewer")
+  createdById String
+  revision    Int       @default(1)
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId, revokedAt])
+  @@index([userId, workspaceId])
+  @@map("workspace_memberships")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Opaque token id; the signed value lives in the auth cookie.
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  /// "user" | "api_key" | "system"
+  actorType      String
+  actorId        String?
+  organizationId String?
+  action         String
+  resourceType   String?
+  resourceId     String?
+  /// JSON-serializable metadata.
+  metadata       String?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@map("audit_logs")
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  /// Prefix shown to the user (first 8 chars).
+  keyPrefix      String
+  /// Argon2/scrypt hash of the full key.
+  keyHash        String
+  /// Space-separated scopes: "tools" | "ai" | "admin".
+  scopes         String    @default("tools")
+  organizationId String?
+  revokedAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  /// HMAC secret for signing deliveries.
+  secret         String
+  /// Comma-separated event types.
+  events         String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@map("webhooks")
+}
+
+// ---- M7.2: projects and folder hierarchy ------------------------------------
+
+/// M7.2 business/workflow container within a Workspace.
+model Project {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  organizationId String
+  name           String
+  normalizedName String
+  slug           String
+  normalizedSlug String
+  description    String?
+  status         String    @default("active")
+  /// active | archived | trashed
+  lifecycleState String    @default("active")
+  /// JSON-serialized ordering key (opaque string for lexicographic ordering).
+  orderKey       String    @default("")
+  createdById    String
+  revision       Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+  trashedAt      DateTime?
+  archivedById   String?
+  trashedById    String?
+
+  @@unique([workspaceId, normalizedName])
+  @@unique([workspaceId, normalizedSlug])
+  @@index([workspaceId, lifecycleState])
+  @@index([workspaceId, orderKey])
+  @@index([organizationId, workspaceId])
+  @@map("projects")
+}
+
+/// M7.2 hierarchical navigation container within a Workspace.
+/// Optionally belongs to a Project. Optional parent Folder for nesting.
+model Folder {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  organizationId String
+  /// Optional project membership. Must share the same Workspace.
+  projectId      String?
+  /// Optional parent folder. Must share the same Workspace. Null = root.
+  parentId       String?
+  name           String
+  normalizedName String
+  /// JSON-serialized ordering key.
+  orderKey       String    @default("")
+  /// active | archived | trashed
+  lifecycleState String    @default("active")
+  createdById    String
+  revision       Int       @default(1)
+  depth          Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+  trashedAt      DateTime?
+  archivedById   String?
+  trashedById    String?
+
+  @@unique([workspaceId, parentId, normalizedName])
+  @@index([workspaceId, lifecycleState])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, parentId])
+  @@index([organizationId, workspaceId])
+  @@map("folders")
+}
+
+// ---- M7.3: document records and file manager --------------------------------
+
+/// M7.3 logical document identity within a Workspace.
+/// Separate from StoredFile (physical storage). A DocumentRecord references one
+/// or more versions, each version may reference one or more StoredFiles.
+model DocumentRecord {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  organizationId   String
+  /// Optional project membership.
+  projectId        String?
+  /// Optional folder placement.
+  folderId         String?
+  /// Display name.
+  name             String
+  normalizedName   String
+  /// active | archived | trashed
+  lifecycleState   String    @default("active")
+  /// JSON-serialized ordering key.
+  orderKey         String    @default("")
+  /// Pointer to the current immutable DocumentVersion (when saved).
+  currentVersionId String?
+  /// Favorite flag.
+  favorite         Boolean   @default(false)
+  /// Last accessed timestamp (for recent views).
+  lastAccessedAt   DateTime?
+  createdById      String
+  revision         Int       @default(1)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  archivedAt       DateTime?
+  trashedAt        DateTime?
+  archivedById     String?
+  trashedById      String?
+
+  @@unique([workspaceId, folderId, normalizedName])
+  @@index([workspaceId, lifecycleState])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, folderId])
+  @@index([workspaceId, favorite])
+  @@index([workspaceId, lastAccessedAt])
+  @@index([organizationId, workspaceId])
+  @@index([createdById])
+  @@map("document_records")
+}
+
+// ---- M7.12: workspace tab sessions -----------------------------------------
+
+/// M7.12 per-user, per-Workspace editor session. Holds the open-tab set and
+/// each tab's lightweight view state so a reload can restore the workbench.
+///
+/// Deliberately NOT stored here: PDF bytes, data URLs, rendered page images or
+/// any other document content. The payload holds only logical references
+/// (documentId/versionId) plus bounded view state; restoration re-authorizes
+/// every referenced document against live Workspace membership.
+model WorkspaceSession {
+  id             String   @id @default(cuid())
+  userId         String
+  workspaceId    String
+  organizationId String
+  /// Id of the active tab within `payload.tabs`, when one is active.
+  activeTabId    String?
+  /// JSON-serialized WorkspaceSessionTab[] (bounded; see TabService limits).
+  tabs           String   @default("[]")
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([organizationId, workspaceId])
+  @@map("workspace_sessions")
+}
+
+// ---- M7.4: document ingestion ----------------------------------------------
+// Durable link between a DocumentRecord and the StoredFile holding its bytes,
+// plus the state of the post-upload processing pipeline. String status (SQLite
+// portability: no Prisma enums), no Json.
+model DocumentIngestion {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  organizationId String
+  documentId     String
+  /// StoredFile id holding the uploaded bytes.
+  storedFileId   String
+  /// pending | processing | complete | failed
+  status         String    @default("pending")
+  checksum       String
+  byteSize       Int
+  mimeType       String
+  originalName   String
+  pageCount      Int?
+  failureReason  String?
+  uploadedById   String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  @@unique([workspaceId, checksum])
+  @@unique([workspaceId, documentId])
+  @@index([workspaceId, status])
+  @@index([organizationId, workspaceId])
+  @@map("document_ingestions")
+}
+
+// ---- M7.5: durable autosave drafts -----------------------------------------
+// Server-side, per-device draft state for documents that have not been
+// committed as versions. A draft is private to its author (userId). String
+// status (SQLite portability: no Prisma enums), no Json.
+//
+// Metadata only: the serialized editor state lives in object storage under
+// `snapshotKey`, per docs/milestone-7-plan.md §4.3 ("Large repeated editor-state
+// JSON is not stored in SQLite"). Browser-side concerns (IndexedDB staging, Web
+// Locks) are client-only and deliberately absent.
+model AutosaveDraft {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  organizationId     String
+  documentId         String
+  userId             String
+  /// Distinguishes concurrent sessions by the same user.
+  deviceId           String
+  /// Document version this draft was branched from.
+  baseVersion        Int
+  /// Document revision the client believed current when it wrote.
+  expectedRevision   Int
+  /// Object-storage key of the serialized editor state. Defaulted only so the
+  /// corrective migration could add the column in place; the service always
+  /// supplies a real key.
+  snapshotKey        String    @default("")
+  /// Monotonic per-draft counter embedded in snapshotKey.
+  snapshotGeneration Int       @default(1)
+  /// sha256 of the snapshot bytes, computed server-side.
+  checksum           String
+  byteSize           Int
+  /// dirty | saved | conflict | stale
+  status             String    @default("dirty")
+  failureReason      String?
+  /// Device currently holding the write lease, if any.
+  leaseOwnerDeviceId String?
+  leaseExpiresAt     DateTime?
+  /// Optimistic-concurrency counter.
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([workspaceId, documentId, userId, deviceId])
+  @@index([workspaceId, documentId, userId])
+  @@index([userId, workspaceId])
+  @@index([workspaceId, status])
+  /// Supports the "is this snapshot still referenced?" check before a delete.
+  @@index([snapshotKey])
+  /// Retention/purge sweeps by age; expiry is derived from updatedAt, not stored.
+  @@index([updatedAt])
+  @@map("autosave_drafts")
+}
+
+// ---- M7.6: durable document versions ---------------------------------------
+
+/// M7.6 immutable document checkpoint. Written once and never updated: history
+/// is not rewritten, and restoring an earlier version creates a new row that
+/// points back at it via restoredFromVersionId (docs/milestone-7-plan.md 6.3).
+///
+/// The manifest is bounded JSON naming the object-storage artifacts (source PDF,
+/// editor state, optional output, thumbnails) with their checksums. Document
+/// bytes are never stored in SQLite. Stored as String, not Json, for SQLite
+/// portability; status-like fields are Strings for the same reason.
+model DocumentVersion {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  organizationId        String
+  documentId            String
+  /// Monotonic per-document number, allocated inside the insert transaction.
+  versionNumber         Int
+  /// Document revision this version was cut at.
+  revision              Int
+  /// save | restore | import | checkpoint
+  origin                String   @default("save")
+  /// Set only when origin is "restore".
+  restoredFromVersionId String?
+  /// Optional user-supplied checkpoint name.
+  label                 String?
+  /// Bounded serialized DocumentVersionManifest.
+  manifest              String
+  /// sha256 over the canonical manifest, computed server-side.
+  checksum              String
+  createdById           String
+  createdAt             DateTime @default(now())
+
+  /// Version numbers are unique per document — this is what makes concurrent
+  /// allocation safe: a losing writer hits this constraint and retries.
+  @@unique([documentId, versionNumber])
+  @@index([workspaceId, documentId, versionNumber])
+  @@index([workspaceId, documentId, createdAt])
+  @@index([organizationId, workspaceId])
+  @@index([restoredFromVersionId])
+  @@index([createdById])
+  @@map("document_versions")
+}
+
+// ---- M7.7: tags and smart collections ---------------------------------------
+
+/// M7.7 Workspace-scoped tag. The normalized name is unique within a Workspace,
+/// so two Workspaces may each hold a tag displayed as "Contract" while one
+/// Workspace cannot hold it twice. Normalization is computed in the application
+/// (NFKC + whitespace collapse + locale-independent lowercase, ADR-M7-012)
+/// rather than relying on database collation, so SQLite and PostgreSQL agree on
+/// what counts as a duplicate.
+model Tag {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  /// Display form as the author typed it.
+  name           String
+  /// Locale-independent matching form; unique within the Workspace.
+  normalizedName String
+  /// Bounded presentation colour (#rrggbb), or null.
+  color          String?
+  createdById    String
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  /// Load-bearing: renames and creates let this constraint reject a duplicate
+  /// rather than checking first and inserting after, which would race.
+  /// Also serves Workspace listings ordered by normalized name.
+  @@unique([workspaceId, normalizedName])
+  @@index([organizationId, workspaceId])
+  @@index([createdById])
+  @@map("tags")
+}
+
+/// M7.7 document/tag assignment — the many-to-many join.
+///
+/// Carries its own workspaceId even though both sides already have one: that
+/// column is what lets every repository predicate be Workspace-scoped without a
+/// join, and what makes a cross-Workspace assignment rejectable at the boundary
+/// instead of silently accepted.
+model DocumentTag {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  tagId          String
+  /// Who made the assignment; recorded rather than inferred from the tag author.
+  assignedById   String
+  createdAt      DateTime @default(now())
+
+  /// Makes a duplicate assignment impossible, which is what lets assign() be
+  /// idempotent rather than merely usually-idempotent under concurrency.
+  @@unique([documentId, tagId])
+  @@index([workspaceId, documentId])
+  @@index([workspaceId, tagId])
+  @@index([organizationId, workspaceId])
+  @@map("document_tags")
+}
+
+/// M7.7 saved smart collection.
+///
+/// Membership is NOT stored: there are no member rows. The bounded, versioned
+/// query definition is re-evaluated against live DocumentRecord and DocumentTag
+/// data on every read, which is what makes membership dynamic — tagging a
+/// document changes what the collection contains with no write to this row.
+///
+/// The definition is a String, not Json, for SQLite portability, and is parsed
+/// back through the allowlisted grammar on read; an unknown version evaluates to
+/// nothing rather than to everything.
+model SmartCollection {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  name           String
+  normalizedName String
+  /// Grammar version the definition was validated under.
+  queryVersion   Int      @default(1)
+  /// Canonical serialized query definition (bounded; see SMART_COLLECTION_LIMITS).
+  query          String
+  createdById    String
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([workspaceId, normalizedName])
+  @@index([organizationId, workspaceId])
+  @@index([createdById])
+  @@map("smart_collections")
+}
+
+/// M7.8 search index entry — one per document, describing one indexed version.
+///
+/// Held separate from DocumentRecord because index state has its own lifecycle:
+/// a document can be current while its index entry is stale or failed, and
+/// conflating the two would make a broken extractor look like a broken document.
+///
+/// State is a String rather than an enum for SQLite/PostgreSQL portability and
+/// is validated in the application (see SEARCH_INDEX_STATES).
+model SearchDocument {
+  id             String    @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// The immutable version this entry describes; null before one exists.
+  versionId      String?
+  /// pending | indexing | indexed | stale | failed
+  state          String    @default("pending")
+  /// Index schema version the entry was written under.
+  schemaVersion  Int       @default(1)
+  /// Checksum of the indexed content, so an unchanged reindex is detectable.
+  checksum       String    @default("")
+  /// How many chunks this entry currently holds.
+  chunkCount     Int       @default(0)
+  /// Why the last attempt failed, bounded; null when it did not.
+  error          String?
+  /// When indexing last completed; null if it never has.
+  indexedAt      DateTime?
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  revision       Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  /// One entry per document: this is what makes indexing idempotent under
+  /// duplicate delivery, since a redelivered event converges on the same row
+  /// instead of inserting a second entry.
+  @@unique([workspaceId, documentId])
+  @@index([workspaceId, state])
+  @@index([organizationId, workspaceId])
+  @@index([documentId])
+  @@map("search_documents")
+}
+
+/// M7.8 indexed content chunk — bounded, page-aware unit of searchable text.
+///
+/// Chunked rather than one blob per document so a snippet can say which page a
+/// match is on, and so a reindex can replace content incrementally. Both the
+/// original and normalized text are stored: the original renders a readable
+/// snippet, the normalized form is what matching runs against.
+model SearchChunk {
+  id               String   @id @default(cuid())
+  organizationId   String
+  workspaceId      String
+  searchDocumentId String
+  documentId       String
+  /// Position within the document; stable so snippets can be ordered.
+  ordinal          Int
+  /// text | metadata | annotation | bookmark | outline
+  sourceType       String   @default("text")
+  /// 1-based page this text came from; null for non-paged sources.
+  pageNumber       Int?
+  /// Original text, bounded (see SEARCH_LIMITS.maxChunkTextLength).
+  text             String
+  /// Matching form of the same text.
+  normalizedText   String
+  createdAt        DateTime @default(now())
+
+  /// Makes a reindex replace a chunk in place rather than accumulate duplicates.
+  @@unique([searchDocumentId, ordinal])
+  @@index([workspaceId, documentId])
+  @@index([workspaceId, searchDocumentId])
+  @@index([organizationId, workspaceId])
+  @@map("search_chunks")
+}
+
+// ---- M7.9: metadata, bookmarks, outlines and attachments --------------------
+//
+// The organizing distinction across these four tables is `origin`: a
+// "workspace" record is data this product owns and may edit, an "embedded"
+// record is a projection of a structure inside the PDF bytes and is read-only
+// in this build (see EMBEDDED_WRITE_SUPPORT). Keeping both in one table with an
+// origin column — rather than in parallel tables — is deliberate: they form one
+// tree or one list in the UI, and a column is what a query filters on.
+//
+// No Json columns and no enums: Strings throughout for SQLite/PostgreSQL
+// portability, validated in the application layer.
+
+/// M7.9 Workspace-owned document properties.
+///
+/// One row per document, so a redelivered save converges rather than inserting
+/// a second set of properties. The field map is a serialized allowlisted
+/// key/value object (see METADATA_KEYS); arbitrary keys are refused before they
+/// reach here, so this column cannot grow unbounded in shape or count.
+///
+/// Deliberately NOT stored here: the PDF's own /Info dictionary. Those values
+/// belong to the bytes, are reported separately, and would be silently wrong the
+/// moment a new version was uploaded.
+model DocumentMetadata {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// Serialized MetadataFields, deterministic key order.
+  fields         String   @default("{}")
+  /// Metadata schema version the row was written under.
+  schemaVersion  Int      @default(1)
+  createdById    String
+  updatedById    String
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  /// One properties row per document — what makes the save idempotent.
+  @@unique([workspaceId, documentId])
+  @@index([organizationId, workspaceId])
+  @@index([documentId])
+  @@map("document_metadata")
+}
+
+/// M7.9 Workspace bookmark — a user's own page marker.
+///
+/// Distinct from the PDF's embedded outline (see OutlineItem): a bookmark is
+/// ours, editable, and survives a new version of the document because it
+/// addresses a page rather than an object inside the file.
+model WorkspaceBookmark {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// 1-based page this bookmark points at.
+  pageNumber     Int
+  title          String
+  note           String?
+  /// Fractional in-page anchor (0..1), null for a whole-page bookmark. Stored
+  /// as fractions rather than absolute units so the anchor survives a page-size
+  /// change and cannot address a point outside the page.
+  anchorX        Float?
+  anchorY        Float?
+  /// Lexicographic ordering key within the document.
+  orderKey       String   @default("")
+  createdById    String
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, documentId, orderKey])
+  @@index([workspaceId, documentId, pageNumber])
+  @@index([organizationId, workspaceId])
+  @@index([createdById])
+  @@map("workspace_bookmarks")
+}
+
+/// M7.9 outline item — one node of a document's navigation tree.
+///
+/// Holds both origins. A "workspace" item is authored here and editable; an
+/// "embedded" item mirrors the PDF's own outline and is replaced wholesale when
+/// the file is re-inspected, never edited in place — editing it would imply a
+/// write back into the bytes that this build cannot perform.
+///
+/// `depth` is stored for ordering and bounds, but the parent chain is the
+/// structure: readers recompute depth from the links, because a stored depth can
+/// disagree with them after a move.
+model OutlineItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// Parent item, or null for a root item. Self-referential without a relation
+  /// constraint: cycles are refused in the application, and a FK would not
+  /// prevent them anyway.
+  parentId       String?
+  title          String
+  pageNumber     Int
+  /// Nesting depth; 0 is a root item.
+  depth          Int      @default(0)
+  orderKey       String   @default("")
+  /// workspace | embedded
+  origin         String   @default("workspace")
+  createdById    String
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId, documentId, origin, orderKey])
+  @@index([workspaceId, parentId])
+  @@index([organizationId, workspaceId])
+  @@index([documentId])
+  @@map("outline_items")
+}
+
+/// M7.9 attachment catalogue entry.
+///
+/// The bytes live in object storage behind a StoredFile; this is the record that
+/// names them. `storedFileId` is nullable on purpose: an embedded attachment can
+/// be catalogued from an inspection without being extracted, and such a record
+/// is honestly listable-but-not-downloadable rather than pointing at bytes that
+/// were never written.
+///
+/// `mimeType` is what was declared. What the file is *served* as is narrowed at
+/// download time (see safeDownloadType) — a stored text/html served under its
+/// own type would be stored XSS on our origin.
+model AttachmentRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// StoredFile holding the bytes; null when catalogued but not extracted.
+  storedFileId   String?
+  /// workspace | embedded
+  origin         String   @default("workspace")
+  name           String
+  /// Locale-independent matching form; unique per document.
+  normalizedName String
+  description    String?
+  mimeType       String   @default("application/octet-stream")
+  byteSize       Int      @default(0)
+  /// sha256 over the stored bytes, computed server-side; empty when unknown.
+  checksum       String   @default("")
+  createdById    String
+  revision       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  /// One attachment of a given name per document, so a re-upload replaces
+  /// rather than accumulating indistinguishable duplicates.
+  @@unique([documentId, normalizedName])
+  @@index([workspaceId, documentId, origin])
+  @@index([organizationId, workspaceId])
+  @@index([storedFileId])
+  @@index([createdById])
+  @@map("attachment_records")
+}
+
+// ---- M7.10: comments, sharing and asynchronous collaboration ----------------
+//
+// Three tables because there are three genuinely different lifetimes: a thread
+// owns a location and a resolution state, a message owns authored text and its
+// edit history, and a grant owns a standing capability with its own expiry and
+// revocation. Folding any two together would make one authority decide the
+// other's writes — resolving a thread would rewrite someone's words, or editing
+// a message would move the anchor out from under the other participants.
+//
+// M7 supports *asynchronous* collaboration only. There is no CRDT, no
+// operational transform and no shared live editing state here: concurrency is
+// handled by optimistic `revision` compare-and-swap, and a losing writer is told
+// to refetch. Nothing in this schema implies simultaneous merge.
+//
+// No Json columns and no enums: Strings throughout for SQLite/PostgreSQL
+// portability, validated in the application layer (see
+// src/domain/entities/Collaboration.ts).
+
+/// M7.10 comment thread — one conversation, anchored at one place.
+///
+/// `anchor` is a serialized, strictly validated CommentAnchor (see
+/// `validateAnchor`). It is stored as text rather than as columns because the
+/// six anchor types carry genuinely different fields, and a column-per-field
+/// table would be mostly nulls with no constraint tying the right ones together.
+/// The type is denormalized into `anchorType` so listings can filter without
+/// parsing every row.
+///
+/// `versionId` records which version the coordinates were authored against. A
+/// thread whose version is not the document's current one is *stale*: the pin
+/// still describes the version it was written on, and the UI says so rather
+/// than pretending it still lands in the right place.
+model CommentThread {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  workspaceId         String
+  documentId          String
+  /// Version the anchor was authored against; null when unknown.
+  versionId           String?
+  /// document | page | point | rectangle | text | object
+  anchorType          String    @default("document")
+  /// Serialized CommentAnchor, bounded (see COLLABORATION_LIMITS.maxAnchorBytes).
+  anchor              String    @default("{\"type\":\"document\"}")
+  /// Anchor schema version the row was written under.
+  anchorSchemaVersion Int       @default(1)
+  /// The anchor's 1-based page, denormalized out of `anchor` so "comments on the
+  /// page I am looking at" is an indexed predicate rather than a JSON extraction.
+  /// Null for a document-scoped anchor, or an object anchor with no page hint.
+  /// Derived, never authored: the service writes it from the validated anchor.
+  pageNumber          Int?
+  /// open | resolved
+  status              String    @default("open")
+  createdById         String
+  resolvedById        String?
+  resolvedAt          DateTime?
+  /// Optimistic-concurrency counter, incremented on every mutation.
+  revision            Int       @default(1)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  /// The listing predicate: a document's threads, newest first, filtered by state.
+  @@index([workspaceId, documentId, status, createdAt])
+  /// Supports the page-scoped listing without scanning a document's threads.
+  @@index([workspaceId, documentId, pageNumber])
+  @@index([organizationId, workspaceId])
+  @@index([documentId, versionId])
+  @@index([createdById])
+  @@map("comment_threads")
+}
+
+/// M7.10 comment message — one authored contribution to a thread.
+///
+/// `parentMessageId` supports a single level of reply (see
+/// COLLABORATION_LIMITS.maxReplyDepth): threads are already the grouping
+/// construct, so deeper nesting would add a tree to render and a cycle to guard
+/// for no expressive gain. Self-referential without a relation constraint,
+/// because depth is enforced in the application and a FK would not prevent a
+/// cycle anyway.
+///
+/// Deletion is soft: the row and its position survive so replies beneath it do
+/// not become orphans, but `body` is cleared in the same write — "deleted" has
+/// to actually remove the words, not merely hide them behind a flag.
+model CommentMessage {
+  id              String    @id @default(cuid())
+  organizationId  String
+  workspaceId     String
+  documentId      String
+  threadId        String
+  authorId        String
+  /// Message this one replies to; null for a root message.
+  parentMessageId String?
+  /// Plain text, stored verbatim and never interpreted as markup. Empty when deleted.
+  body            String
+  revision        Int       @default(1)
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  deletedById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  /// The listing predicate: a thread's messages in authored order.
+  @@index([workspaceId, threadId, createdAt])
+  @@index([organizationId, workspaceId])
+  @@index([threadId, parentMessageId])
+  @@index([authorId])
+  @@map("comment_messages")
+}
+
+/// M7.10 document-scoped permission grant.
+///
+/// A grant may only *add* access to one document, and only within the Workspace
+/// and organization that already contain it. It cannot confer ownership and
+/// cannot override an explicit Workspace or organization denial — that
+/// precedence is enforced in the authorization resolver, and this table exists
+/// to record the capability, not to decide it (ADR-M7-002).
+///
+/// Revoked grants are retained rather than deleted: "who could see this, and
+/// until when" is an audit question that a deleted row cannot answer. Active
+/// lookups exclude them by predicate.
+model DocumentPermissionGrant {
+  id             String    @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// The user this grant is for.
+  granteeUserId  String
+  /// viewer | commenter | editor  (never owner — see the model comment)
+  role           String    @default("viewer")
+  grantedById    String
+  /// Null means the grant does not expire on its own.
+  expiresAt      DateTime?
+  /// Set once revoked; retained as an audit fact.
+  revokedAt      DateTime?
+  revokedById    String?
+  revision       Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  /// The authorization predicate, run on every use of a grant.
+  @@index([workspaceId, documentId, granteeUserId, revokedAt])
+  @@index([organizationId, workspaceId])
+  @@index([granteeUserId])
+  @@index([grantedById])
+  @@map("document_permission_grants")
+}
+
+// ---- M7.11: statistics and version comparison -------------------------------
+//
+// Statistics are keyed to an immutable DocumentVersion, never to a document. A
+// count that floats free of a version is a count nobody can reproduce: the
+// document changes, the number does not, and there is no way to tell which of
+// the two is stale. Keying to the version makes the cache invalidation rule
+// trivial — a new version simply has no row yet.
+//
+// Comparison is modelled as an operation plus a separate result, because the two
+// have different lifetimes: an operation is a state machine that may end without
+// producing anything (failed, cancelled), while a result is an immutable
+// artifact that only exists once. Folding them together would mean a cancelled
+// operation carried an empty result, which reads as "compared, no differences".
+//
+// No Json columns and no enums: Strings throughout for SQLite/PostgreSQL
+// portability, validated in the application layer (see
+// src/domain/entities/DocumentStatistics.ts).
+
+/// M7.11 measured statistics for one immutable version.
+///
+/// `counts` is a serialized StatisticsCounts in which every field is nullable:
+/// null means "not measured", 0 means "measured, none found". The distinction is
+/// load-bearing — a document nobody scanned for images must not report that it
+/// has none.
+///
+/// `checksum` records what the numbers were computed from, so a row can be
+/// recognized as stale rather than merely old when the same version is
+/// recomputed against different content.
+model DocumentStatistics {
+  id             String    @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  /// The immutable version these numbers describe.
+  versionId      String
+  /// Statistics schema version the row was written under.
+  schemaVersion  Int       @default(1)
+  /// Serialized StatisticsCounts, deterministic key order.
+  counts         String    @default("{}")
+  /// Checksum over the measured content; empty when unknown.
+  checksum       String    @default("")
+  /// pending | ready | failed
+  status         String    @default("pending")
+  /// Bounded failure reason; set only when status is "failed".
+  error          String?
+  calculatedAt   DateTime?
+  revision       Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  /// One statistics row per version — what makes a recompute converge rather
+  /// than accumulate a second set of numbers for the same bytes.
+  @@unique([versionId])
+  @@index([workspaceId, documentId, versionId])
+  @@index([organizationId, workspaceId])
+  @@index([documentId, status])
+  @@map("document_statistics")
+}
+
+/// M7.11 comparison operation — a bounded, cancellable state machine.
+///
+/// Transitions are pending -> running -> completed | failed | cancelled, and
+/// every terminal state is final (see canTransitionComparison). A cancelled
+/// operation can never become completed: delivering a result the user declined
+/// to wait for is worse than delivering nothing. Retrying creates a *new*
+/// operation, which keeps the cancellation an honest historical fact.
+///
+/// `cancelRequestedAt` is separate from the status because cancellation is a
+/// request that long work observes at its next checkpoint, not an instant state
+/// change — a worker mid-page needs somewhere to read the intent from.
+model ComparisonOperation {
+  id                String    @id @default(cuid())
+  organizationId    String
+  workspaceId       String
+  documentId        String
+  /// Both versions must belong to documentId; enforced in the service.
+  leftVersionId     String
+  rightVersionId    String
+  /// structural | textual | visual | editor
+  type              String    @default("structural")
+  /// pending | running | completed | failed | cancelled
+  status            String    @default("pending")
+  /// 0..100, always consistent with status.
+  progress          Int       @default(0)
+  requestedById     String
+  /// Set when cancellation was requested, whether or not it has taken effect.
+  cancelRequestedAt DateTime?
+  /// Bounded failure reason; set only when status is "failed".
+  error             String?
+  /// Set only when status is "completed".
+  resultId          String?
+  createdAt         DateTime  @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  /// The listing predicate: a document's operations, newest first.
+  @@index([workspaceId, documentId, createdAt])
+  /// Supports the active-operation bound and worker pickup.
+  @@index([workspaceId, documentId, status])
+  @@index([organizationId, workspaceId])
+  @@index([requestedById])
+  @@map("comparison_operations")
+}
+
+/// M7.11 comparison result — the immutable artifact of a completed operation.
+///
+/// Bounded by construction: the difference list is capped
+/// (STATISTICS_LIMITS.maxDifferences) and each excerpt is truncated, so a
+/// pathological pair of documents cannot produce an unbounded row. Excerpts are
+/// plain text and are rendered as text nodes, never as markup.
+///
+/// Derived data: a result can be dropped and rebuilt by re-running the
+/// comparison, which is what makes retention pruning safe.
+model ComparisonResult {
+  id             String   @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  documentId     String
+  comparisonId   String
+  /// structural | textual | visual | editor
+  type           String
+  /// Serialized ComparisonSummary.
+  summary        String   @default("{}")
+  /// Serialized, bounded ComparisonDifference list.
+  differences    String   @default("[]")
+  /// Checksum over both compared versions; identifies what was compared.
+  checksum       String   @default("")
+  createdAt      DateTime @default(now())
+
+  /// One result per operation.
+  @@unique([comparisonId])
+  @@index([workspaceId, documentId])
+  @@index([organizationId, workspaceId])
+  @@map("comparison_results")
+}
+
+// ---- Usage metering, limits & product analytics -----------------------------
+
+/// Append-only usage + product-analytics ledger. One row per metered processing
+/// attempt or per product event.
+///
+/// The privacy split between this model and UsageCounter is deliberate and is
+/// the reason there are two tables rather than one.
+///
+/// ProcessingUsageRecorder states the rule this schema has to keep: knowing that
+/// traffic split between signed-in and anonymous visitors is operationally
+/// necessary, knowing *which* visitor is not. So this table carries `ownerType`
+/// and `planId` — the population dimensions — and deliberately has NO `ownerId`
+/// column at all. There is no field here to write one into, which is a stronger
+/// guarantee than a mapper that remembers not to.
+///
+/// `subjectHash` is a rotating-salt pseudonym, present only so a funnel can tell
+/// "one visitor did six steps" from "six visitors did one step each". It is not
+/// reversible, it changes when the salt rotates, and it is not a join key to any
+/// user row.
+///
+/// Retention: prunable by `occurredAt`. Nothing downstream needs a row older
+/// than the reporting window.
+model UsageEvent {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+  /// Canonical name from src/domain/metering/events.ts. Unknown names are never
+  /// written — the taxonomy drops them before they reach here.
+  eventName  String
+
+  /// "user" | "anon" | "system". A population dimension, never an identity.
+  ownerType  String?
+  /// Plan in force when the event happened: guest | free | pro | business.
+  planId     String?
+  /// Non-reversible, salt-rotated visitor pseudonym for funnel stitching only.
+  subjectHash String?
+
+  toolSlug      String?
+  /// "local" | "remote_job".
+  executionMode String?
+  /// "success" | "failure" | "cancelled" for processing outcomes.
+  result        String?
+  /// Stable failure class from src/domain/jobs/jobErrors.ts.
+  errorCategory String?
+  attempt       Int?
+
+  inputBytes      Int?
+  outputBytes     Int?
+  /// Coarse bucket (<1MB, 1-5MB, …). What dashboards group by; an exact size is
+  /// a weak fingerprint across a dataset and a bucket is not.
+  inputSizeBucket String?
+  pageCount       Int?
+  durationMs      Int?
+  /// Derived cost in compute units; see src/domain/metering/cost.ts.
+  costUnits       Int?
+
+  /// JSON-serialized, taxonomy-sanitized extra properties. String, not Json —
+  /// the schema stays portable to SQLite.
+  properties String?
+
+  @@index([occurredAt])
+  @@index([eventName, occurredAt])
+  @@index([toolSlug, occurredAt])
+  @@map("usage_events")
+}
+
+/// Per-owner, per-meter, per-period counter — the substrate limits are decided
+/// from.
+///
+/// This IS keyed by a real `ownerId`, unlike UsageEvent, because a quota that
+/// cannot identify whose quota it is cannot be a quota. That is a deliberate,
+/// bounded exception to the no-owner-id rule above: the value is short-lived,
+/// carries no document metadata, and a closed period is prunable — whereas the
+/// analytics ledger is long-lived and therefore stays anonymous.
+///
+/// The unique constraint is what makes an atomic `upsert` + `{ increment: n }`
+/// safe under concurrency: two simultaneous submissions contend on one row and
+/// both increments land, instead of a read-modify-write losing one.
+model UsageCounter {
+  id String @id @default(cuid())
+
+  /// "user" | "anon" | "system".
+  ownerType String
+  /// User id, or the stable per-visitor anonymous session id.
+  ownerId   String
+  /// Meter key from src/domain/metering/meters.ts.
+  meter     String
+  /// UTC-aligned window start from src/domain/metering/periods.ts.
+  periodStart DateTime
+  /// Exclusive window end; also the instant this allowance resets.
+  periodEnd   DateTime
+
+  amount    Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerType, ownerId, meter, periodStart], name: "usage_counter_owner_meter_period")
+  @@index([ownerType, ownerId])
+  @@index([periodEnd])
+  @@map("usage_counters")
+}
+
+/// A durable "this job's customer usage has already been settled" marker.
+///
+/// The primary key IS the guard. Settling is a compare-and-set: whichever caller
+/// inserts the row first owns the settlement, and every later attempt gets a
+/// unique-constraint violation instead of a second refund. That is the only
+/// mechanism available that holds across processes AND across restarts — an
+/// in-process set does neither, and a read-then-write lets two workers both see
+/// "not settled" and both act.
+///
+/// It holds a job id and nothing else: no owner, no tool, no bytes. A duplicate
+/// settlement is answered by the existence of a row, so there is nothing else
+/// worth storing here, and a marker table with no personal data in it needs no
+/// retention policy of its own beyond size.
+///
+/// ponytail: grows one small row per settled job and is never pruned, matching
+/// `pruneEventsBefore`/`pruneCountersBefore`, which exist and have no caller
+/// either. Add `claimedAt`-based pruning to whatever retention job first needs
+/// one — the column is indexed for exactly that.
+model UsageSettlement {
+  /// The settlement subject: a job id.
+  key       String   @id
+  claimedAt DateTime @default(now())
+
+  @@index([claimedAt])
+  @@map("usage_settlements")
+}
+
+// ---- Billing / subscriptions -------------------------------------------------
+
+/// Paid entitlement state for one organization. THE source of truth for "is this
+/// account Pro?" — not `Organization.plan`, and never a checkout redirect.
+///
+/// One row per organization, created when the provider customer is created and
+/// therefore existing before any subscription does. That is why almost every
+/// subscription column is nullable: a row in `incomplete` with a customer id and
+/// no subscription is the normal state of an account that has opened checkout and
+/// not paid, and it must be representable without lying about the plan.
+///
+/// `providerCustomerId` is unique for an ownership reason, not a performance one:
+/// a webhook arrives naming a customer, and the organization is resolved *from*
+/// that customer. If two organizations could share one customer id, that lookup
+/// would be ambiguous and a payment could credit the wrong tenant.
+///
+/// `lastEventAt` holds the provider `created` timestamp of the newest event
+/// applied. Stripe does not promise delivery order, so it is compared before any
+/// write — see `isNewerEvent` in src/domain/billing/subscription.ts. Without it,
+/// a delayed cancellation delivered after a reactivation would win.
+model BillingSubscription {
+  id                     String    @id @default(cuid())
+  organizationId         String    @unique
+  /// "stripe". Stored so a second provider cannot be silently conflated.
+  provider               String    @default("stripe")
+  providerCustomerId     String    @unique
+  providerSubscriptionId String?   @unique
+  /// The provider price the subscription bills on. Kept so a mapping fixed after
+  /// the fact can be re-derived without a provider round trip.
+  providerPriceId        String?
+  /// incomplete | incomplete_expired | trialing | active | past_due | canceled |
+  /// unpaid | paused. String, not enum, for SQLite portability; coerced by
+  /// `toSubscriptionStatus`, which resolves anything unknown to `incomplete`.
+  status                 String    @default("incomplete")
+  /// free | pro | business — resolved from the price by server config at write
+  /// time. An unmapped price stores `free`, so an unknown price cannot grant Pro.
+  planId                 String    @default("free")
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean   @default(false)
+  lastEventAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([status])
+  @@map("billing_subscriptions")
+}
+
+/// A durable "this provider event has already been processed" marker.
+///
+/// The primary key IS the guard, exactly as in `UsageSettlement`: whichever
+/// delivery inserts first owns the event, and every retry gets a unique-
+/// constraint violation instead of a second plan change. Stripe retries on any
+/// non-2xx and can also deliver the same event twice on success, so idempotency
+/// here is a normal-path requirement, not an edge case.
+///
+/// ponytail: grows one small row per event and is never pruned, matching the
+/// usage-settlement table it copies. Add `receivedAt`-based pruning to whatever
+/// retention job first needs one — the column is indexed for it.
+model BillingEvent {
+  /// The provider's event id.
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
+  @@map("billing_events")
+}

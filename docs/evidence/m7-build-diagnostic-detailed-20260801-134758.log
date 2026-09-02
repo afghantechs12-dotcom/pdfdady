@@ -1,0 +1,14 @@
+﻿M7.0 detailed isolated production-build diagnostic
+start_time=2026-08-01T13:47:58.4763823+02:00
+cwd=D:\AndroidStudioProjects\Backup\PDFMaster
+command=node npm-cli.js run build
+diagnostic_shell_pid=13804
+raw_combined_output=D:\Temp\pdfmaster-m7-build-20260801-134758.raw.log
+no_progress_ceiling_seconds=600
+--- activity samples ---
+npm_node_pid=14696
+process_discovered time=2026-08-01T13:47:59.3579868+02:00 role=child pid=20516 ppid=14696 name=conhost.exe command=\??\C:\WINDOWS\system32\conhost.exe 0x4
+activity time=2026-08-01T13:47:59.4235406+02:00 output_bytes=0 next_files=0 next_bytes=0 next_latest= next_latest_utc= lock=False
+process_discovered time=2026-08-01T13:48:00.7181903+02:00 role=prisma pid=18004 ppid=14696 name=cmd.exe command=C:\WINDOWS\system32\cmd.exe /d /s /c prisma generate && next build
+process_discovered time=2026-08-01T13:48:00.7350465+02:00 role=prisma pid=17476 ppid=18004 name=node.exe command="node"   "D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\.bin\\..\prisma\build\index.js" generate
+process_discovered time=2026-08-01T13:48:04.6989387+02:00 role=prisma pid=6612 ppid=17476 name=node.exe command="C:\Users\Faisal Arifi\.workbuddy\binaries\node\versions\22.22.2\node.exe" D:\AndroidStudioProjects\Backup\PDFMaster\node_modules\prisma\build\child "{\"product\":\"prisma\",\"version\":\"6.19.3\",\"cli_install_type\":\"local\",\"information\":\"\",\"local_timestamp\":\"2026-08-01T13:48:04+02:00\",\"project_hash\":\"9a64a9ea\",\"cli_path\":\"D:\\AndroidStudioProjects\\Backup\\PDFMaster\\node_modules\\prisma\\build\\index.js\",\"cli_path_hash\":\"05f39729\",\"endpoint\":\"https://checkpoint.prisma.io\",\"disable\":false,\"arch\":\"x64\",\"os\":\"win32\",\"node_version\":\"v22.22.2\",\"ci\":false,\"ci_name\":\"\",\"command\":\"generate\",\"schema_providers\":[\"sqlite\"],\"schema_preview_features\":[],\"schema_generators_providers\":[\"prisma-client-js\"],\"cache_file\":\"C:\\Users\\Faisal Arifi\\AppData\\Local\\checkpoint-nodejs\\Cache\\prisma-05f39729\",\"cache_duration\":43200000,\"remind_duration\":172800000,\"force\":false,\"timeout\":5000,\"unref\":true,\"child_path\":\"D:\\AndroidStudioProjects\\Backup\\PDFMaster\\node_modules\\prisma\\build\\child\",\"client_event_id\":\"\",\"previous_client_event_id\":\"\",\"check_if_update_available\":false}"

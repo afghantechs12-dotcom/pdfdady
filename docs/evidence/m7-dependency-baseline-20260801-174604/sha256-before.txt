@@ -1,0 +1,2 @@
+d32f8aae3dfb90ed85b548cf076121d1fefe924280442c48cb7f615780dfe0ff *D:/AndroidStudioProjects/Backup/PDFMaster/package.json
+ae617182694f9b7c57e242d6d4610a280bdddf77d89b0269edfdac0ae1fa662f *D:/AndroidStudioProjects/Backup/PDFMaster/package-lock.json

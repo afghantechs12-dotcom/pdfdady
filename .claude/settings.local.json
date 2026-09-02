@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nohup npm run dev)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3001/editor)",
+      "Read(//private/tmp/**)",
+      "Bash(grep -rhno 'label:\\\\s*`[^`]*`\\\\|label:\\\\s*\"[^\"]*\"\\\\|label,\\\\s*$' src/application/editor components/editor --include=\"*.ts\" --include=\"*.tsx\")",
+      "Read(//usr/local/bin/**)",
+      "Read(//Users/faisalarifi/**)",
+      "Read(//opt/homebrew/opt/**)"
+    ]
+  }
+}

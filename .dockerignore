@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.kiro
+npm-debug.log
+README.md
+SERVER_SETUP.md
+.env*
+# Local-only artifacts that must never enter the build context. Standalone output
+# tracing already keeps them out of the runtime image; excluding them here keeps
+# the context (and therefore build time) from carrying working copies of source.
+.billing-backup-*
+.storage
+coverage
+*.log

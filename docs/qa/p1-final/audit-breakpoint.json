@@ -1,0 +1,2138 @@
+{
+  "1150x900": {
+    "viewport": {
+      "w": 1150,
+      "h": 900
+    },
+    "pageScrollWidth": 1150,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1150,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 974,
+        "h": 762
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Pan tool (H)",
+        "Select tool (V)",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Show inspector",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1180x900": {
+    "viewport": {
+      "w": 1180,
+      "h": 900
+    },
+    "pageScrollWidth": 1180,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 1004,
+        "h": 762
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Pan tool (H)",
+        "Select tool (V)",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Show inspector",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1199x900": {
+    "viewport": {
+      "w": 1199,
+      "h": 900
+    },
+    "pageScrollWidth": 1199,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1199,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 1023,
+        "h": 762
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Pan tool (H)",
+        "Select tool (V)",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Show inspector",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1200x900": {
+    "viewport": {
+      "w": 1200,
+      "h": 900
+    },
+    "pageScrollWidth": 1200,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1200,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 704,
+        "h": 762
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      },
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Page",
+        "box": {
+          "x": 880,
+          "y": 112,
+          "w": 320,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Inspector",
+        "box": {
+          "x": 881,
+          "y": 112,
+          "w": 258,
+          "h": 35
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing",
+        "Page",
+        "Page",
+        "Document"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Hide inspector",
+        "Properties",
+        "Collapse inspector",
+        "Page",
+        "Rotate",
+        "Duplicate",
+        "Delete",
+        "Document",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1220x900": {
+    "viewport": {
+      "w": 1220,
+      "h": 900
+    },
+    "pageScrollWidth": 1220,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1220,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 724,
+        "h": 762
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      },
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Page",
+        "box": {
+          "x": 900,
+          "y": 112,
+          "w": 320,
+          "h": 762
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Inspector",
+        "box": {
+          "x": 901,
+          "y": 112,
+          "w": 258,
+          "h": 35
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing",
+        "Page",
+        "Page",
+        "Document"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Hide inspector",
+        "Properties",
+        "Collapse inspector",
+        "Page",
+        "Rotate",
+        "Duplicate",
+        "Delete",
+        "Document",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1280x720": {
+    "viewport": {
+      "w": 1280,
+      "h": 720
+    },
+    "pageScrollWidth": 1280,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 761,
+        "h": 44
+      },
+      "buttonCount": 15,
+      "labelled": 0,
+      "iconOnly": 15,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "true",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Text tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Signature tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Rectangle shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Ellipse shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Line shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Arrow shape tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Highlight tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Freehand drawing tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Eraser tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Pen (Bézier path) tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": false,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "name": "Crop image tool",
+          "text": "",
+          "hasVisibleLabel": false,
+          "pressed": "false",
+          "disabled": true,
+          "w": 44,
+          "h": 44
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 112,
+        "w": 784,
+        "h": 582
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 112,
+          "w": 176,
+          "h": 582
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 112,
+          "w": 129,
+          "h": 40
+        }
+      },
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Page",
+        "box": {
+          "x": 960,
+          "y": 112,
+          "w": 320,
+          "h": 582
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Inspector",
+        "box": {
+          "x": 961,
+          "y": 112,
+          "w": 258,
+          "h": 35
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing",
+        "Page",
+        "Page",
+        "Document"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select tool",
+        "Hand tool (pan the page)",
+        "Text tool",
+        "Image tool",
+        "Signature tool",
+        "Note (annotation) tool",
+        "Rectangle shape tool",
+        "Ellipse shape tool",
+        "Line shape tool",
+        "Arrow shape tool",
+        "Highlight tool",
+        "Freehand drawing tool",
+        "Eraser tool",
+        "Pen (Bézier path) tool",
+        "Crop image tool",
+        "Organize pages",
+        "More tools",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Hide inspector",
+        "Properties",
+        "Collapse inspector",
+        "Page",
+        "Rotate",
+        "Duplicate",
+        "Delete",
+        "Document",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1340x900": {
+    "viewport": {
+      "w": 1340,
+      "h": 900
+    },
+    "pageScrollWidth": 1340,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1340,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 920,
+        "h": 38
+      },
+      "buttonCount": 10,
+      "labelled": 10,
+      "iconOnly": 0,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "Select",
+          "hasVisibleLabel": true,
+          "pressed": "true",
+          "disabled": false,
+          "w": 81,
+          "h": 38
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "Hand",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 75,
+          "h": 38
+        },
+        {
+          "name": "Text tool",
+          "text": "Add Text",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 97,
+          "h": 38
+        },
+        {
+          "name": "Image tool",
+          "text": "Add Image",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 109,
+          "h": 38
+        },
+        {
+          "name": "Signature tool",
+          "text": "Sign",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 70,
+          "h": 38
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "Comment",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 102,
+          "h": 38
+        },
+        {
+          "name": "Add Shape",
+          "text": "Add Shape",
+          "hasVisibleLabel": true,
+          "pressed": null,
+          "disabled": false,
+          "w": 130,
+          "h": 38
+        },
+        {
+          "name": "Highlight tool",
+          "text": "Highlight",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 98,
+          "h": 38
+        },
+        {
+          "name": "Draw",
+          "text": "Draw",
+          "hasVisibleLabel": true,
+          "pressed": null,
+          "disabled": false,
+          "w": 95,
+          "h": 38
+        },
+        {
+          "name": "Crop image tool",
+          "text": "Crop",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": true,
+          "w": 72,
+          "h": 38
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 106,
+        "w": 844,
+        "h": 768
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 106,
+          "w": 176,
+          "h": 768
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 106,
+          "w": 129,
+          "h": 40
+        }
+      },
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Page",
+        "box": {
+          "x": 1020,
+          "y": 106,
+          "w": 320,
+          "h": 768
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Inspector",
+        "box": {
+          "x": 1021,
+          "y": 106,
+          "w": 258,
+          "h": 38
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing",
+        "Page",
+        "Page",
+        "Document"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select",
+        "Hand",
+        "Add Text",
+        "Add Image",
+        "Sign",
+        "Comment",
+        "Add Shape",
+        "Highlight",
+        "Draw",
+        "Crop",
+        "Organize Pages",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Hide inspector",
+        "Properties",
+        "Collapse inspector",
+        "Page",
+        "Rotate",
+        "Duplicate",
+        "Delete",
+        "Document",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  },
+  "1400x900": {
+    "viewport": {
+      "w": 1400,
+      "h": 900
+    },
+    "pageScrollWidth": 1400,
+    "horizontalOverflow": false,
+    "frame": {
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 900
+    },
+    "toolbar": {
+      "box": {
+        "x": 12,
+        "y": 59,
+        "w": 980,
+        "h": 38
+      },
+      "buttonCount": 10,
+      "labelled": 10,
+      "iconOnly": 0,
+      "buttons": [
+        {
+          "name": "Select tool",
+          "text": "Select",
+          "hasVisibleLabel": true,
+          "pressed": "true",
+          "disabled": false,
+          "w": 81,
+          "h": 38
+        },
+        {
+          "name": "Hand tool (pan the page)",
+          "text": "Hand",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 75,
+          "h": 38
+        },
+        {
+          "name": "Text tool",
+          "text": "Add Text",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 97,
+          "h": 38
+        },
+        {
+          "name": "Image tool",
+          "text": "Add Image",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 109,
+          "h": 38
+        },
+        {
+          "name": "Signature tool",
+          "text": "Sign",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 70,
+          "h": 38
+        },
+        {
+          "name": "Note (annotation) tool",
+          "text": "Comment",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 102,
+          "h": 38
+        },
+        {
+          "name": "Add Shape",
+          "text": "Add Shape",
+          "hasVisibleLabel": true,
+          "pressed": null,
+          "disabled": false,
+          "w": 130,
+          "h": 38
+        },
+        {
+          "name": "Highlight tool",
+          "text": "Highlight",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": false,
+          "w": 98,
+          "h": 38
+        },
+        {
+          "name": "Draw",
+          "text": "Draw",
+          "hasVisibleLabel": true,
+          "pressed": null,
+          "disabled": false,
+          "w": 95,
+          "h": 38
+        },
+        {
+          "name": "Crop image tool",
+          "text": "Crop",
+          "hasVisibleLabel": true,
+          "pressed": "false",
+          "disabled": true,
+          "w": 72,
+          "h": 38
+        }
+      ],
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)",
+        "border-bottom-color": "rgb(229, 231, 235)",
+        "box-shadow": "none",
+        "padding": "0px"
+      }
+    },
+    "canvas": {
+      "box": {
+        "x": 176,
+        "y": 106,
+        "w": 904,
+        "h": 768
+      },
+      "styles": {
+        "background-color": "rgba(0, 0, 0, 0)"
+      },
+      "pageSurface": null,
+      "pageStyles": null
+    },
+    "regions": [
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Pages1",
+        "box": {
+          "x": 0,
+          "y": 106,
+          "w": 176,
+          "h": 768
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Sidebar panels",
+        "box": {
+          "x": 6,
+          "y": 106,
+          "w": 129,
+          "h": 40
+        }
+      },
+      {
+        "tag": "aside",
+        "role": null,
+        "name": "Page",
+        "box": {
+          "x": 1080,
+          "y": 106,
+          "w": 320,
+          "h": 768
+        }
+      },
+      {
+        "tag": "div",
+        "role": "tablist",
+        "name": "Inspector",
+        "box": {
+          "x": 1081,
+          "y": 106,
+          "w": 258,
+          "h": 38
+        }
+      }
+    ],
+    "overflow": {
+      "wide": [],
+      "xScrollers": []
+    },
+    "text": {
+      "headings": [
+        "Untitled PDF· nothing opened yet",
+        "Pages1",
+        "Start editing",
+        "Page",
+        "Page",
+        "Document"
+      ],
+      "buttons": [
+        "Open PDF",
+        "Select",
+        "Hand",
+        "Add Text",
+        "Add Image",
+        "Sign",
+        "Comment",
+        "Add Shape",
+        "Highlight",
+        "Draw",
+        "Crop",
+        "Organize Pages",
+        "Undo (Ctrl+Z)",
+        "Redo (Ctrl+Shift+Z)",
+        "Open PDF to edit",
+        "Export",
+        "Pages",
+        "Layers",
+        "History",
+        "Collapse panel",
+        "Actions for page 1",
+        "Add Page",
+        "Open PDF",
+        "Create blank PDF",
+        "Zoom out (Ctrl+-)",
+        "100%",
+        "Zoom in (Ctrl+=)",
+        "Fit page (Ctrl+0)",
+        "Previous page (PageUp) — This document has one page",
+        "Next page (PageDown) — This document has one page",
+        "Page overview",
+        "Hide inspector",
+        "Properties",
+        "Collapse inspector",
+        "Page",
+        "Rotate",
+        "Duplicate",
+        "Delete",
+        "Document",
+        "Previous page (PageUp)",
+        "Next page (PageDown)"
+      ]
+    },
+    "consoleErrors": []
+  }
+}
