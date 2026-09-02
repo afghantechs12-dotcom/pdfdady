@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { tools as TOOLS } from "@/data/tools";
+import { getToolBySlug, isFunctional, tools as TOOLS } from "@/data/tools";
 import { features } from "@/data/features";
 import { serverToolConfig } from "@/data/serverToolConfig";
 import { MAX_SIZE } from "@/lib/validation/fileSchemas";
@@ -9,7 +9,9 @@ import {
   aiToolCount,
   availableToolCount,
   heroStats,
+  runnableSlugs,
 } from "@/components/home/homeSections";
+import { HERO_DEPICTED_SLUGS } from "@/components/home/HeroShowcase";
 import { getAiComingSoonCount, getAvailableToolCount, getBrowserToolCount } from "./capability";
 
 /**
@@ -210,5 +212,34 @@ describe("T16 — version history is claimed for the surface that has it", () =>
   it("does not promise autosave publishes anything", () => {
     const autosave = features.find((f) => f.id === "autosave");
     expect(autosave?.description).not.toMatch(/version/i);
+  });
+});
+
+describe("T17 — the hero illustration depicts only tools that exist", () => {
+  it("names a real, runnable tool on every tile and card", () => {
+    // Anti-vacuity: the composition is five dock tiles and five float cards.
+    expect(HERO_DEPICTED_SLUGS.length).toBeGreaterThanOrEqual(5);
+
+    for (const slug of HERO_DEPICTED_SLUGS) {
+      const tool = getToolBySlug(slug);
+      expect(tool, `${slug} is not in the registry`).toBeDefined();
+      expect(isFunctional(tool!), `${slug} is ${tool!.status}`).toBe(true);
+    }
+  });
+
+  it("drops a tile whose tool stopped being runnable", () => {
+    // The filter is what makes the assertion above hold at runtime too: the
+    // registry is admin-mergeable, so a slug can lose `functional-*` after this
+    // suite has passed. `runnableSlugs` is the only thing the illustration is
+    // allowed to depict.
+    const runnable = runnableSlugs(TOOLS);
+    expect(runnable).toEqual(expect.arrayContaining(HERO_DEPICTED_SLUGS));
+
+    // Not vacuous: unrunnable tools exist and are excluded. `pdf-to-excel` is
+    // the one the hero used to depict.
+    const planned = TOOLS.filter((t) => !isFunctional(t)).map((t) => t.slug);
+    expect(planned.length).toBeGreaterThan(5);
+    expect(planned).toContain("pdf-to-excel");
+    for (const slug of planned) expect(runnable).not.toContain(slug);
   });
 });

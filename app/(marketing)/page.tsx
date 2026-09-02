@@ -24,6 +24,7 @@ import {
   heroQuickTools,
   heroStats,
   pickShortcutTools,
+  runnableSlugs,
 } from "@/components/home/homeSections";
 import { getSITE } from "@/lib/seo/metadata";
 import { workflowSteps } from "@/data/howItWorks";
@@ -107,6 +108,7 @@ export default async function HomePage() {
         trustBullets={site.trustBullets}
         stats={heroStats(allTools)}
         quickTools={quickTools}
+        runnableSlugs={runnableSlugs(allTools)}
       />
       <QuickStart shortcuts={pickShortcutTools(allTools)} />
       <AIPreview aiToolCount={plannedAICount} />

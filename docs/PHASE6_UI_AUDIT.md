@@ -135,6 +135,18 @@ ties the array to `data/tools.ts`, so it cannot fail when a status changes.
 The brief calls this out twice — "decorative imagery that misrepresents product
 capability" and "do not claim capabilities that are planned or coming soon".
 
+**Correction, added when F4 was fixed:** the defect is wider than `FLOATERS`. The
+`DOCK` tiles below the window (PDF/Word/Excel/Slides/JPG) name five formats and
+were equally untied to the registry, so both arrays were fixed. The direction
+matters and the audit had not checked it: `pdf-to-excel` is `planned`, but
+`excel-to-pdf` is `functional-server`, so the Excel chip keeps its position,
+colour and glyph and now reads "To PDF" — the conversion that actually runs —
+rather than "Extracted", which was the one that does not. Rendered at 1440×900
+after the fix: 5 dock tiles, 5 float cards, `Excel / To PDF`, nothing clipped,
+`scrollWidth === innerWidth`. Pointing one slug at a `planned` tool was then
+observed to remove that chip from the rendered page (4 float cards), so the
+filter is not inert.
+
 ### F5 — DESIGN SYSTEM. Two z-index systems, and the token one is unused
 
 `styles/tokens.ts` exports `zIndex` (base 0, sticky 30, header 40, drawer 60,
@@ -217,7 +229,7 @@ Two more confirmed non-defects, both previously suspected:
 | 1 | F1 | Below the measured `732px` root fit (see the correction above — not the estimated `≈609`), the toolbar wraps instead of scrolling; the floating capsule likewise | `EditorToolbar.tsx`, `toolbarLayout.ts`, `FloatingCanvasControls.tsx` |
 | 2 | F2 | Stable `aria-label` on the trigger for all nine states + a 24px hit area | `SaveStatusIndicator.tsx` |
 | 3 | F3 | The frame's canvas region stops being `<main>`; the standalone shell supplies the real `#main` | `PremiumEditorFrame.tsx`, `StandaloneEditorShell.tsx` |
-| 4 | F4 | Each floater carries the slug it depicts; a test asserts every slug is functional | `HeroShowcase.tsx` + new test |
+| 4 | F4 | Every dock tile and floater carries the slug it depicts and is filtered by `runnableSlugs`; a test asserts every slug is functional | `HeroShowcase.tsx`, `homeSections.ts`, `Hero.tsx`, `page.tsx` + test |
 | 5 | F5 | `zIndex` becomes the Tailwind scale; the five arbitrary layers become named classes | `styles/tokens.ts`, `tailwind.config.ts`, 4 call sites |
 | 6 | F6 | Aura/gradient colours get names in the token file | `styles/tokens.ts`, `tailwind.config.ts`, 6 components |
 | 7 | F7 | Padding, not new components | 3 files |

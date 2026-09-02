@@ -51,6 +51,22 @@ const SHORTCUT_SPECS: { slug: string; tagline: string }[] = [
 ];
 
 /**
+ * The slugs the merged registry can actually run, for consumers that depict a
+ * tool rather than link to it.
+ *
+ * The hero illustration is the one such consumer: its format tiles and floating
+ * cards are decoration, but each one names a real capability, and one of them
+ * named `pdf-to-excel` — a `planned` tool with no implementation — for as long
+ * as the arrays were hand-written with no tie to the registry. A picture of a
+ * feature is a claim about the feature; the brief forbids "decorative imagery
+ * that misrepresents product capability". Passing this set means a status change
+ * removes the tile instead of leaving the promise on the homepage.
+ */
+export function runnableSlugs(tools: Tool[]): string[] {
+  return tools.filter(isFunctional).map((t) => t.slug);
+}
+
+/**
  * Resolves the shortcut strip against the live registry.
  *
  * Unrunnable and unknown tools are dropped rather than rendered: `ToolCard`

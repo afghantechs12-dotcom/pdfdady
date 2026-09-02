@@ -58,7 +58,15 @@ import { colors, aura } from "@/styles/tokens";
  * floating element carries its own `--float-delay` so they drift out of phase; a
  * shared duration reads as one rigid object sliding up and down.
  */
-export function HeroShowcase() {
+export function HeroShowcase({ runnableSlugs }: { runnableSlugs: string[] }) {
+  // Every tile and card names a real tool, so the illustration is filtered by
+  // what the merged registry can actually run: a tool that stops being runnable
+  // loses its chip instead of leaving a promise on the homepage. See
+  // `HERO_DEPICTED_SLUGS` below and `homeSections.runnableSlugs`.
+  const runnable = new Set(runnableSlugs);
+  const dock = DOCK.filter((item) => runnable.has(item.slug));
+  const floaters = FLOATERS.filter((card) => runnable.has(card.slug));
+
   return (
     <div aria-hidden="true" className="relative select-none">
       {/* ── Ambient depth ─────────────────────────────────────────────────── */}
@@ -282,7 +290,7 @@ export function HeroShowcase() {
         window.
       */}
       <div className="absolute -bottom-7 left-1/2 z-20 hidden -translate-x-1/2 items-end gap-2.5 sm:flex">
-        {DOCK.map((item, i) => (
+        {dock.map((item, i) => (
           <div
             key={item.label}
             className={`animate-dock-float flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-2xl border border-white/70 bg-white shadow-[0_10px_24px_-8px_rgba(76,29,149,0.4)] lg:h-14 lg:w-14 ${item.className}`}
@@ -348,7 +356,7 @@ export function HeroShowcase() {
       {/* ── Floating format cards ─────────────────────────────────────────── */}
       {/* Hidden below `sm`: at phone widths they would overlap the window and
           the headline rather than framing them. */}
-      {FLOATERS.map((card) => (
+      {floaters.map((card) => (
         <FloatCard key={card.label} {...card} />
       ))}
     </div>
@@ -387,11 +395,33 @@ const RAIL = [
  * logo.
  */
 const DOCK = [
-  { label: "PDF", tone: "bg-red-500", icon: FileText, rotate: "-6deg", className: "" },
-  { label: "Word", tone: "bg-blue-600", icon: FileText, rotate: "-2deg", className: "" },
-  { label: "Excel", tone: "bg-green-600", icon: Sheet, rotate: "1deg", className: "" },
+  {
+    label: "PDF",
+    slug: "merge-pdf",
+    tone: "bg-red-500",
+    icon: FileText,
+    rotate: "-6deg",
+    className: "",
+  },
+  {
+    label: "Word",
+    slug: "word-to-pdf",
+    tone: "bg-blue-600",
+    icon: FileText,
+    rotate: "-2deg",
+    className: "",
+  },
+  {
+    label: "Excel",
+    slug: "excel-to-pdf",
+    tone: "bg-green-600",
+    icon: Sheet,
+    rotate: "1deg",
+    className: "",
+  },
   {
     label: "Slides",
+    slug: "powerpoint-to-pdf",
     tone: "bg-orange-500",
     icon: Presentation,
     rotate: "4deg",
@@ -399,6 +429,7 @@ const DOCK = [
   },
   {
     label: "JPG",
+    slug: "jpg-to-pdf",
     tone: "bg-violet-500",
     icon: ImageIcon,
     rotate: "7deg",
@@ -414,6 +445,7 @@ const FLOATERS = [
     rotate: "-8deg",
     tone: "bg-red-500",
     label: "PDF",
+    slug: "merge-pdf",
     caption: "24 pages",
     icon: FileText,
   },
@@ -423,6 +455,7 @@ const FLOATERS = [
     rotate: "6deg",
     tone: "bg-blue-600",
     label: "Word",
+    slug: "pdf-to-word",
     caption: "Converted",
     icon: FileText,
   },
@@ -440,7 +473,8 @@ const FLOATERS = [
     rotate: "9deg",
     tone: "bg-green-600",
     label: "Excel",
-    caption: "Extracted",
+    slug: "excel-to-pdf",
+    caption: "To PDF",
     icon: Sheet,
   },
   {
@@ -449,6 +483,7 @@ const FLOATERS = [
     rotate: "-6deg",
     tone: "bg-violet-500",
     label: "JPG",
+    slug: "pdf-to-jpg",
     caption: "12 images",
     icon: ImageIcon,
   },
@@ -458,10 +493,24 @@ const FLOATERS = [
     rotate: "5deg",
     tone: "bg-purple-600",
     label: "Sign",
+    slug: "sign-pdf",
     caption: "Signed",
     icon: PenTool,
   },
 ] as const;
+
+/**
+ * Every tool the illustration depicts, deduplicated.
+ *
+ * `lib/tools/productClaims.test.ts` asserts each one resolves in the registry
+ * and is functional. Before it existed the Excel card said "Extracted" over the
+ * `pdf-to-excel` slug, which is `planned` — the hero advertised a tool that does
+ * not exist, and no test could see it because nothing tied the arrays to
+ * `data/tools.ts`.
+ */
+export const HERO_DEPICTED_SLUGS: string[] = [
+  ...new Set([...DOCK, ...FLOATERS].map((chip) => chip.slug)),
+];
 
 /**
  * One floating format chip. Positioned and animated entirely by the caller.

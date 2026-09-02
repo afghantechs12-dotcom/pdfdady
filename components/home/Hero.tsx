@@ -70,10 +70,13 @@ export function Hero({
   trustBullets,
   stats,
   quickTools,
+  runnableSlugs,
 }: {
   trustBullets: string[];
   stats: HeroStat[];
   quickTools: QuickTool[];
+  /** Passed through to `HeroShowcase`, whose tiles each depict a real tool. */
+  runnableSlugs: string[];
 }) {
   return (
     <section className="relative isolate overflow-hidden pb-8 pt-8 sm:pt-10 lg:pb-12 lg:pt-14">
@@ -209,7 +212,7 @@ export function Hero({
             viewports with scripts/responsive-qa.mjs.
           */}
           <div className="lg:-mr-2 2xl:-mr-6">
-            <HeroShowcase />
+            <HeroShowcase runnableSlugs={runnableSlugs} />
           </div>
         </div>
       </PageContainer>
