@@ -34,7 +34,8 @@ const BASE = process.env.QA_URL || "http://localhost:3001";
 // Testing download) point the probe at its own build; the literal default keeps
 // the original Windows invocation working untouched.
 const CHROME =
-  process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+  process.env.CHROME_PATH ||
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 async function main() {
   const userDataDir = mkdtempSync(join(tmpdir(), "pdfdadi-shot-"));

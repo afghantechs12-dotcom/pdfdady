@@ -31,8 +31,12 @@ const BASE = process.argv.includes("--url")
   ? process.argv[process.argv.indexOf("--url") + 1]
   : "http://localhost:3001";
 
+// Set CHROME_PATH to override. The default is macOS; the probes in this
+// directory all resolve Chrome the same way, so a checkout on another OS
+// needs one env var rather than an edit per script.
 const CHROME =
-  "C:/Program Files/Google/Chrome/Application/chrome.exe";
+  process.env.CHROME_PATH ||
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 /** Full-page PNGs are opt-in: the default run is a fast measurement sweep. */
 const SHOTS = process.argv.includes("--shots") || process.env.QA_SHOTS === "1";
