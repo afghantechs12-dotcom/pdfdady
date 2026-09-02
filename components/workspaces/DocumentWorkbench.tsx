@@ -666,7 +666,10 @@ function WorkbenchPaneView({
               <div
                 key={tab.id}
                 className={cn(
-                  "group flex min-w-0 shrink-0 items-center gap-1 rounded-control border px-2 py-1 transition-colors",
+                  // No vertical padding here on purpose: the tab button below is
+                  // `h-7`, the same height as this row's other controls, so the
+                  // chip hugs a 24px+ target instead of padding an 18px one.
+                  "group flex min-w-0 shrink-0 items-center gap-1 rounded-control border px-2 transition-colors",
                   selected
                     ? "border-app-border bg-app-bg"
                     : "border-transparent hover:bg-app-subtle",
@@ -677,7 +680,7 @@ function WorkbenchPaneView({
                   role="tab"
                   aria-selected={selected}
                   onClick={() => onActivate(tab.id)}
-                  className="flex min-w-0 items-center gap-1.5 rounded text-[12px] font-semibold text-app-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="flex h-7 min-w-0 items-center gap-1.5 rounded text-[12px] font-semibold text-app-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <FileText size={13} aria-hidden="true" className="shrink-0 text-primary" />
                   <span className="max-w-[10rem] truncate">{tab.title}</span>
@@ -697,7 +700,7 @@ function WorkbenchPaneView({
                   type="button"
                   aria-label={`Close ${tab.title}`}
                   onClick={() => onClose(tab)}
-                  className="grid h-4 w-4 shrink-0 place-items-center rounded text-app-muted opacity-0 transition-opacity hover:text-app-text focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 group-hover:opacity-100"
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded text-app-muted opacity-0 transition-opacity hover:text-app-text focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 group-hover:opacity-100"
                 >
                   <X size={11} aria-hidden="true" />
                 </button>
