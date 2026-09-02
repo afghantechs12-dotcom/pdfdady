@@ -185,7 +185,12 @@ export function ToolsCatalog({
         {/* Sticky in-page navigation, desktop only. */}
         <nav
           aria-label="Tool categories"
-          className="hidden lg:sticky lg:top-24 lg:block lg:self-start"
+          // `z-sticky` is the layer this rail was the named consumer of:
+          // `styles/tokens.ts` documents `sticky: 30` as "sticky section
+          // sub-navigation (tools category rail)" and the rail shipped at
+          // `z-auto`, so the one element the token names could be painted over
+          // by any later sibling that gains a stacking context.
+          className="hidden lg:sticky lg:top-24 lg:z-sticky lg:block lg:self-start"
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-navy-soft">
             Jump to
