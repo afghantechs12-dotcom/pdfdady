@@ -197,6 +197,13 @@ export async function openBrowser({ port = 9455, width = 1440, height = 900, ins
   await send("DOM.enable");
   await send("Log.enable");
   await send("Network.enable");
+  // A headless CDP window is not the OS-focused window, so `:focus` matches
+  // NOTHING and `el.focus()` changes no styles. The layout's
+  // `sr-only focus:not-sr-only` skip link measured 1x1 with
+  // `matches(':focus') === false` — indistinguishable from a skip link that was
+  // never styled. With focus emulated it measures 138x40. Every focus-visible
+  // assertion any probe makes is wrong without this.
+  await send("Emulation.setFocusEmulationEnabled", { enabled: true });
 
   const evaluate = async (expression) => {
     const res = await send("Runtime.evaluate", {
