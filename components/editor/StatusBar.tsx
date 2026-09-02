@@ -86,7 +86,7 @@ export function StatusBar({
           {/* Page indicator + navigation (replaces the old floating footer). */}
           <div className="flex items-center gap-1">
             <button
-              className="rounded p-0.5 outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent disabled:opacity-30"
+              className="inline-flex min-h-6 min-w-6 items-center justify-center rounded outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent disabled:opacity-30"
               onClick={() => goTo(pageIndex - 1)}
               disabled={pageIndex <= 0}
               aria-label="Previous page (PageUp)"
@@ -98,7 +98,7 @@ export function StatusBar({
               Page {pageIndex + 1} of {pages.length}
             </span>
             <button
-              className="rounded p-0.5 outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent disabled:opacity-30"
+              className="inline-flex min-h-6 min-w-6 items-center justify-center rounded outline-none hover:bg-editor-subtle focus-visible:ring-2 focus-visible:ring-editor-accent disabled:opacity-30"
               onClick={() => goTo(pageIndex + 1)}
               disabled={pageIndex >= pages.length - 1}
               aria-label="Next page (PageDown)"

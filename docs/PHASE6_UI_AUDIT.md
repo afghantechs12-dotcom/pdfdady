@@ -193,12 +193,47 @@ WCAG 2.2 AA 2.5.8. The auth-page links the probe also flagged (`"Create an
 account"` 124×17, `"Contact support"` 110×17) sit inside a sentence and take the
 spec's Inline exception; these three do not.
 
+**Correction, added when F7 was fixed:** there is a fourth site, and the audit
+missed it because it only swept public routes for *links*. Re-measuring every
+`a[href]`, `button` and `[role=button]` on six routes at 390 and 1440 found the
+editor status bar's page navigation — `components/editor/StatusBar.tsx:88,101`,
+a 14px chevron in `p-0.5` — at **18×18** twice. Same fix (`min-h-6 min-w-6`
+centred), same 24px floor; the bar grows from 26px to 32px, which is the honest
+cost of a reachable control. All four sites are now `inline-flex min-h-6
+items-center`, and the re-measured sweep reports **0 undersized targets** on
+`/`, `/tools`, `/tools/merge-pdf`, `/tools/compress-pdf`, `/pricing` and
+`/editor` at both widths.
+
+Two elements that keep reporting `1×1` are correctly excluded rather than fixed:
+the layout's `sr-only focus:not-sr-only` skip link, which measures **138×40 once
+actually focused**, and `UploadDropzone`'s file input, which carries
+`tabIndex={-1} aria-hidden` — the target is the `role="button"` dropzone around
+it (the F10 lesson, and the probe filter must encode both).
+
+**Probe hazard found while measuring this (belongs with F10).** A CDP-driven
+Chrome window is not the focused window, so `:focus` matches nothing and
+`el.focus()` silently changes no styles: the focused skip link measured `1×1`
+with `a.matches(":focus") === false`. `Emulation.setFocusEmulationEnabled
+{enabled: true}` fixes it, and without it every focus-visible assertion in
+scenario K would pass or fail for the wrong reason.
+
 ### F8 — LOADING/BUSY. `Button loading` renders a spinner but stays clickable
 
 `components/ui/Button.tsx` maps `loading` to a `Loader2` swap and nothing else: no
 `disabled`, no `aria-busy`, no announcement. A double click on a loading button is
 a double submit. The brief's §2 requires every interactive primitive to have a real
 loading state.
+
+**Correction, added when F8 was fixed:** one call site already knew.
+`WorkspaceCreateDialog` wrote `disabled={loading}` next to `loading={loading}` and
+a comment explaining why it had to — while `NewMenu:296`, `TagCatalog:127,287` and
+`SmartCollections:387` passed `loading` alone and were double-submittable. That is
+the shape of a defect that belongs in the component: the guard now lives in
+`Button` (after the prop spread, so no call site can hand back a submittable
+loading button), the redundant `disabled` was deleted from the dialog, and its
+in-flight `if (loading) return` stays, because it covers the submit already
+dispatched. A source-text test in `workspaceRouteWiring.test.ts` had pinned the
+literal call site and was repointed at the invariant.
 
 ### F9 — MEASURED, NOT A DEFECT. Mobile page heights
 
@@ -232,8 +267,8 @@ Two more confirmed non-defects, both previously suspected:
 | 4 | F4 | Every dock tile and floater carries the slug it depicts and is filtered by `runnableSlugs`; a test asserts every slug is functional | `HeroShowcase.tsx`, `homeSections.ts`, `Hero.tsx`, `page.tsx` + test |
 | 5 | F5 | `zIndex` becomes the Tailwind scale; the five arbitrary layers become named classes | `styles/tokens.ts`, `tailwind.config.ts`, 4 call sites |
 | 6 | F6 | Aura/gradient colours get names in the token file | `styles/tokens.ts`, `tailwind.config.ts`, 6 components |
-| 7 | F7 | Padding, not new components | 3 files |
-| 8 | F8 | `loading` implies `disabled` + `aria-busy` | `Button.tsx` |
+| 7 | F7 | Padding, not new components | 4 files (see the F7 correction) |
+| 8 | F8 | `loading` implies `disabled` + `aria-busy` | `Button.tsx`, and the guard deleted from the one call site that had it |
 
 Everything else in the brief's §3–§17 is polish on top of surfaces that already
 hold their invariants, and is verified by the new probe (`scripts/premium-ui-ux-probe.mjs`,

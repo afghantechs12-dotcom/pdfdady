@@ -57,8 +57,20 @@ describe("post-create navigation uses the identity the server returned", () => {
   });
 
   it("cannot submit twice", () => {
+    // Two guards, one each side of the render. The in-flight guard is the
+    // dialog's own: it covers the submit already dispatched, before React has
+    // re-rendered anything.
     expect(dialog).toContain("if (loading) return;");
-    expect(dialog).toContain('<Button type="submit" loading={loading} disabled={loading}>');
+    expect(dialog).toContain('<Button type="submit" loading={loading}>');
+
+    // The disabled attribute is `Button`'s, not this call site's. It used to be
+    // written here as `disabled={loading}` beside `loading={loading}` — and four
+    // other call sites that passed `loading` alone were double-submittable,
+    // which is why the guard moved into the component (components/ui/Button.tsx,
+    // asserted by components/ui/buttonStyles.test.ts).
+    expect(read("components/ui/Button.tsx")).toContain(
+      "disabled={loading || buttonProps.disabled}",
+    );
   });
 
   it("hides nothing behind a delay, a retry or a poll", () => {

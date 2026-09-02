@@ -48,7 +48,7 @@ export function Button({
   const content = (
     <>
       {loading ? (
-        <Loader2 size={18} className="animate-spin" />
+        <Loader2 size={18} className="animate-spin" aria-hidden="true" />
       ) : (
         leadingIcon
       )}
@@ -62,16 +62,31 @@ export function Button({
       href: string;
     } & React.AnchorHTMLAttributes<HTMLAnchorElement>;
     return (
-      <Link href={href} className={classes} {...anchorProps}>
+      // `aria-busy` and nothing more: an anchor has no `disabled`, and inventing
+      // one (pointer-events-none + aria-disabled) would be a navigation-blocking
+      // state no caller has asked for.
+      <Link href={href} className={classes} aria-busy={loading || undefined} {...anchorProps}>
         {content}
       </Link>
     );
   }
 
+  const buttonProps = props as React.ButtonHTMLAttributes<HTMLButtonElement>;
   return (
     <button
       className={classes}
-      {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      aria-busy={loading || undefined}
+      {...buttonProps}
+      // After the spread on purpose: `loading` implies `disabled`, and a call
+      // site must not be able to hand back a button that still submits while its
+      // own spinner is turning. `WorkspaceCreateDialog` had written
+      // `disabled={loading}` next to `loading={loading}` for exactly this reason,
+      // and four other call sites (`NewMenu`, `TagCatalog` ×2, `SmartCollections`)
+      // had not — so a second Enter or a fast double-click POSTed twice. One
+      // guard here beats the same guard at every call site, and each of those
+      // still keeps its own in-flight `if (loading) return`, which covers the
+      // submit already dispatched.
+      disabled={loading || buttonProps.disabled}
     >
       {content}
     </button>

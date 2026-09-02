@@ -13,11 +13,11 @@ export function WorkspaceCreateDialog({ organizationId }: { organizationId: stri
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    // Double-submit guard. `Button loading` only swaps in a spinner, it does not
-    // disable, so a second Enter or a fast double-click used to POST twice and
-    // race two creations for the same name. Both the guard and `disabled` below
-    // are needed: the guard covers the submit that is already in flight, and the
-    // server rejects a genuine duplicate name as a conflict either way.
+    // Double-submit guard, still needed after `Button loading` learned to imply
+    // `disabled`: this covers the submit already in flight, before React has
+    // re-rendered the disabled attribute. A second Enter or a fast double-click
+    // used to POST twice and race two creations for the same name; the server
+    // rejects a genuine duplicate name as a conflict either way.
     if (loading) return;
     setLoading(true);
     setStatus("");
@@ -77,7 +77,7 @@ export function WorkspaceCreateDialog({ organizationId }: { organizationId: stri
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" loading={loading} disabled={loading}>
+            <Button type="submit" loading={loading}>
               Create
             </Button>
           </div>

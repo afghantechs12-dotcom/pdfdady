@@ -135,7 +135,7 @@ export function WorkspaceShowcase({ items }: { items: ProductHighlight[] }) {
                 </Button>
                 <a
                   href="/login"
-                  className="rounded text-sm font-semibold text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  className="inline-flex min-h-6 items-center rounded text-sm font-semibold text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
                   I already have an account
                 </a>

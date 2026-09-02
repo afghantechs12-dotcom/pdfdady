@@ -484,7 +484,7 @@ function EditorEmptyState({ onOpen, onBlank }: { onOpen: () => void; onBlank: ()
         </p>
         <Link
           href="/tools"
-          className="mt-3 inline-block text-xs font-semibold text-primary underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          className="mt-3 inline-flex min-h-6 items-center text-xs font-semibold text-primary underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         >
           Or pick a single-purpose tool
         </Link>

@@ -7,6 +7,7 @@ import {
   BUTTON_VARIANTS,
   type ButtonVariant,
 } from "./buttonStyles";
+import { Button } from "./Button";
 
 /**
  * The homepage dark CTA ("Start with a file, or start with a Workspace")
@@ -104,5 +105,55 @@ describe("call sites do not override button colours via className", () => {
     const buttonColourOverride =
       /<Button[^>]*className="[^"]*\b(?:bg-white|text-navy|text-white|bg-transparent)\b/s;
     expect(buttonColourOverride.test(source)).toBe(false);
+  });
+});
+
+/**
+ * `loading` is a state, not a decoration.
+ *
+ * It used to swap in a spinner and nothing else, so a button announced itself as
+ * busy while remaining fully submittable. `WorkspaceCreateDialog` had noticed and
+ * written `disabled={loading}` beside `loading={loading}`; `NewMenu`, `TagCatalog`
+ * (twice) and `SmartCollections` had not, and a second Enter or a fast
+ * double-click POSTed twice. The guard belongs in the component.
+ *
+ * These call `Button` as the plain function it is and read the element it
+ * returns, which needs no DOM — the suite runs under `environment: "node"`.
+ */
+describe("loading implies disabled and aria-busy", () => {
+  const el = (props: Record<string, unknown>) =>
+    Button({ children: "Save", ...props } as never) as {
+      props: Record<string, unknown>;
+    };
+
+  it("disables a loading button and marks it busy", () => {
+    const { props } = el({ loading: true });
+    expect(props.disabled).toBe(true);
+    expect(props["aria-busy"]).toBe(true);
+  });
+
+  it("leaves an idle button alone", () => {
+    // Anti-vacuity: `disabled`/`aria-busy` are absent unless something asks.
+    const { props } = el({});
+    expect(props.disabled).toBeFalsy();
+    expect(props["aria-busy"]).toBeUndefined();
+  });
+
+  it("cannot be re-enabled by a call site while it is loading", () => {
+    expect(el({ loading: true, disabled: false }).props.disabled).toBe(true);
+  });
+
+  it("still honours a plain disabled", () => {
+    const { props } = el({ disabled: true });
+    expect(props.disabled).toBe(true);
+    expect(props["aria-busy"]).toBeUndefined();
+  });
+
+  it("marks a loading link busy without disabling navigation", () => {
+    // An anchor has no `disabled`; inventing one would block navigation.
+    const { props } = el({ loading: true, href: "/pricing" });
+    expect(props["aria-busy"]).toBe(true);
+    expect(props.disabled).toBeUndefined();
+    expect(props.href).toBe("/pricing");
   });
 });
