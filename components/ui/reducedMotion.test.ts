@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax */
 import { readFileSync } from "node:fs";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
