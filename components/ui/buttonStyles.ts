@@ -41,7 +41,7 @@ export const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "bg-primary text-white hover:bg-primary-hover shadow-card hover:shadow-cardhover focus-visible:ring-primary/40",
   secondary:
-    "bg-primary-soft text-primary hover:bg-[#E3DCFB] focus-visible:ring-primary/40",
+    "bg-primary-soft text-primary hover:bg-primary-softhover focus-visible:ring-primary/40",
   ghost:
     "bg-transparent text-navy hover:bg-lavender focus-visible:ring-primary/40",
   outline:

@@ -65,7 +65,7 @@ export function HowItWorks({ steps }: { steps: WorkflowStep[] }) {
                     this size a bare glyph on white left the middle of the circle
                     empty, which is what made the row read as small. */}
                 <span className="inline-flex h-24 w-24 items-center justify-center rounded-full bg-white shadow-card ring-8 ring-lavender/40 lg:h-[6.5rem] lg:w-[6.5rem]">
-                  <span className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[20px] bg-gradient-to-br from-[#A78BFA] to-[#6D28D9] text-white shadow-[0_10px_22px_-8px_rgba(76,29,149,0.55)] transition-transform duration-300 group-hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 lg:h-[60px] lg:w-[60px]">
+                  <span className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[20px] bg-gradient-to-br from-violet-400 to-primary-hover text-white shadow-[0_10px_22px_-8px_rgba(76,29,149,0.55)] transition-transform duration-300 group-hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 lg:h-[60px] lg:w-[60px]">
                     <Icon
                       name={step.icon}
                       size={28}

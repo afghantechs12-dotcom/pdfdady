@@ -53,7 +53,7 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
+    <div className="fixed inset-0 z-dialog flex items-start justify-center overflow-y-auto p-4 sm:p-6">
       {/* Backdrop: a labeled button so it's keyboard-reachable and click-to-close. */}
       <button
         type="button"

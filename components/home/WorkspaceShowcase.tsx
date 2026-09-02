@@ -20,6 +20,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Reveal } from "@/components/ui/Reveal";
 import { floatStyle } from "./floatStyle";
 import type { ProductHighlight } from "@/data/productHighlights";
+import { colors, aura } from "@/styles/tokens";
 
 /**
  * The Workspace section — the homepage's answer to "why this and not one of the
@@ -77,7 +78,7 @@ export function WorkspaceShowcase({ items }: { items: ProductHighlight[] }) {
               the illustration, so both halves of the panel sit on light. */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
             <div className="absolute -right-24 -top-28 h-[460px] w-[460px] rounded-full bg-primary/10 blur-[90px]" />
-            <div className="absolute -bottom-32 -left-24 h-[380px] w-[380px] rounded-full bg-[#3B82F6]/[0.07] blur-[90px]" />
+            <div className="absolute -bottom-32 -left-24 h-[380px] w-[380px] rounded-full bg-aura-blue/[0.07] blur-[90px]" />
           </div>
 
           <div className="relative grid items-center gap-10 p-6 sm:p-8 lg:grid-cols-[minmax(0,0.68fr)_minmax(0,1fr)] lg:gap-10 lg:p-10 xl:grid-cols-[minmax(0,0.58fr)_minmax(0,1fr)] xl:gap-12">
@@ -219,17 +220,17 @@ function WorkspaceFolderArt({ className = "" }: { className?: string }) {
         >
           <defs>
             <linearGradient id="ws-folder-back" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#6D28D9" />
-              <stop offset="100%" stopColor="#4C1D95" />
+              <stop offset="0%" stopColor={colors.primaryHover} />
+              <stop offset="100%" stopColor={aura.violetDeep} />
             </linearGradient>
             <linearGradient id="ws-folder-front" x1="0" y1="0" x2="0.4" y2="1">
-              <stop offset="0%" stopColor="#A78BFA" />
-              <stop offset="45%" stopColor="#7C3AED" />
-              <stop offset="100%" stopColor="#4F46E5" />
+              <stop offset="0%" stopColor={aura.violetSoft} />
+              <stop offset="45%" stopColor={colors.primary} />
+              <stop offset="100%" stopColor={aura.indigo} />
             </linearGradient>
             <linearGradient id="ws-folder-sheen" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.34" />
-              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+              <stop offset="0%" stopColor={colors.white} stopOpacity="0.34" />
+              <stop offset="100%" stopColor={colors.white} stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -241,14 +242,14 @@ function WorkspaceFolderArt({ className = "" }: { className?: string }) {
 
           {/* Sheets caught between the panels. */}
           <g transform="rotate(-6 112 96)">
-            <rect x="58" y="46" width="108" height="104" rx="8" fill="#FFFFFF" fillOpacity="0.82" />
+            <rect x="58" y="46" width="108" height="104" rx="8" fill={colors.white} fillOpacity="0.82" />
           </g>
           <g transform="rotate(5 150 92)">
-            <rect x="94" y="38" width="108" height="112" rx="8" fill="#FFFFFF" />
+            <rect x="94" y="38" width="108" height="112" rx="8" fill={colors.white} />
             <rect x="106" y="52" width="26" height="26" rx="6" fill="#EF4444" />
-            <rect x="106" y="88" width="82" height="6" rx="3" fill="#1E1B2E" fillOpacity="0.14" />
-            <rect x="106" y="102" width="62" height="6" rx="3" fill="#1E1B2E" fillOpacity="0.1" />
-            <rect x="106" y="116" width="74" height="6" rx="3" fill="#1E1B2E" fillOpacity="0.1" />
+            <rect x="106" y="88" width="82" height="6" rx="3" fill={colors.navy} fillOpacity="0.14" />
+            <rect x="106" y="102" width="62" height="6" rx="3" fill={colors.navy} fillOpacity="0.1" />
+            <rect x="106" y="116" width="74" height="6" rx="3" fill={colors.navy} fillOpacity="0.1" />
           </g>
 
           {/* Front panel — wider at the bottom than the top, which is what makes
@@ -263,7 +264,7 @@ function WorkspaceFolderArt({ className = "" }: { className?: string }) {
           />
           <path
             d="M24 69 H236"
-            stroke="#FFFFFF"
+            stroke={colors.white}
             strokeOpacity="0.45"
             strokeWidth="2.5"
             strokeLinecap="round"

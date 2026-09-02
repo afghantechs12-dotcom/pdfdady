@@ -1,4 +1,4 @@
-/* global process, console, fetch, WebSocket, setTimeout, clearTimeout, Buffer */
+/* global process, fetch, WebSocket, setTimeout, clearTimeout, Buffer */
 /**
  * One Chrome-over-CDP client, shared by the Phase 6 UI probe and the ad-hoc
  * inspector beside it.

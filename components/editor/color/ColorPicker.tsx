@@ -238,7 +238,7 @@ export function ColorPicker({
               aria-label={`${label} colour`}
               data-side={placement?.side ?? "below"}
               className={[
-                "fixed z-[75] rounded-appmenu border border-editor-border bg-editor-surface p-3 shadow-appmenu",
+                "fixed z-popover rounded-appmenu border border-editor-border bg-editor-surface p-3 shadow-appmenu",
                 // 120–160ms fade+scale, from the popover tier of the motion
                 // scale. `motion-reduce` drops the scale and the translate but
                 // keeps the opacity, so the popover still reads as arriving

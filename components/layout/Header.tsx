@@ -178,7 +178,7 @@ export function Header({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 w-full border-b transition-all duration-300 motion-reduce:transition-none",
+        "sticky top-0 z-header w-full border-b transition-all duration-300 motion-reduce:transition-none",
         scrolled
           ? "border-softborder/70 bg-white/90 shadow-[0_4px_20px_rgba(124,58,237,0.07)] backdrop-blur-xl"
           : "border-transparent bg-white/70 backdrop-blur-md",
@@ -255,7 +255,7 @@ export function Header({
                         id={panelId}
                         ref={menuRef}
                         className={cn(
-                          "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-3",
+                          "absolute left-1/2 top-full z-menu -translate-x-1/2 pt-3",
                           wide ? "w-[620px]" : "w-[440px]",
                         )}
                       >
@@ -398,7 +398,7 @@ export function Header({
       {open && (
         <>
           <div
-            className="fixed inset-0 top-[72px] z-[55] bg-navy/20 lg:hidden"
+            className="fixed inset-0 top-[72px] z-drawer bg-navy/20 lg:hidden"
             aria-hidden="true"
             onClick={() => setOpen(false)}
           />
@@ -408,7 +408,7 @@ export function Header({
             role="dialog"
             aria-modal="true"
             aria-label="Site menu"
-            className="fixed inset-x-0 top-[72px] z-[60] max-h-[calc(100dvh-72px)] overflow-y-auto border-t border-softborder bg-white shadow-cardhover lg:hidden"
+            className="fixed inset-x-0 top-[72px] z-drawer max-h-[calc(100dvh-72px)] overflow-y-auto border-t border-softborder bg-white shadow-cardhover lg:hidden"
           >
             <PageContainer className="py-4">
               <nav aria-label="Mobile" className="flex flex-col gap-1">

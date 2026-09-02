@@ -98,10 +98,10 @@ interface BenefitTone {
 }
 
 const TONES: BenefitTone[] = [
-  { aura: "bg-primary/25", tile: "from-[#A78BFA] to-[#6D28D9]", chip: "bg-primary" },
-  { aura: "bg-[#3B82F6]/25", tile: "from-[#60A5FA] to-[#2563EB]", chip: "bg-blue-500" },
-  { aura: "bg-aipink/25", tile: "from-[#F9A8D4] to-[#DB2777]", chip: "bg-aipink" },
-  { aura: "bg-[#14B8A6]/25", tile: "from-[#5EEAD4] to-[#0D9488]", chip: "bg-teal-500" },
+  { aura: "bg-primary/25", tile: "from-violet-400 to-primary-hover", chip: "bg-primary" },
+  { aura: "bg-aura-blue/25", tile: "from-aura-bluelight to-aura-bluedeep", chip: "bg-blue-500" },
+  { aura: "bg-aipink/25", tile: "from-aura-pinksoft to-pink-600", chip: "bg-aipink" },
+  { aura: "bg-teal-500/25", tile: "from-teal-300 to-teal-600", chip: "bg-teal-500" },
 ];
 
 /**

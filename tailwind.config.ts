@@ -18,11 +18,39 @@ const config: Config = {
           DEFAULT: "#7C3AED",
           hover: "#6D28D9",
           soft: "#EDE9FE",
+          softhover: "#E3DCFB",
         },
         navy: {
           DEFAULT: "#1E1B2E",
           soft: "#4B4760",
         },
+        /*
+         * Decoration only — the blur auras and gradient stops behind the
+         * marketing sections, and the stops of the inline brand SVGs. Mirrored
+         * from `styles/tokens.ts` `aura`, which explains why they exist and why
+         * `blue`/`sky` are not brand colours.
+         *
+         * NOTHING that needs a contrast ratio may use these: no text, no
+         * border, no control surface. They were six components' worth of
+         * arbitrary `bg-[#3B82F6]/25` before Phase 6 named them.
+         */
+        aura: {
+          violet: "#8B5CF6",
+          indigo: "#4F46E5",
+          blue: "#3B82F6",
+          bluelight: "#60A5FA",
+          bluedeep: "#2563EB",
+          sky: "#38BDF8",
+          pinksoft: "#F9A8D4",
+          pinkdeep: "#DB2777",
+          violetpale: "#C4B5FD",
+          violetsoft: "#A78BFA",
+          violetdeep: "#4C1D95",
+          night: "#150F2E",
+          indigopanel: "#2A1568",
+          indigodeep: "#3B1D8C",
+        },
+
         lavender: "#F5F3FF",
         softborder: "#E9E5F5",
         success: "#15803D",
@@ -47,6 +75,9 @@ const config: Config = {
           sidebarhover: "#111F33",
           sidebaractive: "#16263D",
           sidebartext: "#94A3B8",
+          // Dropdown/menu surface inside the dark rail. A fourth near-duplicate
+          // of the three above, written inline in two menus before it was named.
+          sidebarmenu: "#0D1B2E",
         },
 
         // ── Premium editor shell surfaces (M-editor redesign) ──────────────
@@ -118,6 +149,24 @@ const config: Config = {
         // Major visual panels (hero, security band, final CTA) that are meant
         // to feel wider than the text sections around them.
         panel: "1360px",
+      },
+      /*
+       * The GLOBAL stacking order, mirrored from `styles/tokens.ts` `zIndex`.
+       * `extend` keeps Tailwind's numeric scale, which stays the right choice
+       * inside a component's own stacking context; these names are for surfaces
+       * that compete across the whole page. See the token's comment for why the
+       * five arbitrary `z-[…]` values this replaces were a defect.
+       */
+      zIndex: {
+        sticky: "30",
+        header: "40",
+        menu: "50",
+        editor: "50",
+        drawer: "60",
+        popover: "70",
+        dialog: "80",
+        toast: "90",
+        skiplink: "100",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

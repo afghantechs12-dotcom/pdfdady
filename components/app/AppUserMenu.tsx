@@ -88,7 +88,7 @@ export function AppUserMenu({ name, email, settingsHref = null, tone = "dark" }:
           aria-label="Account"
           className={cn(
             "absolute bottom-[calc(100%+6px)] left-0 right-0 z-40 overflow-hidden rounded-controllg border py-1 shadow-appmenu",
-            dark ? "border-white/10 bg-[#0D1B2E]" : "border-app-border bg-white",
+            dark ? "border-white/10 bg-app-sidebarmenu" : "border-app-border bg-white",
           )}
         >
           {settingsHref && (

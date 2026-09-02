@@ -5,6 +5,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { cn } from "@/lib/utils/cn";
 import { PROCESSING_MODE_COPY } from "@/lib/tools/processingMode";
 import type { TrustItem } from "@/data/trust";
+import { colors, aura } from "@/styles/tokens";
 
 /**
  * The security and privacy band — the page's strongest single visual anchor.
@@ -63,14 +64,14 @@ export function TrustStrip({ items }: { items: TrustItem[] }) {
   return (
     <section aria-labelledby="trust-strip" className="section-pad">
       <PageContainer maxWidth="wide">
-        <Reveal className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-[#150F2E] via-[#3B1D8C] to-[#1E40AF] p-6 sm:p-10 lg:p-12">
+        <Reveal className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-aura-night via-aura-indigodeep to-blue-800 p-6 sm:p-10 lg:p-12">
           {/* Ambient light. Stronger than the previous pair — this band is meant
               to glow — but still behind the content and still low-opacity, so
               text contrast is unaffected. */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
             <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-primary/45 blur-[100px]" />
             <div className="absolute -bottom-28 right-1/4 h-80 w-80 rounded-full bg-aipink/25 blur-[100px]" />
-            <div className="absolute -right-20 top-0 h-80 w-80 rounded-full bg-[#38BDF8]/25 blur-[100px]" />
+            <div className="absolute -right-20 top-0 h-80 w-80 rounded-full bg-aura-sky/25 blur-[100px]" />
           </div>
 
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.76fr)_minmax(0,1.24fr)] lg:items-center lg:gap-14">
@@ -91,7 +92,7 @@ export function TrustStrip({ items }: { items: TrustItem[] }) {
               <p className="mt-6">
                 <a
                   href="/privacy-policy"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#2A1568] motion-reduce:transition-none"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-aura-indigopanel motion-reduce:transition-none"
                 >
                   Read the full privacy policy
                   <ArrowRight size={16} aria-hidden="true" />
@@ -188,7 +189,7 @@ function ShieldArt() {
   return (
     <div aria-hidden="true" className="relative inline-flex">
       <div className="absolute -inset-6 -z-10 rounded-full bg-primary/50 blur-[56px]" />
-      <div className="absolute -inset-2 -z-10 rounded-full bg-[#38BDF8]/25 blur-[40px]" />
+      <div className="absolute -inset-2 -z-10 rounded-full bg-aura-sky/25 blur-[40px]" />
       <svg
         viewBox="0 0 96 108"
         className="animate-shield-breathe h-32 w-auto drop-shadow-[0_18px_36px_rgba(124,58,237,0.5)] sm:h-40 lg:h-44"
@@ -196,13 +197,13 @@ function ShieldArt() {
       >
         <defs>
           <linearGradient id="trust-shield" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#C4B5FD" />
-            <stop offset="50%" stopColor="#7C3AED" />
-            <stop offset="100%" stopColor="#EC4899" />
+            <stop offset="0%" stopColor={aura.violetPale} />
+            <stop offset="50%" stopColor={colors.primary} />
+            <stop offset="100%" stopColor={colors.aiPink} />
           </linearGradient>
           <linearGradient id="trust-shield-core" x1="0.2" y1="0" x2="0.8" y2="1">
-            <stop offset="0%" stopColor="#A78BFA" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.35" />
+            <stop offset="0%" stopColor={aura.violetSoft} stopOpacity="0.55" />
+            <stop offset="100%" stopColor={aura.indigo} stopOpacity="0.35" />
           </linearGradient>
         </defs>
         <path

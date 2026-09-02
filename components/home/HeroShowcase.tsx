@@ -13,6 +13,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { floatStyle, type FloatStyle } from "./floatStyle";
+import { colors, aura } from "@/styles/tokens";
 
 /**
  * The hero's product illustration.
@@ -69,7 +70,7 @@ export function HeroShowcase() {
             flat on the page instead of hovering over it. */}
         <div className="animate-glow-pulse absolute bottom-2 left-1/2 h-[320px] w-[115%] -translate-x-1/2 rounded-[50%] bg-primary/35 blur-[80px]" />
         {/* Blue rim glow along the top-left edge. */}
-        <div className="animate-glow-pulse absolute -left-6 top-2 h-[300px] w-[300px] rounded-full bg-[#3B82F6]/25 blur-[80px] [animation-delay:1.4s]" />
+        <div className="animate-glow-pulse absolute -left-6 top-2 h-[300px] w-[300px] rounded-full bg-aura-blue/25 blur-[80px] [animation-delay:1.4s]" />
         <div className="animate-glow-pulse absolute -right-4 top-16 h-56 w-56 rounded-full bg-aipink/20 blur-[70px] [animation-delay:2.6s]" />
       </div>
 
@@ -80,7 +81,7 @@ export function HeroShowcase() {
       >
         <div className="rounded-[24px] border border-white/70 bg-white/95 p-2.5 shadow-[0_2px_4px_rgba(30,27,46,0.04),0_18px_40px_-12px_rgba(76,29,149,0.28),0_48px_100px_-30px_rgba(76,29,149,0.45)] backdrop-blur">
           {/* Title bar */}
-          <div className="flex items-center gap-2 rounded-t-[16px] bg-gradient-to-r from-[#5B21B6] via-primary to-[#9333EA] px-3.5 py-2.5">
+          <div className="flex items-center gap-2 rounded-t-[16px] bg-gradient-to-r from-violet-800 via-primary to-purple-600 px-3.5 py-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-white/45" />
             <span className="h-2.5 w-2.5 rounded-full bg-white/35" />
             <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
@@ -164,7 +165,7 @@ export function HeroShowcase() {
               {/* Image / content block — a gradient panel with a skyline motif
                   and a selection frame, so it reads as a placed object. */}
               <div className="relative mt-3.5">
-                <div className="relative h-[92px] overflow-hidden rounded-md bg-gradient-to-br from-[#4C1D95] via-primary to-[#C026D3]">
+                <div className="relative h-[92px] overflow-hidden rounded-md bg-gradient-to-br from-violet-900 via-primary to-fuchsia-600">
                   <svg
                     viewBox="0 0 200 92"
                     className="absolute inset-0 h-full w-full text-white/25"
@@ -311,16 +312,16 @@ export function HeroShowcase() {
       */}
       <div className="animate-shield-breathe absolute -left-6 bottom-16 z-20 hidden lg:block">
         <div className="relative">
-          <div className="absolute inset-0 -z-10 rounded-full bg-[#3B82F6]/40 blur-2xl" />
+          <div className="absolute inset-0 -z-10 rounded-full bg-aura-blue/40 blur-2xl" />
           <svg
             viewBox="0 0 64 72"
             className="h-[84px] w-auto drop-shadow-[0_14px_28px_rgba(37,99,235,0.4)]"
           >
             <defs>
               <linearGradient id="pdfdadi-shield" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#60A5FA" />
-                <stop offset="55%" stopColor="#4F46E5" />
-                <stop offset="100%" stopColor="#7C3AED" />
+                <stop offset="0%" stopColor={aura.blueLight} />
+                <stop offset="55%" stopColor={aura.indigo} />
+                <stop offset="100%" stopColor={colors.primary} />
               </linearGradient>
             </defs>
             <path
@@ -329,13 +330,13 @@ export function HeroShowcase() {
             />
             <path
               d="M32 2 60 12v26c0 16-12 27-28 32V2Z"
-              fill="#1E1B2E"
+              fill={colors.navy}
               opacity="0.12"
             />
             <path
               d="M21 36l8 8 15-16"
               fill="none"
-              stroke="#FFFFFF"
+              stroke={colors.white}
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"

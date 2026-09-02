@@ -27,7 +27,7 @@ export default async function EditorPage() {
   const saveTarget = user ? await resolveSaveTarget(user.id) : null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-editor bg-white">
       <StandaloneEditorShell
         viewer={{ email: user?.email ?? null, name: user?.name ?? null }}
         saveTarget={saveTarget}

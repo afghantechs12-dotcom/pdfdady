@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
+import { colors, aura } from "@/styles/tokens";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
@@ -30,13 +31,13 @@ export function LogoMark({ size = 36 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="pdfdadi-tile" x1="4" y1="4" x2="44" y2="44">
-          <stop offset="0%" stopColor="#8B5CF6" />
-          <stop offset="55%" stopColor="#7C3AED" />
-          <stop offset="100%" stopColor="#DB2777" />
+          <stop offset="0%" stopColor={aura.violet} />
+          <stop offset="55%" stopColor={colors.primary} />
+          <stop offset="100%" stopColor={aura.pinkDeep} />
         </linearGradient>
         <linearGradient id="pdfdadi-sheen" x1="4" y1="4" x2="24" y2="24">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+          <stop offset="0%" stopColor={colors.white} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={colors.white} stopOpacity="0" />
         </linearGradient>
       </defs>
       <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#pdfdadi-tile)" />
@@ -44,7 +45,7 @@ export function LogoMark({ size = 36 }: { size?: number }) {
       {/* document with dog-eared corner */}
       <path
         d="M16 11h11.2L34 17.8V34a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3V14a3 3 0 0 1 3-3z"
-        fill="#FFFFFF"
+        fill={colors.white}
       />
       <path d="M27.2 11 34 17.8h-5a1.8 1.8 0 0 1-1.8-1.8v-5z" fill="#DDD6FE" />
       {/* content lines */}

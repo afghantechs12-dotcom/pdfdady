@@ -31,14 +31,14 @@ export function FinalCTA() {
   return (
     <section aria-labelledby="final-cta" className="section-pad">
       <PageContainer maxWidth="wide">
-        <Reveal className="animate-gradient-drift relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-[#5B21B6] via-primary-hover to-indigo-600 px-6 py-10 sm:px-10 lg:px-12 lg:py-12">
+        <Reveal className="animate-gradient-drift relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-violet-800 via-primary-hover to-indigo-600 px-6 py-10 sm:px-10 lg:px-12 lg:py-12">
           {/* Soft light sources, kept behind the content. The third is the same
               sky blue the trust band uses, which is what ties the page's two
               gradient panels together without making them the same panel. */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
             <div className="absolute -left-20 -top-24 h-72 w-72 rounded-full bg-white/15 blur-[80px]" />
             <div className="absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-aipink/25 blur-[90px]" />
-            <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#38BDF8]/20 blur-[80px]" />
+            <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-aura-sky/20 blur-[80px]" />
           </div>
 
           <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr_auto] lg:gap-10">

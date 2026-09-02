@@ -112,7 +112,7 @@ export function AppShell({
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-drawer lg:hidden">
           <button
             type="button"
             aria-label="Close navigation"
@@ -134,7 +134,7 @@ export function AppShell({
 
       {/* Content column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-[56px] items-center gap-2 border-b border-app-border bg-app-surface/95 px-3 backdrop-blur-sm sm:px-4">
+        <header className="sticky top-0 z-sticky flex min-h-[56px] items-center gap-2 border-b border-app-border bg-app-surface/95 px-3 backdrop-blur-sm sm:px-4">
           <button
             ref={menuButtonRef}
             type="button"

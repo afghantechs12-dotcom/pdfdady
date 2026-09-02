@@ -337,7 +337,7 @@ export function StandaloneEditorShell({ viewer, saveTarget }: StandaloneEditorSh
                   href="/workspaces"
                   title={viewer.email}
                   aria-label={`Signed in as ${viewer.email}. Go to your Workspaces`}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-editor-accentsoft text-[11px] font-bold text-editor-accent transition-colors hover:bg-[#E3DCFB] focus:outline-none focus-visible:ring-2 focus-visible:ring-editor-accent/50"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-editor-accentsoft text-[11px] font-bold text-editor-accent transition-colors hover:bg-primary-softhover focus:outline-none focus-visible:ring-2 focus-visible:ring-editor-accent/50"
                 >
                   {viewerInitials(viewer)}
                 </Link>

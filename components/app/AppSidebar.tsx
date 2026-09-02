@@ -75,7 +75,7 @@ export function AppSidebar({
           {!isCollapsed && (
             <span className="truncate text-[15px] font-bold tracking-tight text-white">
               {BRAND.wordmark.lead}
-              <span className="bg-gradient-to-r from-[#A78BFA] to-[#F472B6] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-violet-400 to-pink-400 bg-clip-text text-transparent">
                 {BRAND.wordmark.accent}
               </span>
             </span>

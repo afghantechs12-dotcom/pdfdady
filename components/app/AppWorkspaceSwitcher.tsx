@@ -142,7 +142,7 @@ export function AppWorkspaceSwitcher({
         <div
           className={cn(
             "absolute left-0 right-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-controllg border shadow-appmenu",
-            dark ? "border-white/10 bg-[#0D1B2E]" : "border-app-border bg-white",
+            dark ? "border-white/10 bg-app-sidebarmenu" : "border-app-border bg-white",
           )}
         >
           <ul

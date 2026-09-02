@@ -258,7 +258,7 @@ export function ColorPopoverPanel({
           value={Math.round(color.a * 100)}
           aria-label="Opacity in percent"
           onChange={(e) => onChange({ ...color, a: Number.parseInt(e.target.value, 10) / 100 })}
-          className="min-w-0 flex-1 accent-[#2563EB]"
+          className="min-w-0 flex-1 accent-editor-selection"
         />
         <div className="flex items-center gap-0.5">
           <input

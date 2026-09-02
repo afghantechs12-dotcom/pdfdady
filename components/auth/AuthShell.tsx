@@ -52,6 +52,12 @@ function DocumentIllustration() {
       <div className="absolute -left-6 top-6 h-full w-full rotate-[-6deg] rounded-2xl border border-white/10 bg-white/5" />
       <div className="absolute -right-4 top-3 h-full w-full rotate-[4deg] rounded-2xl border border-white/10 bg-white/[0.07]" />
       <div className="relative rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+        {/*
+          The macOS window traffic lights, quoting another product's chrome to
+          say "a document in an app". Deliberately NOT tokenised: they are not
+          PDFDadi's palette, and naming them as brand colours would invite a
+          later pass to "align" them and lose the reference.
+        */}
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
@@ -106,7 +112,7 @@ export function AuthShell({
             <LogoMark size={36} />
             <span className="text-xl font-bold tracking-tight text-white">
               PDF
-              <span className="bg-gradient-to-r from-[#C4B5FD] to-[#F9A8D4] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-violet-300 to-aura-pinksoft bg-clip-text text-transparent">
                 Dadi
               </span>
             </span>
@@ -124,7 +130,7 @@ export function AuthShell({
             {FEATURES.map(({ icon: Icon, title: featureTitle, body }) => (
               <li key={featureTitle} className="flex gap-3.5">
                 <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-                  <Icon size={17} className="text-[#C4B5FD]" aria-hidden="true" />
+                  <Icon size={17} className="text-violet-300" aria-hidden="true" />
                 </span>
                 <span>
                   <span className="block text-sm font-semibold text-white">{featureTitle}</span>

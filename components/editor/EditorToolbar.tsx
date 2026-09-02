@@ -739,7 +739,7 @@ function ToolMenu({
       data-side={placement.side}
       role="menu"
       aria-label={label}
-      className="fixed z-[70] overflow-y-auto rounded-appmenu border border-editor-border bg-editor-surface p-1 shadow-appmenu"
+      className="fixed z-popover overflow-y-auto rounded-appmenu border border-editor-border bg-editor-surface p-1 shadow-appmenu"
       style={{
         left: placement.left,
         top: placement.top,
