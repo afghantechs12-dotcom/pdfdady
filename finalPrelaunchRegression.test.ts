@@ -528,9 +528,20 @@ describe("R24..R27 measurement, pricing, capability truth", () => {
       inputPath: "/var/tool-inputs/abc/Q3.pdf",
       nested: { name: "Q3 board pack.pdf" },
       empty: null,
+      /*
+       * The keys that prove it is the ALLOWLIST doing the work. Everything above is
+       * also caught by the privacy denylist or the primitive check, so a version
+       * with `allowed.has(key)` deleted still passed — mutation O1 found exactly
+       * that. These two are undeclared for `job_failed`, contain no denylisted
+       * substring, and are primitives, so only the closed taxonomy can drop them.
+       */
+      pageCount: 42,
+      orgSeats: 8,
+      stackFrame: "PdfToolWorkerHandler.run",
     });
     expect(Object.keys(kept).sort()).toEqual(["errorCategory", "toolSlug"]);
     expect(JSON.stringify(kept)).not.toContain("board pack");
+    expect(JSON.stringify(kept)).not.toContain("PdfToolWorkerHandler");
     // An event nobody declared measures nothing at all, rather than everything.
     expect(sanitizeEventProperties("not_a_declared_event", { toolSlug: "x" })).toEqual({});
   });
