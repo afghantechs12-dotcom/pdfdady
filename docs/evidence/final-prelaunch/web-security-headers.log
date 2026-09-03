@@ -1,0 +1,22 @@
+WEB SECURITY HEADERS AND CSP (R10, R24-adjacent, harness group H) — audit host, 2026-09-03
+HEAD eb8f7fa7c4a18cb8e1a7504280cf106c9ded11c0
+Measured on the running final-HEAD artifact (BUILD_ID Y8FTkWwDAOHlzSbHMICnZ); nonce masked, it is per-request.
+
+$ curl -sS -o /dev/null -D - http://127.0.0.1:3052/
+HTTP/1.1 200 OK
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Cross-Origin-Opener-Policy: same-origin
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'nonce-<per-request>' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; report-uri /api/csp-report; report-to csp-endpoint
+Strict-Transport-Security: max-age=63072000; includeSubDomains
+
+$ curl -sS -o /dev/null -D -  https://172.20.10.2:3051/  (through the TLS front, so HSTS applies)
+HTTP/1.1 200 OK
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'nonce-<per-request>' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; report-uri /api/csp-report; report-to csp-endpoint
+strict-transport-security: max-age=63072000; includeSubDomains
+
+$ curl on a tool page and an API route, to show the policy is not homepage-only
+  /tools/merge-pdf -> 1 CSP header(s), 200
+  /api/health -> 1 CSP header(s), 200

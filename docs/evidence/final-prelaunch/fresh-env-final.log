@@ -1,0 +1,108 @@
+FRESH-ENVIRONMENT REPRODUCIBILITY AT FINAL HEAD (R4 + R5) — audit host, 2026-09-03
+HEAD eb8f7fa7c4a18cb8e1a7504280cf106c9ded11c0
+$ bash /tmp/audit-fresh-final3.sh          (log: /tmp/audit-fresh-final3.log)
+
+What this run establishes, and the reason it was re-run at final HEAD rather than
+reused from 2840bea: app code changed after that earlier run (the sessions
+retention fix), so its install/build/migrate evidence no longer corresponded to
+the artifact being shipped. Evidence must match final HEAD.
+
+Nothing is carried over from the primary tree. A detached git worktree at final
+HEAD, `npm ci` from the lockfile only, an EMPTY database file, an EMPTY DATA_DIR,
+and every variable passed explicitly through env(1) so no local .env can help.
+Exit codes are read with ${PIPESTATUS[0]}, so a piped command reports its OWN
+status and not tail's — an earlier version of this script reported tail's, which
+would have made every recorded exit code meaningless.
+
+  R4 clean install + build           npm ci exit=0 · prisma generate exit=0 · build exit=0
+  R5 blank-database migration        23 migrations applied to an empty file, 42 tables created
+  both legs booted and probed        default 155/156 PROBE_EXIT=0 · pipeline-on 155/156 PROBE_EXIT=0
+  the one non-pass, both legs        FAIL[ENVIRONMENTAL] I — soffice absent on this host
+
+──────────────────────── raw run output ────────────────────────
+===== GROUP D — FRESH-ENVIRONMENT REPRODUCIBILITY AT FINAL HEAD =====
+start 2026-09-03T23:15:35Z · target HEAD eb8f7fa7c4a18cb8e1a7504280cf106c9ded11c0
+R4 (clean install + build) and R5 (blank-database migration) at final HEAD.
+Nothing is reused from the primary tree: a new worktree, npm ci from the
+lockfile only, an empty database file, an empty DATA_DIR, and every variable
+passed explicitly so no local .env can help. Exit codes are read with
+PIPESTATUS, so a piped command reports its OWN status and not tail's.
+Preparing worktree (detached HEAD eb8f7fa)
+HEAD is now at eb8f7fa Group F at final HEAD: 155/156, and journey I' finally armed on the shipped default
+--- worktree HEAD: eb8f7fa7c4a18cb8e1a7504280cf106c9ded11c0
+--- node_modules present before ci: no
+--- .next present before build:     no
+--- .env present in the worktree:   no
+--- database file before migrate:   absent
+===== 1. npm ci (lockfile only) =====
+
+Run `npm audit` for details.
+npm warn install-scripts 7 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @prisma/client@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @prisma/engines@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts   fsevents@2.3.3 (install: (install scripts present))
+npm warn install-scripts   prisma@6.19.3 (preinstall: node scripts/preinstall-entry.js)
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm ci exit=0
+===== 2. prisma migrate deploy onto an EMPTY database (R5) =====
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+prisma generate exit=0
+  └─ 20260804000000_add_user_name/
+    └─ migration.sql
+  └─ 20260824010000_add_processing_job_fields/
+    └─ migration.sql
+  └─ 20260824120000_add_usage_metering/
+    └─ migration.sql
+  └─ 20260825010000_add_usage_settlements/
+    └─ migration.sql
+  └─ 20260825120000_add_billing_subscriptions/
+    └─ migration.sql
+  └─ 20260902100000_add_workspace_save_intents/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+migrate deploy exit=0
+--- tables created: 42
+--- migrations recorded: 23
+===== 3. npm run build (the documented command) (R4) =====
+├ ƒ /tools/sign-pdf
+├ ƒ /tools/split-pdf
+├ ƒ /workspaces
+├ ƒ /workspaces/[workspaceId]
+├ ƒ /workspaces/[workspaceId]/documents/[documentId]
+└ ƒ /workspaces/[workspaceId]/settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit=0
+--- BUILD_ID: ru-Ap-qQ5xfFzGqKIfgYn
+--- standalone server present: yes
+===== 4.default boot + workflow probe (PROCESSING_PIPELINE unset) =====
+--- pipeline env in the running process: unset
+--- health: 200
+--- ready:  503
+--- ready body: {"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,"checks":[{"name":"database","healthy":true}]}
+PROBE_EXIT=0
+=============== 155/156 passed ===============
+FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine  — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+===== 4.on boot + workflow probe (PROCESSING_PIPELINE on) =====
+--- pipeline env in the running process: PROCESSING_PIPELINE=on
+--- health: 200
+--- ready:  503
+--- ready body: {"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,"checks":[{"name":"database","healthy":true}]}
+PROBE_EXIT=0
+=============== 155/156 passed ===============
+FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine  — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+===== DONE 2026-09-03T23:24:34Z =====
+/tmp/audit-fresh-final3.sh: line 95: 79652 Terminated: 15          node scripts/tls-front.mjs --listen $FRONT --target $BACK > /tmp/audit-fresh3-tls.log 2>&1

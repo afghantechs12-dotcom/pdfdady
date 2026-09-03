@@ -66,16 +66,16 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | A Phase 5 reconciliation | 4 probe logs; audit doc Gate A | COMPLETE — FINAL EVIDENCE VALID | no | none |
 | B Visual acceptance | 156 captures / 18 surfaces + 19 in its own run; 5 sheets; `visual/GATE-B-VISUAL-ACCEPTANCE.md`; mutation N red-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun compare at final HEAD; verdict is `VISUAL ACCEPTANCE PENDING` |
 | C Launch profile | `evidence/final-prelaunch/LAUNCH-PROFILE.md` | COMPLETE — FINAL EVIDENCE VALID | no | 7 `LAUNCH DECISION REQUIRED` rows stand; they are the operator's, not the audit's |
-| D Fresh environment | `clean-worktree-5a4adca-npm-ci-build-probe.log` (at `5a4adca`) | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD |
+| D Fresh environment | `fresh-env-final.log` — **at final HEAD `eb8f7fa`**: `npm ci` exit 0, `prisma generate` exit 0, `migrate deploy` onto an EMPTY db exit 0 (23 migrations, 42 tables), `npm run build` exit 0 (`BUILD_ID ru-Ap-qQ5xfFzGqKIfgYn`), then BOTH legs booted and probed **155/156 `PROBE_EXIT=0`** | COMPLETE — FINAL EVIDENCE VALID | no | none. R4+R5 satisfied at final HEAD; exit codes read with `${PIPESTATUS[0]}` after an earlier script recorded `tail`'s status |
 | E Tool runtime matrix | `tool-matrix.log/json` — 29/29, 2 env, 3 not exercised | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD (ocr fix landed after) |
 | F Core workflows | `workflow-probe-final-default.log` — **155/156 at HEAD `371f4ef`, BUILD_ID `Y8FTkWwDAOHlzSbHMICnZ`, PROCESSING_PIPELINE unset**; earlier Phase 5 probe logs; `saveToWorkspaceRoute.test.ts` | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | **0 product failures, 0 probe failures, 1 ENVIRONMENTAL** (soffice, journey I). Two PROBE DEFECTS fixed first: N3 raced the asynchronous first-save ingestion (the 409 body's own `preparation: "processing"` was being discarded) and journey I' armed NOTHING on the shipped default — the SSE terminal frame names the mime `result.mimeType` and carries no `resultAvailable`, so the retype guard could never fire. I' now exercises the default: `rewrites=1`, Download offered, `Open in Editor` nowhere, no Workspace save, no handoff written |
-| G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 answered in `erasure-export-j3.md` (`9ac95a4`) as `LAUNCH DECISION REQUIRED`, no longer `MANUAL REVIEW REQUIRED` |
+| G–J security | `audit-final.json` + `audit-static-final.log` — **at final HEAD on a clean tree, not `--offline`**: PASS 66/67 exercised, **1 PRODUCT FAILURE (I3, the advisory count)**, 2 ENVIRONMENTAL, 4 NOT EXERCISED, 12 MANUAL REVIEW REQUIRED, 85 assertions, `HARNESS_EXIT=1` | COMPLETE — FINAL EVIDENCE VALID | no | I3 resolved to reachability in `dependencies-secrets-i3.md` → **P2, not a blocker** (only `sharp` and the client `pdfjs-dist` are in the shipped artifact at all; pdf.js needs `enableScripting` + no `script-src`, and both are absent). F5 cross-tenant runtime matrix still owed by the workspace probe |
 | K Retention | `1d36b30`, `2cb2467`, **`371f4ef`**; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, **`LocalSessionProvider.test.ts`** (real SQLite), `saveIntentIdentity.test.ts` D24; `erasure-export-j3.md`; `mutation-P-retention.md` P1–P3 **+ P4–P7** | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep). **SECOND FINDING, FIXED: `sessions` was never pruned** — a row per login, removed only by an explicit logout, in an authentication table; `get` already refuses an expired token so it was unbounded growth rather than an access risk, which is why nothing surfaced it. `ISessionProvider.pruneExpired` made REQUIRED (5 tsc errors across 4 doubles — the point), riding the existing 15-min sweep. **`audit_logs` is unpruned BY DESIGN and is reported, not fixed.** P4–P7 red-and-reverted; P7 compiles clean (tsc exit 0) and only the behavioural wiring test sees it. Rerun row: the RUNTIME sweep observation is the one thing no mutation reaches
 | L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
-| M Reliability | harness group L/M; `readyRoute.test.ts` (7); `readiness-r23.log` (live, `ab490fe`) | PARTIAL | yes | run harness; readiness proved red on a host whose `soffice` is really absent while liveness stays 200 |
+| M Reliability | harness group L/M at final HEAD (L1,L2,L4,L5 PASS; L3 MANUAL REVIEW; M1,M2 PASS; M3 NOT EXERCISED); `readyRoute.test.ts` (7); `readiness-r23.log`; `audit-retention-runtime.log` | COMPLETE — FINAL EVIDENCE VALID | no | §16/§17 written. Runtime sweep observed firing on its own 15 min after boot and purging 325 expired rows |
 | N Performance | `perf-load.log` + `perf-load.json` — one complete run (7 pages ×3, 6 shapes ×2, 11 fan-outs); §18 written | COMPLETE — FINAL EVIDENCE VALID | no | **P2: Workspace Editor CLS 0.212** (structural, twice the 0.1 threshold, largest payload at 921 KB); server processing ≈3 s independent of size (observation, not diagnosed — no retries in the log); three probe defects fixed before the run, all numbers post-fix |
 | O Browser + a11y | `keyboard-r28.log` (13 gates signed out + 13 signed in), `cross-browser.log` | COMPLETE — FINAL EVIDENCE VALID | no | R28 PASS with M5b NOT EXERCISED (OS file dialog); R29 Chromium exercised, Firefox ENVIRONMENTAL, WebKit + screen reader NOT EXERCISED; **§19 and §20 written**; the one engine-gated API (`EyeDropper`) is feature-detected, `navigator.clipboard` optional-chained, no `oklch`/`:has()`/`@container` anywhere |
-| P SEO/pricing | harness groups O,P,Q; `seoIndexingTruth.test.ts` (5) | PARTIAL | yes | run harness; noindex + sitemap truth now asserted (S1–S3) |
+| P SEO/pricing | harness groups O (3/3), P (4/4), Q (3/4 + 1 MANUAL REVIEW) at final HEAD; `seoIndexingTruth.test.ts` (5) | COMPLETE — FINAL EVIDENCE VALID | no | §21/§22/§23 written; Q4 consent question is legal, not code |
 | Q Deployment/rollback | `r30-deploy-rollback.log` — **8/8 PASS**; `rollback-runbook.md`; `deploymentArtifact.test.ts`; mutation C; §26 written | COMPLETE — FINAL EVIDENCE VALID | no | standalone deploy+rollback rehearsed for real (both artifacts booted, both completed a real job); container path ENVIRONMENTAL; **PROBE DEFECT** — the first run's job smoke polled without the submitter's session and read R12's correct 404 as a deployment blocker |
 | R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` (own R1..R30) + `seoIndexingTruth.test.ts` (R24/R25), `tempFileLifecycle.test.ts` (R17) | PARTIAL | — | map brief topics → tests for §28 |
 | Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) + N (visual) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | none owed |
@@ -290,11 +290,21 @@ boot the PREVIOUS artifact - the same steps an operator takes with an image dige
 minus the daemon this host does not have - and finish by restoring the pre-deploy
 database snapshot and showing it still serves.
 
-Next: finish the perf remainder and write N; then the reruns at final HEAD (D fresh
-environment, E tool matrix, F core workflows, G-J harness + offline leg, Gate B's
-`--auth` compare), L blank-chain leg, M readiness, P SEO/pricing, Q rollback
-rehearsal; then the R1-R30 map, the final regression gates at final HEAD, and the
-37-section report.
+Session 4 status. The three reruns at final HEAD are done and their evidence is
+filed: **D** (`fresh-env-final.log`, both legs 155/156 on a from-scratch install),
+**F** (`workflow-probe-final-default.log`, 155/156 on the shipped default with journey
+I' armed there for the first time) and **G–J** (`audit-final.json`, 66/67 exercised).
+The harness's single PRODUCT FAILURE is I3 and it is a count, not a defect: all nine
+advisories are traced to reachability in `dependencies-secrets-i3.md`, and the
+decisive measurement is the standalone dependency trace — only `sharp` (server) and
+`pdfjs-dist` (client bundle) are in the shipped artifact at all, and pdf.js needs
+`enableScripting` plus no `script-src`, both absent here. Recorded **P2**.
+Report sections written so far: Gate A, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15,
+16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26.
+
+Next: E tool matrix rerun at final HEAD, Gate B `--auth` compare, F5 cross-tenant
+runtime matrix; then §7/§8/§9; then §27–§37 and the final regression gates
+(vitest, tsc, eslint, prisma, the six probes, fidelity) at final HEAD.
 
 Command to resume the harness leg:
 `node scripts/final-prelaunch-audit.mjs --offline --json /tmp/audit-offline.json`

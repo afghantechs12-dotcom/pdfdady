@@ -95,6 +95,69 @@ mislabelled two of its own rows as product failures.
 
 ---
 
+## §1 — Launch profile
+
+What kind of product is being launched, read off the code rather than assumed. The
+full table is `docs/evidence/final-prelaunch/LAUNCH-PROFILE.md`; the shape is:
+
+| Dimension | What ships |
+|---|---|
+| Commercial | three plans, one purchasable (`free`). Paid requires all three of `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`; any other count → `billing.enabled = false` and a 503 on checkout. `business` is unpurchasable by domain law (no price slot exists) |
+| Accounts | open public registration, no invite or approval. **No email verification. No password recovery.** Session 30 days; signup 10/hour, login 10/minute |
+| Data platform | SQLite, enforced at boot. Storage `local\|r2`, half-configured refused. Queue `memory\|redis` |
+| Processing | 32 available tools; 14 server-run; the toolchain is six binaries plus LibreOffice |
+| Observability | first-party only: JSON logs to stdout, no error-monitoring backend, no metrics sink (§17) |
+| Retention | 1 h tool outputs, 15 min sweep, 30-day save intents, 30-day sessions (§13) |
+| Support | one `mailto:` (§24) |
+
+Seven items are **`LAUNCH DECISION REQUIRED`** — free-only vs paid; whether free
+stays free; launching without password recovery; domain/DNS/TLS; markets and
+currency; where stdout is collected and for how long; backup schedule and off-host
+destination. None is a code defect, none blocks a build, and this audit does not
+invent an answer for any of them.
+
+## §2 — Baseline reproduced
+
+The branch was cut from Phase 6 HEAD `651c8fa`. The baseline was reproduced in a
+**detached worktree at Phase 5 closeout `5a4adca`** with nothing carried over —
+`node_modules` absent before `npm ci`, `.next` absent before the build
+(`clean-worktree-5a4adca-npm-ci-build-probe.log`):
+
+```
+npm ci        → added 371 packages, audited 372 in 18s, exit=0
+                10 high severity vulnerabilities  (carried into §12)
+prisma generate → Prisma Client v6.19.3, 72ms
+```
+
+That run is what made Gate A decidable: the same commit Phase 5 measured, installed
+and built from the lockfile alone, reproduced Phase 5's `155/156` with
+`PROCESSING_PIPELINE=on` and `149/156` without it. §5 repeats the whole procedure at
+**final** HEAD, because a baseline reproduction is not a substitute for it.
+
+## §3 — Phase 5 reconciliation
+
+All seven non-passes are classified in **Entry Gate A** above, with the four-run
+table that produced them. In summary: one **P1 product defect** (`Save to Workspace`
+answered 404 for every non-`processing` job, so the button was offered on eleven
+tools and could not succeed on any of them in the shipped configuration — fixed in
+`7facfae`), one **probe defect** with two rows that Phase 5 had reported as product
+failures and that were not, and one **environmental** row (`soffice`).
+
+**Update at final HEAD `eb8f7fa`.** Rows 4–6 no longer fail. Entry Gate A's table
+records them as "FAIL (still)" as of run 4, and the reason was named there: the
+retype hook could only see the polled `/api/jobs/:id` response, while the shipped
+default's terminal frame arrives over `EventSource`. That hook now handles both
+frame shapes, and journey I′ arms on the shipped default for the first time —
+`rewrites=1`, all four I′ rows passing against real product behaviour. The current
+run on the configuration that ships is **155/156 with zero product failures and zero
+probe failures**; the single remaining row is row 7, still environmental
+(`workflow-probe-final-default.log`, §7).
+
+So the reconciliation ends where it should: the reported figure was measured in a
+configuration that does not ship, the shipped configuration was genuinely worse, and
+it is now equal — 155/156 — with the difference between the two runs being one
+missing system binary rather than one hidden defect.
+
 ## §4 — Visual acceptance
 
 **Verdict: `VISUAL ACCEPTANCE PENDING`.** Full record:
@@ -141,6 +204,61 @@ on the homepage `<h1>`, singly, through a real production build and the standalo
 artifact: `PASS 0/9`, 23.08–36.33% of pixels differing at every viewport against a
 0.1% threshold. Reverted with `git checkout -- components/home/Hero.tsx`, rebuilt,
 rerun: `PASS 156/156`.
+
+## §5 — Fresh-environment reproducibility
+
+**Verdict: `PASS`.** Evidence: `docs/evidence/final-prelaunch/fresh-env-final.log`
+(run `/tmp/audit-fresh-final3.sh`, HEAD `eb8f7fa`, 2026-09-03T23:15Z–23:24Z).
+
+The question this group answers is narrow and worth stating precisely: can a person
+who has only this repository and its lockfile — no `node_modules`, no `.next`, no
+`.env`, no database, no `DATA_DIR` — reach a running product using the documented
+commands? Everything below was measured in a **detached worktree at final HEAD**
+with all four of those confirmed absent first.
+
+| Step | Command | Result |
+|---|---|---|
+| R4 install | `npm ci` | **exit 0**, 371 packages from the lockfile alone |
+| R4 client | `prisma generate` | **exit 0**, Prisma Client v6.19.3 |
+| R5 migrate | `prisma migrate deploy` onto an **empty database file** | **exit 0**, `All migrations have been successfully applied` — **23** migrations recorded, **42** tables created |
+| R4 build | `npm run build` | **exit 0**, `BUILD_ID ru-Ap-qQ5xfFzGqKIfgYn`, standalone server present |
+| boot (shipped default) | `env … node .next/standalone/server.js` | `/api/health` **200**, `/api/health/ready` **503 degraded — toolchain false** |
+| workflow probe, default | `workflow-completeness-probe.mjs` | **155/156**, `PROBE_EXIT=0` |
+| boot (`PROCESSING_PIPELINE=on`) | same, one variable added | `/api/health` **200**, ready **503 degraded — toolchain false** |
+| workflow probe, pipeline-on | same probe | **155/156**, `PROBE_EXIT=0` |
+
+Three things in that table are load-bearing.
+
+**The exit codes are the commands' own.** An earlier version of this script wrote
+`npm ci 2>&1 | tail -25; echo "exit=$?"`, which records `tail`'s status — it would
+have printed `exit=0` for a failed install. Every exit code above is read with
+`${PIPESTATUS[0]}`. This is stated because the alternative is evidence that cannot
+fail.
+
+**The migration chain applies to a blank file, not just to an already-migrated
+one.** 23 migrations, 42 tables, from a database file that did not exist when the
+run started. R6 — the same chain onto a *populated* database, preserving data — is
+separate and is recorded in §14.
+
+**Both configurations now agree.** The shipped default and
+`PROCESSING_PIPELINE=on` reach the identical 155/156 with `PROBE_EXIT=0`. That
+equality is the substantive outcome of this audit's entry gate: the two legs
+differed by 6 rows when the audit opened (§3), and they do not differ now.
+
+The single non-pass, in both legs, is the same row and it is not a defect:
+
+```
+FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is
+unreachable on this machine — every non-PDF-output tool is server-run and its
+binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here.
+```
+
+Readiness reporting **503 degraded** in a fresh environment is correct behaviour,
+not a fresh-install failure: the toolchain binaries are host software, not npm
+packages, so a machine that has never had LibreOffice installed cannot become
+ready by installing this repository. §16 and §23 cover what that costs a deploy;
+what matters here is that the fresh install says so out loud rather than reporting
+ready and failing later.
 
 ## §6 — Available-tool runtime matrix
 
@@ -222,6 +340,124 @@ experimental.proxyClientMaxBodySize: expected undefined to be defined`,
 `Tests 1 failed | 25 passed (26)`. Reverted with `git checkout -- next.config.mjs`
 (the fix was committed first, precisely so the revert could not destroy it), and the
 26 pass again.
+
+## §11 — Web security and the content policy
+
+**Verdict: `PASS`.** Static evidence: harness group **H**, 5/5. Runtime evidence:
+`docs/evidence/final-prelaunch/web-security-headers.log`, measured on the running
+final-HEAD artifact.
+
+Every page and every API route answers with the same enforced policy — checked on
+the homepage, on a tool page and on an API route, not on one URL:
+
+```
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none';
+  frame-ancestors 'none'; frame-src 'none'; form-action 'self';
+  script-src 'nonce-<per-request>' 'strict-dynamic'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self';
+  report-uri /api/csp-report; report-to csp-endpoint
+X-Content-Type-Options: nosniff          X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Cross-Origin-Opener-Policy: same-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains
+```
+
+What is worth saying about that header rather than just quoting it:
+
+- It is **`content-security-policy`, not `-report-only`** (H2). A report-only policy
+  and an enforced one are indistinguishable in a screenshot and completely different
+  in effect.
+- `script-src` is a **per-request nonce with `strict-dynamic`** and carries no
+  `unsafe-eval`, no `unsafe-inline`, no wildcard (H3). The dev-only relaxation for
+  HMR exists and is confined to development. This is also the second half of why the
+  pdf.js advisory is not exploitable here (§12).
+- The legacy vectors are pinned to `none`: `object-src`, `frame-src`,
+  `frame-ancestors` — plus `X-Frame-Options: DENY` for agents that predate CSP.
+- `style-src` keeps `'unsafe-inline'`. That is a real, deliberate looseness: the
+  framework emits inline style attributes. It is recorded here rather than omitted,
+  and it does not permit script.
+- Violations have somewhere to land (H5): `report-uri /api/csp-report`, whose
+  handler is the same one `cspReport.test.ts` proves sanitizes a URL before logging
+  — a violation report containing `?token=…` is logged with the token stripped.
+- HSTS is served with a two-year max-age and `includeSubDomains`, observed through
+  the TLS front rather than inferred from source.
+
+The mutating API surface is same-origin gated (H4, F3), with 13 rejection cases in
+`workspaceHttp.test.ts` and a live leg in `scripts/csp-probe.mjs`. R8 —
+`next` on login cannot redirect to an external host — and R10 are covered there and
+in `workspaceCsrfProxyOrigin.test.ts`; brief mutation **E** made that gate red and
+was reverted through Git.
+
+## §12 — Dependencies and secrets
+
+**Verdict: `PASS` on secrets. `P2` on dependencies** — nine high advisories exist,
+and none of them is reachable in this product as configured. Full working:
+`docs/evidence/final-prelaunch/dependencies-secrets-i3.md`.
+
+This is the audit's **only PRODUCT FAILURE row** at final HEAD, and it deserves to
+be read carefully because the row is a count, not a defect:
+
+```
+I3  PRODUCT FAILURE  no critical or high advisory in the production dependency tree
+    -> 9 high/critical advisories  (0 critical)
+```
+
+`npm audit --omit=dev` over 158 production dependencies: **9 high, 0 critical**. The
+question that decides whether that is a launch blocker is not how many there are but
+which of them a request can reach, so each was traced to the artifact. The
+distinction that does most of the work is **installed vs shipped** — the standalone
+dependency trace, checked identically in the primary-tree build and in the
+independent fresh-worktree build at final HEAD:
+
+| In the shipped artifact | Not traced into it |
+|---|---|
+| `sharp` 0.34.5 (server), `pdfjs-dist` (client bundle + worker asset) | `nanoid`, `postcss`, `brace-expansion`, `minimatch`, `archiver`, `deepmerge-ts`, `@prisma/config`, `prisma` |
+
+Both builds agree exactly. Summarised:
+
+| Package | Why it cannot be reached here |
+|---|---|
+| `pdfjs-dist` | the advisory needs `enableScripting: true` **and** no `script-src` CSP. Nothing in `app`, `components`, `src`, `lib`, `hooks` mentions `enableScripting`, `AnnotationLayer` or `PDFScriptingManager`; the import surface is the core API only; `PDFScriptingManager` has **0 occurrences** in the shipped client chunk; and the served policy is a per-request nonce (§11) |
+| `sharp` | transitive under `next`, no product import, no `images.remotePatterns`; images are embedded by pdf-lib |
+| `postcss` | build-time compiler over in-repo CSS, nested under `next`, not in the artifact |
+| `nanoid` | no call site, and the bug needs a custom generator invoked with size 0 |
+| `brace-expansion` | `archiver`'s glob path — `lib/server/zip.ts` never calls `.glob()`/`.directory()`, and `minimatch` is not even present beneath the artifact's partial `readdir-glob` trace |
+| `deepmerge-ts`, `@prisma/config`, `prisma` | Prisma CLI config loading; no `prisma.config.*` exists; not a request path |
+| `next` | flagged *via* `postcss` and `sharp`; not its own code |
+
+Remediations are **named and not performed** — the brief forbids mass upgrades:
+`pdfjs-dist` → 6.3.289 (non-major, and the one to do first, since it is the only
+advisory that reaches a browser); `next` → 16.3.4 (non-major, clears three rows);
+`brace-expansion` and `nanoid` fix in place. **Do not run `npm audit fix --force`
+on this tree**: npm's proposed fix for the Prisma chain is a semver-major
+*downgrade* to prisma 6.12.0, to fix a CLI-only stack-exhaustion bug.
+
+**Secrets: `PASS`.** No `.env`, key, certificate, database file or upload is
+tracked; `.gitignore` covers `.env*` (with `!.env.example`), `/.storage`, `*.db`,
+`*.db-journal`, `*.sqlite*`. A live-credential pattern sweep over every tracked file
+matches six files, and all six are **negative tests** whose whole purpose is to
+assert a secret does not leak (`CANARY_SECRET = "sk_live_…_MUST_NOT_APPEAR"`,
+`expect(logged[0]).not.toContain(…)`, `"whsec_leakme"`). Harness rows A3/A4 report
+`MANUAL REVIEW REQUIRED` over 1613 historical blobs with two matches confined to the
+one path-acknowledged redaction fixture, whose current bytes A3 pins by sha256; that
+review was done by hand here and the conclusion is that **no live secret is
+committed, in the tree or in history**. No secret value is reproduced in this report.
+
+The production boot gate (`src/infrastructure/config/env.ts:274-300`, harness B1–B7
+all PASS) refuses to start on: no `ADMIN_SECRET`; `ADMIN_SECRET` set to the public
+dev fallback that ships in this repository; `ADMIN_SECRET` under 16 characters;
+`PDFDADI_ALLOW_INSECURE_DEV_SECRET=1`; a short `STORAGE_SIGNING_SECRET`; a
+`DATABASE_URL` the shipped provider cannot open; a relative SQLite path; and
+half-configured object storage. Its refusal text names the variable and never its
+value — a deliberate choice, commented at `env.ts:245`, because that text reaches
+logs. `next build` is exempt (B5) so CI compiles without deployment secrets.
+
+One open item, recorded not resolved: **I4 `MANUAL REVIEW REQUIRED` —
+`package.json` declares no `engines.node`**, so nothing in the repository states
+which Node major is supported. The Dockerfile pins one (C3: all stages run one
+supported major), but a host deploy has no such constraint. A one-line `engines`
+field would close it; adding it is a product change and is left to the owner.
 
 ## §13 — Privacy and retention
 
