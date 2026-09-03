@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T09:19:34.513Z",
+  "generatedAt": "2026-09-03T16:02:59.353Z",
   "results": [
     {
       "group": "A",
@@ -7,7 +7,7 @@
       "id": "A1",
       "title": "the working tree is clean, so what is measured is what is committed",
       "verdict": "PRODUCT FAILURE",
-      "detail": "9 uncommitted path(s): ?? docs/FINAL_PRELAUNCH_AUDIT.md, ?? docs/FINAL_PRELAUNCH_PROGRESS.md, ?? docs/qa/final-prelaunch/"
+      "detail": "1 uncommitted path(s):  M scripts/final-prelaunch-audit.mjs"
     },
     {
       "group": "A",
@@ -31,7 +31,7 @@
       "id": "A4",
       "title": "no secret value is reachable anywhere in local Git history",
       "verdict": "MANUAL REVIEW REQUIRED",
-      "detail": "1493 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision."
+      "detail": "1564 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision."
     },
     {
       "group": "A",
@@ -295,7 +295,7 @@
       "id": "F5",
       "title": "a cross-tenant read is refused end-to-end",
       "verdict": "NOT EXERCISED",
-      "detail": "no --url given"
+      "detail": "this harness is static; needs two provisioned accounts — run scripts/phase1-workspace-reliability-probe.mjs with --auth for the runtime matrix"
     },
     {
       "group": "G",
@@ -310,8 +310,8 @@
       "groupTitle": "File and processing security",
       "id": "G2",
       "title": "a hostile filename survives neither the filesystem path nor the display name",
-      "verdict": "MANUAL REVIEW REQUIRED",
-      "detail": "sanitizeBaseName returns \".\"/\"..\" for a dot-only upload name (lib/server/toolJobSubmit.ts:40). Not an escape — the storage guard blocks that — but the documented contract is a name, so the one-line fix is to fold /^\\.+$/ into the existing empty-string fallback. P3."
+      "verdict": "PASS",
+      "detail": ""
     },
     {
       "group": "G",

@@ -2,10 +2,10 @@
 ────────────────────────────────────────────────────────────────────────
 A. Repository and build integrity
 ────────────────────────────────────────────────────────────────────────
-  ✗ A1 the working tree is clean, so what is measured is what is committed — 9 uncommitted path(s): ?? docs/FINAL_PRELAUNCH_AUDIT.md, ?? docs/FINAL_PRELAUNCH_PROGRESS.md, ?? docs/qa/final-prelaunch/
+  ✗ A1 the working tree is clean, so what is measured is what is committed — 1 uncommitted path(s):  M scripts/final-prelaunch-audit.mjs
   ✓ A2 the lockfile is present and matches package.json's name
   ? A3 no secret value is committed anywhere in the current tree — 2 match(es) in sha256-pinned synthetic fixtures, read and confirmed not live: src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe live secret key; src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe webhook secret. Any edit to that file makes these red again.
-  ? A4 no secret value is reachable anywhere in local Git history — 1493 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
+  ? A4 no secret value is reachable anywhere in local Git history — 1564 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
   ✓ A5 no database file or user upload is committed
   ✓ A6 the build ignores what the deploy must not carry
   ✓ A7 the repository has no configured remote, so nothing has been published
@@ -58,13 +58,13 @@ F. Tenant isolation
   ✓ F2 no Workspace route trusts an organization id from the client without re-resolving it
   ✓ F3 every mutating Workspace route enforces same-origin
   ✓ F4 the job routes authorize per job, not per session — via resolveJobActor or legacyJobAccessDenied/processingResultStream/processingResultRedirect
-  · F5 a cross-tenant read is refused end-to-end — no --url given
+  · F5 a cross-tenant read is refused end-to-end — this harness is static; needs two provisioned accounts — run scripts/phase1-workspace-reliability-probe.mjs with --auth for the runtime matrix
 
 ────────────────────────────────────────────────────────────────────────
 G. File and processing security
 ────────────────────────────────────────────────────────────────────────
   ✓ G1 no external binary is invoked through a shell
-  ? G2 a hostile filename survives neither the filesystem path nor the display name — sanitizeBaseName returns "."/".." for a dot-only upload name (lib/server/toolJobSubmit.ts:40). Not an escape — the storage guard blocks that — but the documented contract is a name, so the one-line fix is to fold /^\.+$/ into the existing empty-string fallback. P3.
+  ✓ G2 a hostile filename survives neither the filesystem path nor the display name
   ✓ G3 the request body is bounded before it is buffered
   ✓ G4 the concurrency limiter actually blocks past its ceiling, and both upload routes release in a finally
   ✓ G5 job output expires, and the sweep reschedules itself
@@ -157,15 +157,15 @@ R. Accessibility and responsive layout
   ? R3 visual acceptance of the rendered screenshots by a human — Entry Gate B requires human approval of the contact sheets. Self-generated screenshots are not approval.
 
 ────────────────────────────────────────────────────────────────────────
-PASS 64/65 exercised
+PASS 65/66 exercised
   PRODUCT FAILURE        1
   ENVIRONMENTAL          3   (not a pass)
   NOT EXERCISED          4   (not a pass)
-  MANUAL REVIEW REQUIRED 13   (not a pass)
+  MANUAL REVIEW REQUIRED 12   (not a pass)
   85 assertions recorded in total
 
 Product failures:
   A1 the working tree is clean, so what is measured is what is committed
-      9 uncommitted path(s): ?? docs/FINAL_PRELAUNCH_AUDIT.md, ?? docs/FINAL_PRELAUNCH_PROGRESS.md, ?? docs/qa/final-prelaunch/
+      1 uncommitted path(s):  M scripts/final-prelaunch-audit.mjs
 
 JSON written to docs/evidence/final-prelaunch/audit-offline.json

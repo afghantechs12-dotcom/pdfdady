@@ -38,12 +38,28 @@
  * ## Usage
  *
  *   node scripts/final-prelaunch-audit.mjs
- *   node scripts/final-prelaunch-audit.mjs --url https://<host>   # live checks
  *   node scripts/final-prelaunch-audit.mjs --json out.json
  *   node scripts/final-prelaunch-audit.mjs --offline               # skip npm audit
  *
- * Without `--url`, every live-HTTP assertion reports NOT EXERCISED by name. It
- * never guesses, and it never treats an unreachable server as a pass.
+ * ## What this harness is, and what it is NOT
+ *
+ * Every assertion here is STATIC: source, configuration, migration SQL, Git
+ * history, and subprocesses of this repository's own modules. **It makes no HTTP
+ * request to a running deployment and never did.** It used to advertise
+ * `--url https://<host>   # live checks` and carry a `live()` helper it called
+ * zero times — so `--url` changed exactly one line of output (F5's skip reason)
+ * while implying the whole run had been executed against a server. Both are
+ * gone, because an audit tool that overstates its own reach is worse than one
+ * that does less.
+ *
+ * Runtime behaviour is proved by the probes that actually drive it, each with its
+ * own log under `docs/evidence/final-prelaunch/`:
+ * `visual-acceptance-probe.mjs` (real browser, 156 captures),
+ * `tool-runtime-matrix-probe.mjs` (all 32 tools, real uploads, real downloads),
+ * `workflow-completeness-probe.mjs`, `perf-load-probe.mjs`,
+ * `migration-restore-drill.mjs`, and the upload-ceiling probe. A static claim in
+ * here is never a substitute for one of those, and rows that need a running
+ * server say so by name instead of passing.
  *
  * Read-only: this script mutates nothing in the repository, sends nothing
  * outward except `npm audit` (suppressible with `--offline`), and prints no
@@ -61,7 +77,6 @@ const opt = (name, fallback = null) => {
   const i = args.indexOf(name);
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
 };
-const BASE = opt("--url");
 const OFFLINE = flag("--offline");
 const JSON_OUT = opt("--json");
 
@@ -132,17 +147,6 @@ function tsFacts(body) {
   if (res.status !== 0) throw new Error(`tsx failed: ${String(res.stderr).slice(-300)}`);
   const line = String(res.stdout).trim().split("\n").pop();
   return JSON.parse(line);
-}
-
-/** A live GET, or null when no `--url` was given. Never throws. */
-async function live(path, init = {}) {
-  if (!BASE) return null;
-  try {
-    const res = await fetch(new URL(path, BASE), { redirect: "manual", ...init });
-    return { status: res.status, headers: res.headers, body: await res.text() };
-  } catch (err) {
-    return { status: 0, headers: new Headers(), body: "", error: err.message };
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -767,11 +771,9 @@ function groupF() {
       : { verdict: "PASS", detail: `via resolveJobActor or ${authorizing.join("/")}` };
   });
 
-  if (BASE) {
-    skip("F5", "a cross-tenant read is refused end-to-end", "needs two provisioned accounts; run scripts/phase1-workspace-reliability-probe.mjs with --auth for the runtime matrix");
-  } else {
-    skip("F5", "a cross-tenant read is refused end-to-end", "no --url given");
-  }
+  // Never a pass from in here: this harness makes no HTTP request. The runtime
+  // matrix lives in the probe that provisions two accounts and tries the read.
+  skip("F5", "a cross-tenant read is refused end-to-end", "this harness is static; needs two provisioned accounts — run scripts/phase1-workspace-reliability-probe.mjs with --auth for the runtime matrix");
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
