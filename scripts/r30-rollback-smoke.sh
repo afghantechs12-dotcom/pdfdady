@@ -45,22 +45,43 @@ boot_origin() {
 }
 
 # One real job, end to end: submit, poll, download the bytes back.
+#
+# PROBE DEFECT, found by running this: the first revision sent the POST and then
+# polled the GET with no cookie jar, so the poll was a DIFFERENT anonymous caller
+# than the submitter and `/api/jobs/<id>` answered `{"error":"Job not found."}` for
+# a job the database showed as `completed`. That is the R12 ownership rule working
+# exactly as designed - a stranger gets 404, not 403 - and the script would have
+# reported it as "a real job cannot complete on the new artifact", a deployment
+# blocker that does not exist. So: one cookie jar per call, carried on every hop
+# that belongs to the submitter.
+#
+# The download answers 302 to a signed URL on the PUBLIC origin, whose certificate
+# is self-signed on this host, hence -L -k. Cookies are deliberately NOT carried
+# there: the jar is scoped to 127.0.0.1 and the redirect goes to 172.20.10.2, so
+# curl drops them by itself - which is the right test, because the signed URL is
+# supposed to authorize itself.
 job_smoke() {
-  id=$(curl -sS -m 30 -H "Origin: $ORIGIN" -F "file=@$FIXTURE;type=application/pdf" \
+  jar="$WORK/jar-$$-$1.txt"
+  rm -f "$jar"
+  id=$(curl -sS -m 30 -c "$jar" -H "Origin: $ORIGIN" -F "file=@$FIXTURE;type=application/pdf" \
         "$API/api/jobs?slug=compress-pdf" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("jobId",""))' 2>/dev/null || true)
   [ -n "$id" ] || { echo "no job id"; return 1; }
   n=0
   while [ "$n" -lt 120 ]; do
-    st=$(curl -sS -m 10 "$API/api/jobs/$id" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
+    st=$(curl -sS -m 10 -b "$jar" "$API/api/jobs/$id" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || true)
     case "$st" in
       completed) break ;;
       failed|cancelled|expired) echo "job $st"; return 1 ;;
     esac
     n=$((n + 1)); sleep 1
   done
-  head=$(curl -sS -m 30 "$API/api/jobs/$id/download" | head -c 5)
-  [ "$head" = "%PDF-" ] || { echo "download was not a PDF"; return 1; }
-  echo "$id"
+  [ "$st" = completed ] || { echo "job never completed (last status: ${st:-unreadable}) after ${n}s"; return 1; }
+  out="$WORK/dl-$1.pdf"
+  rm -f "$out"
+  code=$(curl -sS -L -k -m 60 -b "$jar" "$API/api/jobs/$id/download" -o "$out" -w '%{http_code}' || echo 000)
+  bytes=$(wc -c <"$out" 2>/dev/null | tr -d ' ' || echo 0)
+  [ "$(head -c 5 "$out" 2>/dev/null)" = "%PDF-" ] || { echo "download was not a PDF (http $code, $bytes bytes)"; return 1; }
+  echo "$id, ${bytes} bytes of %PDF- over http $code"
 }
 
 mkdir -p "$WORK"
@@ -100,8 +121,8 @@ case "$ready" in
   503) gate "readiness answers on the new artifact" ok "503 degraded, and says which: $(printf '%s' "$ready_body" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join(k for k in ("dataDir","toolchain","database") if not d.get(k)) + " false")' 2>/dev/null || echo "unparsed body")" ;;
   *)   gate "readiness answers on the new artifact" no "unexpected $ready" ;;
 esac
-if job=$(job_smoke); then
-  gate "a real job completes on the new artifact and returns a PDF" ok "job $job, %PDF- downloaded"
+if job=$(job_smoke deploy); then
+  gate "a real job completes on the new artifact and returns a PDF" ok "job $job"
 else
   gate "a real job completes on the new artifact and returns a PDF" no "$job"
 fi
@@ -116,8 +137,8 @@ if boot_origin; then
 else
   gate "the PREVIOUS artifact boots again after a rollback" no "no 200 within 60s"
 fi
-if job=$(job_smoke); then
-  gate "a real job completes on the rolled-back artifact" ok "job $job, %PDF- downloaded"
+if job=$(job_smoke rollback); then
+  gate "a real job completes on the rolled-back artifact" ok "job $job"
 else
   gate "a real job completes on the rolled-back artifact" no "$job"
 fi
