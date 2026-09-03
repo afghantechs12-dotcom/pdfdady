@@ -4004,8 +4004,11 @@ sha256 manifest.
   `(job, destination)` would close it and is not built.
 - **No intention history for old saves.** Anything saved before this migration has no row,
   so a retry of an ancient save de-duplicates by content, exactly as it did before.
-- **Nothing prunes `workspace_save_intents`.** Rows are small and bounded by real saves;
-  a retention job is not built.
+- ~~**Nothing prunes `workspace_save_intents`.** Rows are small and bounded by real saves;
+  a retention job is not built.~~ **RESOLVED by the final pre-launch audit** (`1d36b30`) —
+  "bounded by real saves" is not bounded: the row count is monotonic in traffic for the
+  life of the deployment. A 30-day horizon now rides the recurring `file-retention` sweep.
+  See *Retention findings from the final pre-launch audit* at the end of this ledger.
 - **The loser of a race waits, it does not stream.** A concurrent second request polls
   briefly and then returns `SaveIntentInProgressError` for the client to retry, rather
   than blocking on the winner's transaction.
@@ -4516,3 +4519,96 @@ the way the section above documents: production artifact, TLS front, `--auth`. R
 against a dev server over `127.0.0.1` it will refuse rather than mislead.
 
 No remote is configured and nothing was pushed.
+
+## Retention findings from the final pre-launch audit
+
+Two tables grew forever, and the second was found only because the audit went
+looking at runtime rather than at the code. Both are fixed; a third is left alone
+deliberately and is recorded here so it cannot quietly become a surprise.
+
+### The shape of both defects
+
+Neither was an access-control bug, and that is exactly why neither surfaced. A row
+that nothing reads and nothing deletes costs nothing today, passes every test, and
+is invisible in a code review that asks "can the wrong person see this?" It only
+ever shows up as a table that is larger than it was last month. Both findings are
+that shape, in different tables:
+
+| Table | Written on | Deleted by | Before |
+|---|---|---|---|
+| `workspace_save_intents` | every save-to-workspace | nothing — no cascade reaches it, and the service that writes it only ever moves a status | unbounded |
+| `sessions` | every login | an explicit logout, and nothing else | unbounded |
+
+`ISessionProvider.get` already refuses an expired token, so a stale session row was
+never usable. The leak was the row, not the access.
+
+### What was built
+
+Both prunes ride the **existing** recurring `file-retention` sweep
+(`RETENTION_INTERVAL_MS` = 15 min) rather than adding a recurring job each. One
+sweep already runs, already reschedules itself, and already has a wiring test; two
+more would be two more things to register, schedule, monitor and forget.
+
+- `WorkspaceSaveIntentRepository.pruneBefore(cutoff)` — horizon
+  `SAVE_INTENT_RETENTION_MS` = 30 days, measured from `updatedAt` rather than
+  `createdAt` because a row reclaimed for a fresh attempt is live again.
+- `ISessionProvider.pruneExpired(now)` — no horizon; `expiresAt` already is one.
+
+`pruneExpired` is a **required** port method, not optional. Nothing in the request
+path needs it, so an optional method would have compiled forever and never been
+implemented. Making it required cost five `tsc` errors across four test doubles,
+which was the intended outcome. `ClerkProviders` returns 0 and says why: Clerk owns
+its own session lifecycle and there is no local table.
+
+A throw from either prune is warned and swallowed. A retention sweep that dies on
+its newest duty stops expiring *files*, which turns a growth problem into a
+data-retention failure.
+
+### `audit_logs` is unpruned ON PURPOSE
+
+Recorded rather than fixed. `AuditLog` (table `audit_logs`) has no pruning anywhere
+and should not get any by default: it is the record of who did what, and a
+retention policy for it is a compliance decision belonging to whoever operates the
+deployment, not a default this repository picks. It is listed as an operator
+decision in the audit's launch profile. Its growth is bounded by user actions, and
+unlike the two above it is *read* — by the activity feed.
+
+### Tests, and why one of them uses a real database
+
+- `PdfToolWorkerHandler.test.ts` — the sweep's reported counts, the horizon length,
+  and that a throwing session prune still purges files and still reschedules.
+- `workerBootstrap.test.ts` — behavioural, not "register was called": the handler
+  the bootstrap actually registered is RUN and must prune both tables. This exists
+  because a policy with green tests and a consumer that never called it is a
+  failure this repository has already shipped once.
+- `LocalSessionProvider.test.ts` — against a **real migrated SQLite database**. The
+  whole risk in `pruneExpired` is one comparison crossing the ORM boundary: Prisma
+  stores `DateTime` on SQLite as INTEGER milliseconds, and a value that lands in
+  that column as TEXT sorts after every integer, so `{ expiresAt: { lt: now } }`
+  against the wrong storage type deletes nothing or everything. A hand-written
+  double comparing two JS `Date`s calls both of those green. The test asserts
+  `select typeof(expiresAt) = 'integer'` directly. The audit hit that exact defect
+  in its own retention probe first, which is why it is asserted and not assumed.
+
+Seven mutations, applied singly and reverted through Git, are recorded in
+`docs/evidence/final-prelaunch/mutation-P-retention.md`. The one worth naming here
+is **P7**: the provider is still resolved from the container but an inert stand-in
+is handed to the handler. It **passes `tsc --noEmit`** — a missing required
+argument is a compile error and needs no test, but a resolved-then-discarded one
+compiles silently, and only the behavioural bootstrap assertion sees it.
+
+### Runtime proof, because no mutation reaches it
+
+Every unit test here runs in `environment: "node"` and constructs the handler
+itself, so all of them stay green in a deployment where the lazy
+`ensureWorkerReady()` is never triggered and nothing expires at all. Observed
+instead, in a deployed standalone artifact: one real `compress-pdf` job triggered
+the bootstrap at 22:36:55Z, and 900 s later, unprompted,
+`{"msg":"Retention sweep complete","purged":325,"intentsPruned":0}` — with the row
+that had been aged past its expiry gone and zero rows left expired. Full record in
+`docs/evidence/final-prelaunch/retention-r19-r20.md`. That run is also where
+`sessions already expired and still stored: 1` came from, which is how the second
+finding was found.
+
+**No migration and no schema change.** Both prunes are `deleteMany` over columns
+that already existed.

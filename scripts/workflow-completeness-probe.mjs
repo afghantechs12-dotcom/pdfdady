@@ -1223,15 +1223,38 @@ async function main() {
   const armed = () => {
     try { return sessionStorage.getItem("__probeMime") !== null; } catch { return false; }
   };
-  /** Retypes a COMPLETED job frame in place; null when there is nothing to retype. */
+  const jpgName = (n, fallback) =>
+    String(n || fallback).replace(/\\.[a-z0-9]+$/i, "") + ".jpg";
+  /**
+   * Retypes a COMPLETED job frame in place; null when there is nothing to retype.
+   *
+   * TWO frame shapes, because the product has two job transports and they do not
+   * agree on the field. The polled view (\`/api/jobs/:id\`, used by the processing
+   * pipeline) reports \`outputMimeType\` on the job. The SSE terminal frame
+   * (\`/api/jobs/:id/progress\`, which is what the SHIPPED default uses —
+   * \`ServerToolRunner\`) reports \`{terminal, status, result:{mimeType,
+   * downloadName}}\`, and the UI reads the mime from \`result.mimeType\`.
+   *
+   * Handling only the first is how an earlier run of this probe reported
+   * \`rewrites=0\` and then failed its own next three assertions: it armed nothing
+   * on the default configuration and blamed the page for not showing a non-PDF
+   * result. Both shapes now, so I′ exercises the configuration that ships.
+   */
   const retype = (payload) => {
     if (!payload || typeof payload !== "object") return null;
+    if (payload.terminal === true && payload.result && typeof payload.result === "object") {
+      if (payload.status !== "completed") return null;
+      if (payload.result.mimeType === "image/jpeg") return null;
+      payload.result.mimeType = "image/jpeg";
+      payload.result.downloadName = jpgName(payload.result.downloadName, "result.pdf");
+      window.__probeRewrites += 1;
+      return payload;
+    }
     const job = payload.job && typeof payload.job === "object" ? payload.job : payload;
     if (job.status !== "completed" || job.resultAvailable !== true) return null;
     if (job.outputMimeType === "image/jpeg") return null;
     job.outputMimeType = "image/jpeg";
-    job.outputFileName =
-      String(job.outputFileName || "result.pdf").replace(/\\.[a-z0-9]+$/i, "") + ".jpg";
+    job.outputFileName = jpgName(job.outputFileName, "result.pdf");
     window.__probeRewrites += 1;
     return payload;
   };
@@ -2221,17 +2244,49 @@ async function main() {
       );
       return { status: res.status, body: await res.json().catch(() => null) };
     })()`);
-  const shaOfDocument = (documentId) =>
-    evaluate(`(async () => {
-      const res = await fetch(
-        "/api/workspaces/" + encodeURIComponent(${JSON.stringify(nWorkspaceId)}) +
-          "/documents/" + encodeURIComponent(${JSON.stringify(documentId)}) +
-          "/content?${wsQuery}&artifact=source",
-      );
-      if (!res.ok) return "status " + res.status;
-      const digest = await crypto.subtle.digest("SHA-256", await res.arrayBuffer());
-      return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-    })()`);
+  /**
+   * The bytes a document serves — polled through the asynchronous first-save
+   * window, not raced against it.
+   *
+   * A fresh upload cuts its initial version in the ingestion WORKER, so the
+   * content route answers 409 CONTENT_UNAVAILABLE until that lands, and it says
+   * which of the two 409s it is in the body: `preparation: "processing"` is worth
+   * waiting for, `"none"` and `"failed"` never resolve. Journeys K and N1 already
+   * poll `/versions` for exactly this reason; a content read that did not was
+   * measuring the worker's latency and reporting it as missing bytes. Only
+   * "processing" is waited on, and a give-up returns the server's own reason
+   * rather than a bare status, so a real defect still fails and says why.
+   */
+  const shaOfDocument = async (documentId) => {
+    for (let attempt = 0; attempt < 14; attempt += 1) {
+      const read = await evaluate(`(async () => {
+        const res = await fetch(
+          "/api/workspaces/" + encodeURIComponent(${JSON.stringify(nWorkspaceId)}) +
+            "/documents/" + encodeURIComponent(${JSON.stringify(documentId)}) +
+            "/content?${wsQuery}&artifact=source",
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          return {
+            sha: null,
+            status: res.status,
+            preparation: body?.error?.preparation ?? null,
+            code: body?.error?.code ?? null,
+          };
+        }
+        const digest = await crypto.subtle.digest("SHA-256", await res.arrayBuffer());
+        return {
+          sha: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join(""),
+        };
+      })()`);
+      if (typeof read?.sha === "string") return read.sha;
+      if (read?.preparation !== "processing") {
+        return `status ${read?.status} ${read?.code ?? ""} preparation=${read?.preparation}`.trim();
+      }
+      await sleep(1500);
+    }
+    return "still preparing after 21s";
+  };
 
   /* --- N1: the response was lost and the user pressed Save again ----------- */
   const nKeyOne = `si-probe-n1-${stamp}`;

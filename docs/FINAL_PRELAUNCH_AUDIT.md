@@ -223,6 +223,107 @@ experimental.proxyClientMaxBodySize: expected undefined to be defined`,
 (the fix was committed first, precisely so the revert could not destroy it), and the
 26 pass again.
 
+## §13 — Privacy and retention
+
+Three tables were examined for a retention policy, and the answer differed for each.
+Two grew forever and are fixed; the third is deliberately left alone.
+
+### The horizons the product actually has
+
+Every value read from source, not from documentation:
+
+| Constant | Value | What it bounds |
+|---|---|---|
+| `TOOL_OUTPUT_TTL_MS` | 1 h | a tool result's stored bytes |
+| `PROCESSING_OUTPUT_TTL_MS` | 1 h | a pipeline job's output |
+| `RETENTION_INTERVAL_MS` | 15 min | how often the sweep that enforces those runs |
+| `EXPIRY_SWEEP_MS` | 5 min (`PROCESSING_EXPIRY_SWEEP_MS`) | the processing expiry pass |
+| `SAVE_INTENT_RETENTION_MS` | **30 days** | `workspace_save_intents` — **added by this audit** |
+| `GUEST_DRAFT_MAX_AGE_MS` | 14 days | an anonymous editor draft |
+| `AutosaveDraft retentionMs` | 30 days | a signed-in editor draft |
+| `maxGrantTtlMs` | 365 days | the ceiling on any signed URL |
+| `sessions` | `expiresAt` per row | **nothing, before this audit** |
+| `audit_logs` | none | nothing, **by design** — see below |
+
+### R19 / R20 — two tables that only ever grew
+
+Neither was an access-control bug, and that is why neither had ever surfaced. A row
+that nothing reads and nothing deletes costs nothing today and passes every test.
+
+**`workspace_save_intents`** gained a row per save-to-workspace operation — a userId,
+a workspaceId and a payload checksum — and nothing deleted one: no cascade reaches
+it, and the service that writes it only ever moves a status. The ledger's own claim
+was *"rows are small and bounded by real saves; a retention job is not built"*, which
+is not a bound at all: the count is monotonic in traffic for the life of the
+deployment. Fixed at `1d36b30` with a 30-day horizon measured from `updatedAt`
+(a row reclaimed for a fresh attempt is live again).
+
+**`sessions`** gained a row on every login and lost one only on an explicit logout.
+`ISessionProvider.get` already refuses an expired token, so a stale row was never
+usable — the leak was the row, not the access, which is exactly why nothing surfaced
+it. This one was found **at runtime**, not by reading code: the R19/R20 observation
+below printed `sessions already expired and still stored: 1` on a live deployment.
+Fixed at `371f4ef`.
+
+Both prunes ride the **existing** 15-minute `file-retention` sweep rather than adding
+a recurring job each. `ISessionProvider.pruneExpired` is a **required** port method:
+nothing in the request path needs it, so an optional one would have compiled forever
+and never been implemented — making it required cost five `tsc` errors across four
+test doubles, which was the intended outcome. Clerk returns 0 and says why. A throw
+from either prune is warned and swallowed, because a sweep that dies on its newest
+duty stops expiring *files*, turning a growth problem into a retention failure.
+
+**Observed at runtime, because no mutation reaches it.** Every unit test here runs in
+`environment: "node"` and builds the handler itself, so all of them stay green in a
+deployment where the lazy `ensureWorkerReady()` never fires and nothing expires at
+all. In a deployed standalone artifact, one real `compress-pdf` job triggered the
+bootstrap at 22:36:55Z and 900 s later, unprompted:
+`{"msg":"Retention sweep complete","purged":325,"intentsPruned":0}` — with the row
+aged past its expiry **gone** and **zero** rows left expired.
+Evidence: `docs/evidence/final-prelaunch/retention-r19-r20.md`.
+Seven mutations, each applied singly and reverted through Git:
+`docs/evidence/final-prelaunch/mutation-P-retention.md` (P1–P3, P4–P7). P7 is the one
+worth naming — the provider is resolved and then discarded, it **passes
+`tsc --noEmit`**, and only the behavioural bootstrap assertion sees it.
+
+### `audit_logs` — unpruned, and it should stay that way
+
+`AuditLog` maps to `audit_logs` and no code anywhere deletes from it. Reported rather
+than fixed, deliberately: it is the record of who did what, it is *read* (the activity
+feed), and a retention policy for it is a compliance decision belonging to whoever
+operates the deployment. Choosing a default here would be inventing a launch decision.
+**Listed as an operator decision, not a defect.**
+
+### R18 — logs exclude private content
+
+`ConsoleLogger` emits one JSON line per call and drops anything below the configured
+level (`LOG_LEVEL`, `env.ts:414`; ranks debug 10 → error 40). Request correlation is
+`x-request-id` sliced to 128 chars or a fresh `randomUUID()`. The content route's
+unavailable branch is the case worth checking, because it is the one that has a
+document's storage facts in hand: it reports only the ingestion **state**, and its
+comment says so — *"only its state is reported — never a key, size or checksum."*
+Failure reasons are bounded and non-disclosing at the point they are stored
+(`DocumentIngestionService`), not filtered on the way out.
+
+### J3 — erasure and export: `LAUNCH DECISION REQUIRED`
+
+Not a defect; a capability the product does not have. No delete-account route, no
+export route, no admin route that removes a user — every `app/api/**/route.ts` was
+enumerated. And it is not a small feature: `model User` has **no relations at all**,
+while a user id appears in **23 columns across 22 models**, every one a plain
+`String` with no foreign key and therefore no cascade. Deleting a `users` row today
+succeeds and orphans all 23 references, because nothing exists to stop it.
+
+The consequence is jurisdictional, so the audit does not choose: for EU/UK data
+subjects Articles 15 and 17 make these obligations rather than features; for a closed
+or single-tenant launch a documented manual procedure is defensible. That procedure
+does not exist in writing today, and writing it is the smallest thing that closes the
+gap without new code. Full statement, including the 23-column list:
+`docs/evidence/final-prelaunch/erasure-export-j3.md`.
+
+**§13 verdict: R18 PASS · R19 PASS · R20 PASS · erasure/export `LAUNCH DECISION
+REQUIRED` · `audit_logs` retention `LAUNCH DECISION REQUIRED`.**
+
 ## §14 — Database and migrations
 
 `node scripts/migration-restore-drill.mjs` — **`PASS 16/16`**. Log:
@@ -278,6 +379,86 @@ rather than `cp`: copying a live SQLite file can capture a torn page.
 
 The recovery path is therefore: keep the `backup()` output, and restoring it is the
 whole procedure. No step of it was inferred.
+
+## §16 — Reliability and lifecycle
+
+Two endpoints, and they answer different questions. `GET /api/health` reports
+liveness — is this process alive — and returned **200 `{"ok":true,"status":"up"}`**.
+`GET /api/health/ready` reports readiness — should traffic come here — and returned
+**503**:
+
+```
+{"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,
+ "checks":[{"name":"database","healthy":true}]}
+```
+
+That 503 is the strongest available form of PASS for R23, not a failure: `soffice`
+is genuinely absent from this macOS host (the other six binaries in `binaryInfo` —
+`gs`, `qpdf`, `pdftoppm`, `pdfinfo`, `tesseract`, `ocrmypdf` — all resolve), so
+readiness is red on a host that really cannot run every tool while liveness stays
+green. Mutation O tried to make readiness green under exactly that condition and
+was caught. Full command log: `docs/evidence/final-prelaunch/readiness-r23.log`.
+
+Note the path. **`/api/ready` does not exist** — it 404s and serves the app shell,
+which is how a monitor pointed at the wrong path would report a healthy site
+forever. The path is `/api/health/ready`.
+
+Three lifecycle facts an operator needs, all measured rather than assumed:
+
+- The container `HEALTHCHECK` asks `/api/health`, which does not look at the
+  toolchain. A container with a missing binary is therefore *healthy and not
+  ready*. Deliberate — a restart does not install a binary — but it means the
+  deploy signal to watch is readiness, not container health state.
+- The dependency probe caches for **30 s** (`DEP_CACHE_MS`). A binary installed
+  seconds ago still reads `false` until that expires; a rollback verification that
+  does not wait it out will conclude the fix failed.
+- Recurring work is registered lazily. `ensureWorkerReady()` is called from the
+  tool, job and upload routes, so on a freshly booted process that has served no
+  job, the retention sweep is not yet scheduled. §13 records the runtime
+  observation that closes this: one real job at 22:36:55Z registered the handler,
+  and 900 s later the sweep fired unprompted and purged 325 rows.
+
+Restart safety and the crash path are covered where the evidence lives rather than
+restated here: the deploy/rollback rehearsal in §26 boots the artifact, rolls back
+to the previous one, runs a real job on each, and rolls forward; §14 covers
+migration behaviour on both a blank and a populated database.
+
+## §17 — Observability
+
+Every log line is one JSON object — `{level, msg, ts, ...fields}` — from a single
+`ConsoleLogger` adapter, debug/info to stdout and warn/error to stderr, so a
+shipper can ingest it without parsing prose. `child()` carries base fields down,
+and a `sanitize()` pass drops `undefined`, unwraps `Error` to `{name, message}`
+and drops functions. R18 (§13) is the privacy half of this: no document content,
+no filename bytes and no token material appears in what it writes.
+
+What exists, and what that means at launch:
+
+| Port | Adapter in production | Consequence |
+|---|---|---|
+| `ILogger` | `ConsoleLogger` (JSON to stdout/stderr) | usable; needs a shipper |
+| `IErrorReporter` | `ConsoleErrorReporter` → `logger.error("error.reported")` | **no error monitoring service**; an exception is a stdout line nobody is paged for |
+| `IMetrics` | `ConsoleMetrics` → `logger.debug(...)` | **silent in production** (below) |
+| `IAnalytics` | `ConsoleAnalytics` (first-party only) | no third-party analytics; §23 |
+| `ITracing` | `ConsoleTracing` | no distributed tracing backend |
+
+The metrics gap is worth stating precisely, because the instrumentation is real
+and the output is not. `ConsoleMetrics.increment/gauge/histogram` all emit at
+**debug** level (`src/infrastructure/observability/ConsoleMetrics.ts:12-24`), and
+`ConsoleLogger.emit` drops anything below the configured level
+(`RANK.debug = 10 < RANK.info = 20`). `LOG_LEVEL` defaults to **`info`**
+(`src/infrastructure/config/env.ts:98`). So a default production deployment emits
+**zero** metric points: every counter, gauge and histogram the application records
+is discarded at the logger boundary. Nothing is broken — the call sites are
+correct and a Prometheus/Datadog adapter would receive them — but "we have
+metrics" is not true of the shipped default, and `LOG_LEVEL=debug` is not a
+sensible way to obtain them (it also turns on every other debug line, including
+the retention sweep's).
+
+Classified **P2**, twice: no error-reporting backend, and metrics that exist but
+do not leave the process. Neither loses data, neither is a security matter, and
+both are one adapter each. They are launch-relevant because together they mean a
+production incident produces no alert and no time series — only stdout.
 
 ## §18 — Performance and load
 
@@ -558,6 +739,156 @@ four rows: 1 picker after Enter, 2 after Space (both keys bound), and `Merge PDF
 reachable at tab 16 all along. Fixed in the probe (`tabThrough(dropStop + 1)` plus
 an assertion naming which control the key reached), never in the product.
 Classified **PROBE DEFECT** — the third of four such harness bugs in this audit.
+
+## §21 — SEO and route truth
+
+Both crawler-facing surfaces are generated, and both were tested by calling them
+rather than by reading their source. That required fixing the reason nothing ever
+had: `lib/seo/adminRuntime.ts` opens with `import "server-only"`, a package the
+Next compiler supplies and npm does not, so under plain vitest every module
+reachable from it failed to load — which is why the previous harness read
+`app/sitemap.ts` and `app/robots.ts` as text. `test/stubs/server-only.ts` (empty,
+aliased in `vitest.config.ts`) makes them callable; a real client bundle still
+resolves the real package and still fails the build.
+
+**R24 — no private route is indexable. PASS, with a finding fixed.**
+`app/workspaces/[workspaceId]/page.tsx` — the file manager a signed-in user spends
+their time on — exported **no `metadata` at all**, while its three siblings each
+declared `robots: { index: false, follow: false }`. There is no
+`app/workspaces/layout.tsx` to supply one by inheritance, so it inherited the root
+layout's indexable defaults. Fixed in `450657d`.
+
+The test contains **no list of private routes**, deliberately: a hardcoded list
+would have stayed green through exactly this defect, because the page nobody
+remembered to add to the list is the page nobody remembered to noindex. The rule is
+derived from the product's own two surfaces — walk every `app/**/page.tsx`, call
+`sitemap()`, and require every route the sitemap does not advertise to declare or
+inherit noindex. One exemption, proved by invoking rather than by asserting:
+`app/signup/page.tsx` has no metadata because it never renders — it
+`permanentRedirect`s to `/register`, and the test accepts it only if the throw
+carries a `NEXT_REDIRECT` digest.
+
+`/workspaces` is deliberately **not** in `app/robots.ts`'s disallow list. A path
+blocked in robots.txt is never fetched, so its noindex is never read — blocking is
+how a URL gets indexed without its page ever being seen. noindex is the mechanism.
+
+**R25 — the sitemap is registry-derived. PASS.** `getToolsList()` returns **45**
+tools; **13** of them (`pdf-to-powerpoint`, `pdf-to-excel`, `pdf-forms`,
+`redact-pdf`, `compare-pdf` and the eight `coming-soon-ai` slugs) have capability
+rows whose `available` is false. The availability gate is load-bearing, not
+belt-and-braces: weakening it to an existence check submits all 13 thin placeholder
+stubs to crawlers.
+
+Three mutations, each applied singly and reverted through Git, gate green again at
+`450657d` (`app/seoIndexingTruth.test.ts`, 5 tests):
+
+| # | Mutation | Result |
+|---|---|---|
+| S1 | keep `metadata`, drop only its `robots` key on the Workspace page | **RED** 1/5 — a "has metadata" check would have stayed green |
+| S2 | `if (!capability)` instead of `if (!capability?.available)` in `app/sitemap.ts` | **RED** 2/5 |
+| S3 | add `/tools` to robots.txt's disallow list | **RED** 1/5 — names all 33 contradicted paths |
+
+S3 earns its place because the assertion passes on an empty result: `contradictions
+=== []` means both "coherent" and "the filter never ran". S3 proves it runs.
+
+## §22 — Pricing and commercial truth
+
+Three plans in `data/pricing.ts`: `free` (`available: true`), `pro`
+(`available: false`), `business` (`available: false`). **R26 PASS** — the property
+under test is that a plan which cannot be bought shows no price and no checkout,
+and it holds in both directions.
+
+Money can be taken **only** if a deployment sets all three of
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `STRIPE_PRICE_PRO`. Any other
+count leaves `billing.enabled = false`, `/api/billing/checkout` and the portal
+answer **503 `BILLING_NOT_CONFIGURED`**, and `configWarnings` says so at boot
+(`env.ts:161`, `buildBillingConfig`). With billing unconfigured, Pro reads
+"Not yet available" and its CTA points at contact — not at a disabled Subscribe
+button — resolved per request through `/api/billing/summary`.
+
+Business is non-purchasable **by domain law rather than by configuration**:
+`BillingPriceMap` has no `business` slot and there is deliberately no
+`STRIPE_PRICE_BUSINESS` variable, so no environment can turn it on by accident.
+
+Mutation `O2` covers the inverse claim (advertising a price the deployment cannot
+charge) and `O3` covers a capability record inventing a tool — 7 failed / 63
+passed. Both reverted through Git.
+
+Two items here are **`LAUNCH DECISION REQUIRED`**, not defects: whether the free
+tier stays free once paid plans exist, and whether the three Stripe variables are
+set at launch. The code fully supports either launch; the difference is three
+environment variables. What it refuses to do is show a price it cannot charge.
+
+## §23 — Analytics and cookies
+
+**No third-party analytics exists in this product.** `IAnalytics` resolves to
+`ConsoleAnalytics` (`container.ts:371`); usage lands in the application's own
+tables through `UsageRepository`. There is no Google Analytics or Tag Manager tag,
+no PostHog, Plausible, Segment or Hotjar snippet, and no Sentry browser SDK — a
+grep across `app`, `components`, `src` and `lib` returns nothing but unrelated
+substring matches (`segments` in route parameters).
+
+Cookies, observed against the running artifact rather than read from source:
+
+```
+$ curl -skD - https://172.20.10.2:3051/  →  (no Set-Cookie at all)
+$ POST /api/auth/signup → 201
+set-cookie: pdfdadi_session=<redacted>; Path=/;
+            Max-Age=2592000; Secure; HttpOnly; SameSite=lax
+```
+
+One cookie, and only after the user authenticates. `httpOnly` (script cannot read
+the token, so XSS cannot exfiltrate a session), `sameSite=lax` (withheld from
+cross-site POSTs — the CSRF half of §11 — while surviving a top-level navigation
+back into the app), `secure` in production, `path=/`, 30-day `maxAge` matching the
+session lifetime. `clearedSessionCookieOptions()` mirrors the set attributes
+exactly, which is what makes logout actually clear rather than orphan the cookie.
+
+That is a **strictly necessary** cookie by any reading, and it is the only one. So
+the product as built creates **no consent-banner obligation of its own** and none
+exists in the UI. Two things are worth naming so nobody rediscovers them later:
+
+- The browser also holds first-party client state that is not a cookie:
+  IndexedDB-backed editor persistence
+  (`src/infrastructure/persistence/browser/IndexedDbKeyValueStore.ts`), plus
+  `sessionStorage` for the tool→editor handoff (`lib/workflow/handoff.ts`) and the
+  save intent (`lib/workflow/saveIntent.ts`), and small `localStorage` UI
+  preferences (panel layout, recent colours). All of it is the user's own data on
+  the user's own machine, serving a function they asked for; none of it is
+  tracking, and none of it leaves the origin. Retention horizons for the parts that
+  matter (guest drafts 14 days, autosave drafts 30 days) are in §13.
+- If a third-party tag is ever added — including an error-monitoring browser SDK
+  (§17) — the consent question arrives with it. It does not exist today.
+
+**PASS.** Nothing about analytics or cookies is a launch blocker; the honest note
+is that "we have analytics" means first-party usage counters, not a funnel.
+
+## §24 — Email and support
+
+Support is **one channel**: a `mailto:hello@pdfdadi.com` link on `/contact`
+(`components/contact/ContactForm.tsx:50`). Recorded as P3 earlier in this audit and
+fixed in `f55ffca`, because the form previously accepted a message and discarded
+it — it now no longer claims to deliver anything it does not.
+
+There is **no transactional email at all**, and the two consequences are the ones
+§8 already names: no email verification (an account is usable the moment it is
+created; there is no `emailVerified` column, no token, no send) and **no password
+recovery** (no reset token, no forgot-password route, no page). A forgotten
+password today means a lost account, and the only recovery is an operator editing
+the database.
+
+Neither absence is a half-built feature — nothing incomplete is being shipped — so
+neither is a code defect. Both are scope, and they land on the single mailto:
+
+- **`LAUNCH DECISION REQUIRED`** — launch without password recovery and absorb the
+  support load in the shape it will actually arrive (locked-out users, mailed to a
+  human), or hold launch until recovery exists.
+- **`LAUNCH DECISION REQUIRED`** — whether `hello@pdfdadi.com` is monitored, and by
+  whom. Nothing in the repository says. It is the only channel, which makes that
+  answer the entire support plan.
+
+**PASS on truthfulness** — no surface promises an email the product cannot send —
+with the two decisions above recorded as decisions rather than as findings.
 
 ## §25 — Deployment artifact
 
