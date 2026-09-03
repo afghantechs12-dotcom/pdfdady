@@ -462,7 +462,25 @@ async function editorLoad(b, d, href) {
     tries: 300,
     every: 100,
   });
-  return painted === "painted" ? { ms: ms(t0) } : { refused: "no page was painted within 30s" };
+  if (painted === "painted") return { ms: ms(t0) };
+  /*
+   * A slow load and a REFUSED one look identical to a poll that gives up, and
+   * reporting "no page was painted within 30s" for a document the editor
+   * deliberately declines is the harness describing its own blind spot as a
+   * product property. The editor says why in its own error panel, so it is read:
+   * the two many-page fixtures are refused in about two seconds by
+   * MAX_OPEN_PAGES, not waited on for thirty.
+   */
+  const panel = await b.send("Runtime.evaluate", {
+    expression: `(() => {
+      const t = (document.body.innerText || "").replace(/\\s+/g, " ");
+      const m = t.match(/(This PDF has too many pages to edit|We couldn't open this PDF|Document not found|You don't have access|This document isn't ready|Your session has expired|Could not open this document)[^.]*\\.?/);
+      return m ? m[0].slice(0, 120) : null;
+    })()`,
+    returnByValue: true,
+  });
+  const said = panel.result?.result?.value ?? null;
+  return { refused: said ? `refused after ${ms(t0)}ms — "${said}"` : "no page was painted within 30s" };
 }
 
 /**

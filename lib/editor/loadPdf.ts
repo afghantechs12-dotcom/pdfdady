@@ -41,9 +41,21 @@ import { extractTextObjects } from "@/lib/editor/extractText";
  * fallback (white background / fewer extracted lines).
  */
 
-/** A user-facing Open-PDF error with an actionable message (e.g. too many pages). */
+/**
+ * A user-facing Open-PDF error with an actionable message (e.g. too many pages).
+ *
+ * `pageCap` carries the two NUMBERS behind a page-cap refusal rather than relying
+ * on the message string. The presentation layer authors every sentence a user
+ * reads and passes no text through (`documentLoadState.ts`), so a refusal that
+ * only exists as prose here cannot reach the Workspace panel — which is exactly
+ * how a 300-page document came to be described as possibly damaged. Numbers cross
+ * that boundary; text does not.
+ */
 export class PdfOpenError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly pageCap: { pages: number; max: number } | null = null,
+  ) {
     super(message);
     this.name = "PdfOpenError";
   }
@@ -125,6 +137,7 @@ export async function loadPdfIntoEditor(file: File, options: LoadPdfOptions = {}
   if (doc.numPages > MAX_OPEN_PAGES) {
     throw new PdfOpenError(
       `This PDF has ${doc.numPages} pages. The editor supports up to ${MAX_OPEN_PAGES} pages — please split the PDF first.`,
+      { pages: doc.numPages, max: MAX_OPEN_PAGES },
     );
   }
 

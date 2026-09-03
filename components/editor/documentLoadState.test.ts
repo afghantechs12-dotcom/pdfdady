@@ -455,6 +455,7 @@ describe("loadErrorFacts", () => {
       network: false,
       invalidPdf: false,
       timedOut: false,
+      pageCap: null,
     });
   });
 

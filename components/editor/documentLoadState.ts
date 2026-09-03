@@ -120,6 +120,16 @@ export interface LoadErrorFacts {
   invalidPdf: boolean;
   /** True when the bounded preparation-polling budget was exhausted. */
   timedOut: boolean;
+  /**
+   * The two numbers behind a page-cap refusal, when that is why PDF.js refused.
+   *
+   * Numbers rather than the sentence the editor already composed, deliberately:
+   * this module authors every string a user reads, so the only way a specific
+   * cause can be spoken about here is to arrive as data. Absent for every other
+   * invalid-PDF cause, which genuinely cannot be described more precisely than
+   * the generic copy does.
+   */
+  pageCap: { pages: number; max: number } | null;
 }
 
 /** Facts for a failure that reported nothing useful about itself. */
@@ -130,6 +140,7 @@ export const NO_ERROR_FACTS: LoadErrorFacts = {
   network: false,
   invalidPdf: false,
   timedOut: false,
+  pageCap: null,
 };
 
 /**
@@ -284,6 +295,26 @@ function contentUnavailableCopy(preparation: LoadErrorFacts["preparation"]): {
 }
 
 /**
+ * Copy for the one invalid-PDF cause that has a remedy.
+ *
+ * The generic invalid-PDF wording is right for damaged bytes and wrong for this:
+ * the file is intact, the product accepted it, its server tools process it, and
+ * the user's next move is a tool this product ships. Measured before this
+ * existed, a valid 300-page document in a Workspace was described as possibly
+ * damaged with no action offered, while the same bytes opened locally said
+ * exactly what was wrong — the two surfaces now read from this one string.
+ */
+function pageCapCopy(cap: { pages: number; max: number }): {
+  heading: string;
+  description: string;
+} {
+  return {
+    heading: "This PDF has too many pages to edit",
+    description: `It has ${cap.pages} pages, and the Editor supports up to ${cap.max}. Split it into smaller files first — the Split PDF tool does this.`,
+  };
+}
+
+/**
  * The full user-facing consequence of a failure.
  *
  * Every string returned here is authored in this module. Server-provided text is
@@ -298,7 +329,11 @@ export function presentLoadError(
 ): LoadErrorPresentation {
   const kind = classifyLoadError(facts);
   const copy =
-    kind === "content-unavailable" ? contentUnavailableCopy(facts.preparation) : ERROR_COPY[kind];
+    kind === "content-unavailable"
+      ? contentUnavailableCopy(facts.preparation)
+      : kind === "invalid-pdf" && facts.pageCap
+        ? pageCapCopy(facts.pageCap)
+        : ERROR_COPY[kind];
 
   const actions: LoadErrorAction[] = [];
   if (kind === "auth") {
@@ -326,6 +361,21 @@ export function presentLoadError(
  *
  * Anything unrecognised becomes `unknown` rather than being guessed at.
  */
+/**
+ * A `{ pages, max }` pair off an unknown thrown value, or null.
+ *
+ * Both must be finite positive numbers: a partial pair would compose a sentence
+ * with `undefined` in it, which is worse than the generic copy it replaced.
+ */
+function readPageCap(value: unknown): { pages: number; max: number } | null {
+  const cap = (value ?? {}) as Record<string, unknown>;
+  const pages = cap.pages;
+  const max = cap.max;
+  if (typeof pages !== "number" || typeof max !== "number") return null;
+  if (!Number.isFinite(pages) || !Number.isFinite(max) || pages <= 0 || max <= 0) return null;
+  return { pages, max };
+}
+
 export function loadErrorFacts(
   error: unknown,
   options: { timedOut?: boolean } = {},
@@ -340,6 +390,7 @@ export function loadErrorFacts(
     network: source.network === true,
     invalidPdf: source.invalidPdf === true,
     timedOut: options.timedOut === true,
+    pageCap: readPageCap(source.pageCap),
   };
 }
 

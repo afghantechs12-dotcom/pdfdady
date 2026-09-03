@@ -200,7 +200,14 @@ describe("network vs abort", () => {
     expect(`${shown.heading} ${shown.description}`).not.toContain("Failed to fetch");
   });
 
-  it("classifies a refused PDF as invalid-pdf, keeping its actionable guidance available", () => {
+  it("classifies a refused PDF as invalid-pdf and tells a page-capped user what to do", () => {
+    /*
+     * This test used to assert the opposite, and the product behaved that way: a
+     * 300-page Workspace document was refused with "the file may be damaged"
+     * (measured, docs/evidence/final-prelaunch/editor-page-cap.log) while the
+     * SAME bytes opened locally named the limit and the remedy. The guidance was
+     * on the error the whole time, in `detail`, which the panel does not read.
+     */
     const guidance =
       "This PDF has 500 pages. The editor supports up to 200 pages — please split the PDF first.";
     const invalid = new WorkspaceDocumentLoadError(
@@ -212,14 +219,37 @@ describe("network vs abort", () => {
       null,
       false,
       true,
+      { pages: 500, max: 200 },
     );
     expect(invalid.invalidPdf).toBe(true);
     expect(classifyLoadError(loadErrorFacts(invalid))).toBe("invalid-pdf");
-    // The PdfOpenError text is retained on the error for logging/inspection...
+    // The thrown text is still retained for logging/inspection...
     expect(invalid.detail).toBe(guidance);
-    // ...while the panel shows the bounded authored copy.
-    const shown = presentLoadError(loadErrorFacts(invalid), { context: "standalone" });
-    expect(shown.description).toMatch(/damaged|unsupported|limits/i);
+    // ...and both surfaces now read the same authored sentence, which names the
+    // two numbers and the tool that fixes it rather than blaming the file.
+    for (const context of ["standalone", "workspace"] as const) {
+      const shown = presentLoadError(loadErrorFacts(invalid), { context });
+      expect(shown.description, context).toContain("500");
+      expect(shown.description, context).toContain("200");
+      expect(shown.description, context).toMatch(/split/i);
+      expect(`${shown.heading} ${shown.description}`, context).not.toMatch(/damaged/i);
+    }
+    // An invalid PDF with no cap evidence keeps the generic copy: nothing more
+    // specific is known about it, and inventing a remedy would be worse.
+    const damaged = new WorkspaceDocumentLoadError(
+      "bad bytes",
+      false,
+      "none",
+      null,
+      null,
+      null,
+      false,
+      true,
+    );
+    expect(loadErrorFacts(damaged).pageCap).toBeNull();
+    expect(
+      presentLoadError(loadErrorFacts(damaged), { context: "workspace" }).description,
+    ).toMatch(/damaged|unsupported|limits/i);
   });
 
   it("does not flag an HTTP failure as a network failure", () => {

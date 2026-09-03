@@ -1,0 +1,110 @@
+EDITOR PAGE CAP — the same valid document, the two surfaces that open it
+========================================================================
+
+Why this log exists. §18's perf probe reported `editor_load = n/a — no page was
+painted within 30s` for exactly two of its six fixture shapes. The probe cannot
+say whether that is a slow load or a refusal, because it stops asking at 30s.
+Both shapes turned out to be the many-page ones, and neither is slow.
+
+  fixture                    bytes       pages   perf row
+  manypage-fixture.pdf       106,551     300     many-page (104 KB)
+  large-fixture.pdf          23,325,047  340     large (22778 KB)
+  (the shapes that DID paint: tiny 2 KB and ordinary 5 KB, at 239 ms / 358 ms)
+
+Both are valid: `pdfinfo` reads them, the upload route accepted them, and §6's
+runtime matrix compressed the 340-page one with ghostscript. The editor's
+MAX_OPEN_PAGES is 200 (lib/editor/loadPdf.ts), so refusing them is BY DESIGN —
+the editor rasterises every page up front and will not silently drop pages,
+because export draws onto copies of the original.
+
+---- BEFORE THE FIX (HEAD 79e292e) ----
+
+WORKSPACE editor, /workspaces/:id/documents/:id, the 300-page document, polled
+every 2s for 240s (node /tmp/manypage-editor.mjs, 120 samples, all identical):
+
+  14s  painted=0 imgs=0 canvases=0
+       status=["", "We couldn't open this PDFThe file may be damaged,
+       unsupported, or outside the Editor's supported limits", "",
+       "No selection", "Select tool active",
+       "Could not open document. We couldn't open this PDF."]
+  ...
+  236s painted=0   (unchanged)
+  NEVER PAINTED within 240s
+
+STANDALONE editor, /editor, the SAME file through the real file input
+(node /tmp/standalone-cap.mjs):
+
+  attach: true
+  2s  → "This PDF has 300 pages. The editor supports up to 200 pages —
+        please split the PDF first.Dismiss"
+
+So one surface named the limit and the remedy in 2s; the other called an intact
+file possibly damaged, named no number, and — `canRetryKind("invalid-pdf")`
+being false and "Open another PDF" being standalone-only — offered the Workspace
+user no action at all. The guidance was on the error object the whole time, in
+`detail`, which the panel deliberately does not read: `documentLoadState.ts`
+authors every string a user sees and passes no text through.
+
+Classification: PRODUCT FAILURE, P2. The refusal is correct; what the user is
+told about it is not, on the surface where their documents actually live.
+
+---- THE FIX ----
+
+`PdfOpenError` now carries `{ pages, max }` as NUMBERS beside its message,
+`WorkspaceDocumentLoadError` propagates them, `LoadErrorFacts.pageCap` reads
+them structurally, and `presentLoadError` composes one authored sentence from
+them. Numbers cross the no-pass-through boundary that text could not. Both
+surfaces now read that one sentence — the standalone path no longer shows
+`err.message`, so the two cannot drift apart again.
+
+An invalid PDF with no cap evidence keeps the generic copy: nothing more
+specific is known about it, and inventing a remedy would be worse.
+
+Pinned by lib/editor/loadWorkspaceDocument.test.ts — the test that used to
+assert the OLD behaviour (`expect(shown.description).toMatch(/damaged|…/)`),
+rewritten to assert both contexts name both numbers, say "split", and never say
+"damaged", plus the no-evidence case that must still say it.
+
+---- AFTER THE FIX ----
+(filled in below from the rebuilt artifact)
+
+Rebuilt (`npm run build`, `.next` moved aside first so the artifact is clean) and
+re-measured against the standalone server, same two probes, same fixture:
+
+  STANDALONE  /editor, attach, 2s:
+    "It has 300 pages, and the Editor supports up to 200. Split it into smaller
+     files first — the Split PDF tool does this."
+
+  WORKSPACE   /workspaces/:id/documents/:id, first sample at 2s and every sample
+              after it:
+    heading      "This PDF has too many pages to edit"
+    description  "It has 300 pages, and the Editor supports up to 200. Sp…"
+    live region  "Could not open document. This PDF has too many pages to edit."
+
+The document still does not open, which is correct: MAX_OPEN_PAGES is a real
+resource bound and rasterising 300 pages up front is what it exists to prevent.
+What changed is that the user is now told the truth about why, on both surfaces,
+in one sentence authored in one place.
+
+---- A NOTE ON THE PROBE THAT FOUND THIS ----
+
+`editorLoad` in scripts/perf-load-probe.mjs reported this as
+`n/a — no page was painted within 30s`. That is the harness stating its own blind
+spot as a property of the product: the refusal arrives in about two seconds, and
+nothing was waiting for thirty. It now reads the editor's own error panel when
+the paint never comes, so the §18 table distinguishes "slow" from "declined".
+
+---- A PROCESS NOTE, because it cost a diagnosis ----
+
+Between the two measurements the first rebuild appeared to break the editor
+entirely: `/editor` answered 200 but `/_next/static/chunks/3kesmnhug2u93.js`
+answered 500, and the editor's error boundary replaced the canvas. It was not a
+product defect and not the build. `scripts/restart-origin.sh` uses
+`exec node server.js` from inside `.next/standalone`, so the process is named
+`next-server` and `pkill -f ".next/standalone/server.js"` matches nothing — the
+PREVIOUS origin was still holding 127.0.0.1:3002, serving HTML from a build whose
+static directory had just been moved out from under it, while the new server died
+with EADDRINUSE in a log nobody was reading. Found with
+`lsof -nP -iTCP:3002 -sTCP:LISTEN` plus the process's own cwd, stopped by pid,
+restarted. The §25 lesson generalises: verify WHICH server answered before
+believing what it said.

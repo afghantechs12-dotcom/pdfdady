@@ -939,16 +939,22 @@ function EditorWorkspaceInner({
        * changed nothing. The banner reports the failure and leaves the document
        * alone.
        *
-       * A PdfOpenError's message is deliberately user-facing and actionable
-       * ("...supports up to 200 pages — please split the PDF first"), so it is
-       * preserved; anything else takes the presentation layer's invalid-PDF copy
-       * so the wording matches what the Workspace path shows for the same fault.
+       * Both causes go through the presentation layer, which is where every
+       * string a user reads is authored. A page-cap refusal used to bypass it and
+       * show `err.message` — actionable here, but the Workspace panel could not
+       * read that text and fell back to "the file may be damaged" for the same
+       * intact file. Passing the cap NUMBERS instead gives both surfaces the one
+       * authored sentence.
        */
       setNotice(
-        err instanceof PdfOpenError
-          ? err.message
-          : presentLoadError({ ...loadErrorFacts(null), invalidPdf: true }, { context: "standalone" })
-              .description,
+        presentLoadError(
+          {
+            ...loadErrorFacts(null),
+            invalidPdf: true,
+            pageCap: err instanceof PdfOpenError ? err.pageCap : null,
+          },
+          { context: "standalone" },
+        ).description,
       );
     } finally {
       setLoading(false);

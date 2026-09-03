@@ -97,6 +97,13 @@ export class WorkspaceDocumentLoadError extends Error {
     readonly network: boolean = false,
     /** True when bytes arrived but PDF.js could not open them. */
     readonly invalidPdf: boolean = false,
+    /**
+     * The two numbers behind a page-cap refusal, when that is why the open
+     * failed. `detail` already carried the sentence, but the panel authors its
+     * own copy and reads no text off this error, so the sentence never reached
+     * the user; these numbers do.
+     */
+    readonly pageCap: { pages: number; max: number } | null = null,
   ) {
     super(message);
     this.name = "WorkspaceDocumentLoadError";
@@ -464,6 +471,7 @@ export async function loadWorkspaceDocument(
         null,
         false,
         true,
+        error.pageCap,
       );
     }
     throw new WorkspaceDocumentLoadError(
