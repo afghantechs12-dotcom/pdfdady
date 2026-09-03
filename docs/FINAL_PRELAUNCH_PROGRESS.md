@@ -74,9 +74,9 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
 | M Reliability | harness group L/M; `readyRoute.test.ts` (7) | PARTIAL | yes | run harness; readiness toolchain gate now asserted (Q1/Q2) |
 | N Performance | `perf-load-wf.json` (full), `perf-load.log` (truncated earlier run) | PARTIAL | no | document; log lags the JSON |
-| O Browser + a11y | none beyond Phase 6 | NOT STARTED | — | Firefox/WebKit availability, keyboard pass |
+| O Browser + a11y | `keyboard-r28.log` (13 gates signed out + 13 signed in), `cross-browser.log` | COMPLETE — FINAL EVIDENCE VALID | no | R28 PASS with M5b NOT EXERCISED (OS file dialog); R29 Chromium exercised, Firefox ENVIRONMENTAL, WebKit + screen reader NOT EXERCISED |
 | P SEO/pricing | harness groups O,P,Q; `seoIndexingTruth.test.ts` (5) | PARTIAL | yes | run harness; noindex + sitemap truth now asserted (S1–S3) |
-| Q Deployment/rollback | `deploymentArtifact.test.ts`; mutation C | PARTIAL | yes | rollback rehearsal |
+| Q Deployment/rollback | `deploymentArtifact.test.ts`; mutation C; `rollback-runbook.md` (`d6dbf79`) | PARTIAL | yes | runbook written from the shipped entrypoint; R30 smoke still owed — container path ENVIRONMENTAL, so the standalone/DB-restore equivalent is what can run |
 | R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` (own R1..R30) + `seoIndexingTruth.test.ts` (R24/R25), `tempFileLifecycle.test.ts` (R17) | PARTIAL | — | map brief topics → tests for §28 |
 | Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) + N (visual) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | none owed |
 | Final verification | none at final HEAD | NOT STARTED | — | suite, tsc, eslint, prisma, 6 probes, fidelity |
