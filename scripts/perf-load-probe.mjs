@@ -25,6 +25,7 @@
  * in-process and single-instance.
  */
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { openBrowser, sleep } from "./lib/probe-browser.mjs";
 import {
@@ -339,6 +340,17 @@ const filePart = (buf, name) => {
   fd.set("file", new Blob([buf], { type: "application/pdf" }), name);
   return fd;
 };
+
+/**
+ * The same PDF, with distinct bytes.
+ *
+ * `uploadToWorkspace` deduplicates on `(workspaceId, sha256)` and returns the
+ * EXISTING document for identical bytes, so a fan-out that posts one buffer N
+ * times creates one document and measures the dedupe hit path. A trailing `%`
+ * comment changes the checksum without touching the structure a reader parses —
+ * `%PDF-` is still the signature and the xref still resolves.
+ */
+const uniqueBytes = (buf) => Buffer.concat([buf, Buffer.from(`\n% pdfdadi-load ${randomUUID()}\n`)]);
 
 /** The refusal a route gave, without quoting a whole error page into the report. */
 const why = (res) => {
@@ -681,7 +693,7 @@ async function partLoad(b, d, ctx, shapes) {
   const created = [];
   for (const n of [2, 4, 8]) {
     const got = await fanOut(n, (i) => {
-      const fd = filePart(buf, `load-${n}-${i}-${Date.now()}.pdf`);
+      const fd = filePart(uniqueBytes(buf), `load-${n}-${i}-${Date.now()}.pdf`);
       fd.set("name", `load ${n}/${i}`);
       fd.set("organizationId", ctx.organizationId ?? "");
       return api(ctx, `/api/workspaces/${ctx.workspaceId}/documents/upload`, { method: "POST", body: fd });
@@ -704,8 +716,12 @@ async function partLoad(b, d, ctx, shapes) {
     }
   }
 
-  /* 5. Concurrent publishes to DISTINCT documents — independent writes. */
-  const distinct = created.slice(0, 4);
+  /* 5. Concurrent publishes to DISTINCT documents — independent writes.
+   *    `created` is de-duplicated first: identical upload bytes used to collapse
+   *    into ONE document, and this row then re-ran the same-document CAS race
+   *    under a label claiming otherwise. The count is recorded so a shed here
+   *    cannot be read as a capacity ceiling when it is really a conflict. */
+  const distinct = [...new Set(created)].slice(0, 4);
   if (distinct.length) {
     const revs = await Promise.all(
       distinct.map(async (id) => ({
@@ -721,7 +737,12 @@ async function partLoad(b, d, ctx, shapes) {
         body: fd,
       });
     });
-    record("load", `publishes ×${revs.length} (distinct documents)`, tally(got), "each its own revision");
+    record(
+      "load",
+      `publishes ×${revs.length} (distinct documents)`,
+      { ...tally(got), documents: `${distinct.length} distinct of ${created.length} uploaded` },
+      "each its own document and its own revision",
+    );
   }
 
   /* 6. Concurrent publishes to the SAME document, same expected revision.

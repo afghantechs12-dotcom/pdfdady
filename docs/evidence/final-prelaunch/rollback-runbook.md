@@ -81,7 +81,7 @@ data-loss window.
 
 ## What was and was not exercised on the audit host
 
-- `deploymentArtifact.test.ts` asserts the standalone output carries the migration
+- [deploymentArtifact.test.ts](deploymentArtifact.test.ts) asserts the standalone output carries the migration
   toolchain the entrypoint needs, so `migrate deploy` cannot be missing from the
   image (this is what mutation `mutation-C-deployment.md` breaks).
 - The migrate-and-restore drill ran for real: `migration-restore-drill.log`.
