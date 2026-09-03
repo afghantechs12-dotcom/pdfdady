@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   checks: [] as Array<{ name: string; healthy: boolean; detail?: string }>,
   /** Set to throw from resolve() to simulate a container/wiring failure. */
   containerThrows: false,
+  /** What `which` finds. A false entry is a binary this host does not have. */
+  deps: {} as Record<string, boolean>,
 }));
 
 vi.mock("@/src/application/di/container", () => ({
@@ -27,12 +29,27 @@ vi.mock("@/src/application/di/container", () => ({
 }));
 
 vi.mock("@/lib/server/dependencyCheck", () => ({
-  checkAllDependencies: async () => ({ qpdf: true, ghostscript: true }),
+  checkAllDependencies: async () => state.deps,
 }));
 
 vi.mock("@/data/admin", () => ({ STORE_PATH: process.cwd() + "/package.json" }));
 
 import { GET } from "@/app/api/health/ready/route";
+
+/**
+ * A fresh copy of the route, so its dependency cache is empty.
+ *
+ * `DEP_CACHE_MS` is module state: the route forks `which` once and reuses the
+ * answer for 30 seconds, because a load balancer polls this endpoint every few
+ * seconds and six forks per poll is not free. A test that changes what `which`
+ * finds therefore has to be a new module, not a new call — and the cache's own
+ * consequence is asserted separately below.
+ */
+async function freshGET(): Promise<() => Promise<Response>> {
+  vi.resetModules();
+  const mod = await import("@/app/api/health/ready/route");
+  return mod.GET as () => Promise<Response>;
+}
 
 const LEAKY_DETAIL =
   'Can\'t reach database server at `db.internal:5432` (user=pdfdadi_app password=s3cr3t)';
@@ -40,6 +57,7 @@ const LEAKY_DETAIL =
 beforeEach(() => {
   state.checks = [];
   state.containerThrows = false;
+  state.deps = { qpdf: true, ghostscript: true, libreoffice: true };
 });
 
 describe("GET /api/health/ready", () => {
@@ -81,6 +99,54 @@ describe("GET /api/health/ready", () => {
     expect(JSON.parse(raw).checks).toEqual([{ name: "container", healthy: false }]);
     expect(raw).not.toContain("postgres://");
     expect(raw).not.toContain("wiring exploded");
+  });
+
+  /**
+   * The readiness half of "no false green".
+   *
+   * Every other test in this file kept the toolchain healthy, so nothing asserted
+   * that a missing binary is even consulted — and a probe that reports ready on a
+   * host with no `soffice` is worse than no probe: the load balancer sends traffic
+   * to a container where every conversion answers "temporarily unavailable". The
+   * audit host IS that host, which is what makes this the live case rather than a
+   * hypothetical.
+   */
+  it("refuses to report ready when one toolchain binary is missing", async () => {
+    state.checks = [{ name: "database", healthy: true }];
+    state.deps = { qpdf: true, ghostscript: true, libreoffice: false };
+    const res = await (await freshGET())();
+
+    expect(res.status).toBe(503);
+    const raw = await res.text();
+    expect(JSON.parse(raw)).toMatchObject({ ok: false, status: "degraded", toolchain: false });
+    // The database is still healthy, so this is the toolchain gating readiness and
+    // not some other subsystem answering for it.
+    expect(JSON.parse(raw).database).toBe(true);
+    // And an unauthenticated caller does not learn WHICH binary is absent: that is
+    // an inventory of what this server can be attacked for not having.
+    expect(raw).not.toContain("libreoffice");
+  });
+
+  it("reports ready only when EVERY binary resolves", async () => {
+    // Anti-vacuity for the row above: with the same shape and all-true deps the
+    // response is 200, so it is the false entry doing the work.
+    state.checks = [{ name: "database", healthy: true }];
+    const res = await (await freshGET())();
+    expect(res.status).toBe(200);
+    expect((await res.json()).toolchain).toBe(true);
+  });
+
+  it("answers from the dependency cache, so readiness can lag a toolchain that just broke", async () => {
+    // Not a defect — it is the reason the cache exists — but it is a property an
+    // operator has to know: after a binary disappears, this endpoint keeps saying
+    // ready for up to DEP_CACHE_MS. Asserted rather than described, so nobody
+    // reads the 30s window as "immediately".
+    state.checks = [{ name: "database", healthy: true }];
+    const get = await freshGET();
+    expect((await get()).status).toBe(200);
+
+    state.deps = { qpdf: true, ghostscript: true, libreoffice: false };
+    expect((await get()).status).toBe(200);
   });
 
   it("is never cached", async () => {

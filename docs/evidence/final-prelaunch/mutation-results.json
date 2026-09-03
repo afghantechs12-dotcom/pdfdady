@@ -438,5 +438,35 @@
       "ensureWorkerReady wires the recurring retention sweep > schedules the first sweep, in the future rather than immediately"
     ],
     "exit": 1
+  },
+  {
+    "id": "Q1",
+    "title": "The toolchain stops gating readiness",
+    "file": "app/api/health/ready/route.ts",
+    "gate": [
+      "app/api/health/readyRoute.test.ts"
+    ],
+    "failed": 1,
+    "passed": 6,
+    "red": true,
+    "failing": [
+      "GET /api/health/ready > refuses to report ready when one toolchain binary is missing"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "Q2",
+    "title": "Readiness names which binary is absent",
+    "file": "app/api/health/ready/route.ts",
+    "gate": [
+      "app/api/health/readyRoute.test.ts"
+    ],
+    "failed": 1,
+    "passed": 6,
+    "red": true,
+    "failing": [
+      "GET /api/health/ready > refuses to report ready when one toolchain binary is missing"
+    ],
+    "exit": 1
   }
 ]

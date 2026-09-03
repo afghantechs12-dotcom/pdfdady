@@ -45,3 +45,27 @@ liveness check, so the traffic flows either way. Both suites asserted the false 
 The engine question itself — SQLite vs PostgreSQL for launch — is **LAUNCH
 DECISION REQUIRED**, not something this commit decides. The fix makes the gate
 agree with the schema the build actually ships; it does not choose the schema.
+
+## Q1/Q2 — the readiness probe, whose toolchain gate nothing had asserted
+
+Added after the rows above, for the same reason they exist: D's finding was a
+container reporting healthy while the database was unreachable, and the sibling
+question is whether the probe that *does* look deeper tells the truth.
+
+Gate: `npx vitest run app/api/health/readyRoute.test.ts` (7 tests).
+Its four original tests mocked `checkAllDependencies` to a hard-coded all-true
+object, so **no test made a missing binary do anything** — the audit host, which
+has no `soffice`, is exactly the case that was unasserted.
+
+| # | Mutation | Applied to | Observed |
+|---|---|---|---|
+| Q1 | `const ready = dataDirOk && dbOk` — the toolchain stops gating readiness | `app/api/health/ready/route.ts` | **RED** — 1 failed / 6 passed. *refuses to report ready when one toolchain binary is missing* |
+| Q2 | Append the absent binaries to `checks`, naming them | `app/api/health/ready/route.ts` | **RED** — 1 failed / 6 passed. *same row — it asserts 503 AND that the response never names the binary* |
+
+Both reverted with `git checkout --`.
+
+One property the new tests state rather than describe: readiness answers from a
+30-second dependency cache (`DEP_CACHE_MS`), so after a binary disappears the
+endpoint keeps saying ready for up to that long. That is the cache doing its job —
+six `which` forks per load-balancer poll is not free — but "ready" here means
+"ready as of ≤30s ago", and the test says so.
