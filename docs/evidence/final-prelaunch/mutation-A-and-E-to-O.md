@@ -76,3 +76,34 @@ already honest, and the 24th found one that was not.
 - **The visual layer.** Spacing, colour and hierarchy regressions belong to Entry
   Gate B's mutation, which is measured against screenshots rather than a gate
   exit code.
+
+## The brief's own letters A–O — a second, non-corresponding scheme
+
+The rows above use this file's lettering, which grew with the audit and does not
+line up with the launch brief's mutation list. Mapping by *behaviour* instead of
+by letter, the brief's fourteen items resolve like this: C, J, L, M and N already
+had red-and-reverted evidence (brief M is row `O2` here, brief L is in
+`mutation-C-deployment.md`), brief H's filename half is row `H1` here, and the
+remaining ten were executed below. Same protocol: applied singly to the named
+file, gate run, reverted with `git checkout -- <file>`, tree confirmed clean, and
+`--reporter=verbose` kept so the row can name the assertion that went red rather
+than only a count. Run at HEAD `b05108a`.
+
+| Brief | Mutation | Applied to | Gate | Observed |
+|---|---|---|---|---|
+| A | Reintroduce the flag that shipped for a phase — `--psm` instead of `--tesseract-pagesegmode`, i.e. a product failure that answers "may be damaged" in every environment | `lib/server/toolProcessing.ts` | `toolProcessing.test.ts` | **RED** — 2 failed / 10 passed. *passes the page-segmentation mode under the name ocrmypdf accepts*; *names only flags ocrmypdf recognises*. The classification half is data-derived: `tool-runtime-matrix-probe.mjs` calls a failure ENVIRONMENTAL only when a live `which` says the binary is absent, so with every dependency resolved this same break is reported as PRODUCT FAILURE with the resolved paths quoted. |
+| B | A missing binary is categorised as an ordinary processing failure, so an unavailable tool reads as "your file may be damaged" | `src/infrastructure/jobs/PdfToolWorkerHandler.ts` | `PdfToolWorkerHandler.test.ts` | **RED** — 1 failed / 12 passed. *categorizes a MissingDependencyError as missing-dependency* |
+| D | `safeRedirectPath` hands back absolute and scheme-relative candidates | `src/application/services/authValidation.ts` | `returnTo.test.ts authValidation.test.ts` | **RED** — 5 failed / 39 passed. *neutralises a hostile returnTo (https://evil.test — absolute URL)*; *(//evil.test — scheme-relative URL)*; *rejects absolute URLs* |
+| E | `requireSameOrigin` returns "no objection" for every request | `src/application/services/workspaceCsrf.ts` | `workspaceHttp.test.ts` | **RED** — 9 failed / 4 passed. *rejects foreign origin*; *rejects cross-origin subdomain*; *rejects foreign referer*; *rejects malformed referer* |
+| F | `WorkspaceService.get` ignores the access resolver's verdict and grants `editor` to anyone who names an existing Workspace | `src/application/services/WorkspaceService.ts` | `workspaceAuthorization.test.ts workspaceLifecycleReliability.test.ts` | **RED** — 8 failed / 35 passed. *7: a same-organization non-member is refused as ACCESS_DENIED*; *a refusal that is not about lifecycle stays the uniform not-found*; *6+E: the picker does not advertise a Workspace the actor cannot open* |
+| G | A job that exists but belongs to someone else answers 403 "Not your job." instead of 404 | `lib/server/processingJobApi.ts` | `jobErrorDisclosure.test.ts legacyJobOwnershipWiring.test.ts` | **RED** — 4 failed / 24 passed. *answers 404 for a job the caller does not own*; *is byte-identical to the answer for a job that does not exist*; *never distinguishes the two with a status code*; and the older source scan *answers 404, never 403* |
+| H | The `<` escape is dropped from the product's only `dangerouslySetInnerHTML` | `components/seo/JsonLd.tsx` | `jsonLdEscape.test.ts` | **RED** — 2 failed / 1 passed. *escapes < so a value cannot close the script tag*; *escapes every item when several schemas are rendered*. The filename half of brief H is row `H1` above. |
+| I | `runCommand` runs through a shell (`shell: true`), so an argument becomes command line | `lib/server/runCommand.ts` | `runCommandInjection.test.ts` | **RED** — 3 failed / 0 passed, all three. Not only a failed assertion: the mutated run **created** `/tmp/pdfdadi-should-not-exist` (1230 bytes of `$HOME` expansion and `id` output), which is the redirection in a test argument actually executing. |
+| K | Retention asks only whether this Workspace still names the key, dropping the StoredFile question | `src/application/services/VersionService.ts` | `VersionService.test.ts` | **RED** — 1 failed / 61 passed. *keeps bytes a stored-file row outside this Workspace still points at* |
+| O | Readiness aggregates the toolchain with `some` instead of `every` | `app/api/health/ready/route.ts` | `readyRoute.test.ts` | **RED** — 1 failed / 6 passed. *refuses to report ready when one toolchain binary is missing*. Live confirmation of the unmutated behaviour on this host, where `soffice` is absent: `/api/health/ready` → `HTTP 503 {"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true}`. |
+
+Three of these ten had no behavioural gate before this session and would have
+stayed green under mutation — the argv seam (`I`), the raw-HTML sink (`H`) and the
+404-not-403 rule (`G`, which had only a source scan). Their tests were written
+first, run green, and committed (`2940696`, `b05108a`) before the mutation was
+applied, so the red above is a real gate and not a test written to fit a failure.
