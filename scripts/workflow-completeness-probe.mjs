@@ -2052,9 +2052,29 @@ async function main() {
     if (/Your file is ready|can't be processed|didn't work|expired|Cancelled/i.test(retypedText)) break;
   }
   const rewrites = await evaluate(`window.__probeRewrites || 0`);
+  /*
+   * Did the interception actually land? Everything below asserts an ABSENCE on a
+   * result the hook was supposed to retype, so on a page it did not retype those
+   * absences are not the product's answer to a non-PDF output — they are three
+   * assertions about a state that never existed.
+   *
+   * It does not land in the default configuration, and that is this probe's own
+   * limitation rather than a defect: the hook patches `window.fetch` for
+   * `/api/jobs/:id`, which only the PIPELINE reader calls
+   * (`hooks/useProcessingJob.ts:129`). With `PROCESSING_PIPELINE` unset — the
+   * shipped default — a server tool runs through `ServerToolRunner`, whose
+   * terminal event arrives over `EventSource("/api/jobs/:id/progress")`
+   * (`ServerToolRunner.tsx:249`) and whose MIME is read from that frame, which no
+   * fetch hook can see. So the rows below carry the PROBE class in that case: the
+   * behaviour they guard is proven by this same journey with the pipeline on, and
+   * mislabelling it PRODUCT here would put two failures that do not exist into the
+   * launch gate.
+   */
+  const retyped = typeof rewrites === "number" && rewrites > 0;
+  const unsupportedKind = retyped ? "PRODUCT" : "PROBE";
   check(
     "I': the completed job really did arrive reporting a non-PDF output",
-    typeof rewrites === "number" && rewrites > 0 && /Your file is ready/i.test(retypedText),
+    retyped && /Your file is ready/i.test(retypedText),
     `rewrites=${rewrites} panel=${retypedText.slice(0, 160).replace(/\n/g, " | ")}`,
     // A miss here is this probe's interception failing, or the job failing — not the
     // product refusing something. It must not be reported as a product defect.
@@ -2082,6 +2102,7 @@ async function main() {
     "I': `Open in Editor` is offered NOWHERE on the page",
     !unsupportedLabels.some((l) => /Open in Editor/i.test(l)),
     unsupportedLabels.join(" / ").slice(0, 260),
+    unsupportedKind,
   );
   /*
    * And Save to Workspace follows the INDEPENDENT Workspace rule for this output,
@@ -2098,6 +2119,7 @@ async function main() {
     `selects=${unsupported?.selects} chooseCopy=${unsupported?.chooseCopy} labels=${unsupportedLabels
       .join(" / ")
       .slice(0, 200)}`,
+    unsupportedKind,
   );
   const handoffAfter = await handoffKeys();
   check(
