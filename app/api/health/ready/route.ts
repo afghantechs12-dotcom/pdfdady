@@ -10,9 +10,9 @@ import type { IHealthCheck, HealthResult } from "@/src/application/ports/HealthC
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// `checkAllDependencies` shells out to `which`/`where` for 6 binaries. A load
-// balancer may hit readiness every few seconds, so cache the result briefly
-// to avoid forking that many processes per probe.
+// `checkAllDependencies` shells out to `which`/`where` for every binary in
+// `binaryInfo` (7 today). A load balancer may hit readiness every few seconds,
+// so cache the result briefly to avoid forking that many processes per probe.
 const DEP_CACHE_MS = 30_000;
 let depCache: { at: number; value: Record<string, boolean> } | null = null;
 

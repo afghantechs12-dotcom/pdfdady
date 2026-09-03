@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { binaryInfo } from "@/lib/server/dependencyCheck";
 
 /**
  * R3 — the containerized deployment path, checked against the repository it
@@ -130,6 +131,25 @@ describe("R3 — the container image can be built and can serve", () => {
     expect(cmd).toContain("migrate deploy");
     expect(cmd).toContain("exec node server.js");
     expect(cmd.indexOf("migrate deploy")).toBeLessThan(cmd.indexOf("exec node server.js"));
+  });
+
+  it("installs a package for every binary readiness requires", () => {
+    /*
+     * `checkAllDependencies` fails readiness when ANY of these is absent, and the
+     * container HEALTHCHECK asks /api/health, which does not look at them. So an
+     * image missing one boots, reports healthy, and is drained by every load
+     * balancer that reads /api/health/ready — with nothing in the deploy output
+     * saying why. The apt package is taken from `binaryInfo`'s own install hint,
+     * so the hint shown to a self-hosting user is pinned by the same assertion.
+     */
+    const installed = dockerfile.slice(
+      dockerfile.indexOf("apt-get install"),
+      dockerfile.indexOf("rm -rf /var/lib/apt/lists"),
+    );
+    expect(installed).not.toBe("");
+    for (const [binary, info] of Object.entries(binaryInfo)) {
+      expect(installed, `${binary} needs ${info.apt}`).toContain(info.apt);
+    }
   });
 
   it("runs on a Node major that still receives security updates", () => {
