@@ -13,7 +13,12 @@ import {
   pageDocumentService,
 } from "@/src/application/services/workspacePageData";
 import { loadWorkspaceForRoute } from "@/src/application/services/workspaceRouteAccess";
+import { brandTitle } from "@/lib/brand";
 
+export const metadata = {
+  title: brandTitle("Workspace"),
+  robots: { index: false, follow: false },
+};
 export const dynamic = "force-dynamic";
 
 type WorkspaceView = "all" | "favorites" | "recent" | "archived" | "trashed";

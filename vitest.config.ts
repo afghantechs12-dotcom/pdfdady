@@ -10,7 +10,11 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   resolve: {
-    alias: { "@": process.cwd() },
+    alias: {
+      "@": process.cwd(),
+      // See test/stubs/server-only.ts — the guard package ships with Next, not npm.
+      "server-only": `${process.cwd()}/test/stubs/server-only.ts`,
+    },
   },
   test: {
     environment: "node",
