@@ -188,30 +188,54 @@ export function sanitizeOcrLang(requested: string): string {
   return valid.length > 0 ? valid.join("+") : "eng";
 }
 
+/**
+ * The ocrmypdf flags for one OCR run, without the input/output paths.
+ *
+ * Exported so the flag list is reachable without ocrmypdf installed: it shipped
+ * for a whole phase containing `--psm 3`, which ocrmypdf does not accept — its
+ * pass-through for Tesseract's page-segmentation mode is
+ * `--tesseract-pagesegmode`. ocrmypdf answered a usage error, `runCommand` raised
+ * CommandError, and every OCR run in every environment ended as "The file may be
+ * unsupported or damaged" about a perfectly good PDF. The only test here covered
+ * `sanitizeOcrLang`, the one piece that was right.
+ *
+ * A unit test cannot know which flags a third-party CLI accepts, so it pins the
+ * regression and the option wiring; the flag list is executed against the real
+ * binary by `scripts/tool-runtime-matrix-probe.mjs`, which is what caught this.
+ *
+ *   --tesseract-oem 3          LSTM neural net (Tesseract 4+ default, explicit)
+ *   --tesseract-pagesegmode 3  automatic page segmentation (robust default)
+ *
+ * `--deskew`/`--oversample` need Pillow, so they stay opt-in: a missing optional
+ * extra must not break OCR for everyone.
+ */
+export function ocrCommandArgs(options: Record<string, string>): string[] {
+  const args = [
+    "-l",
+    sanitizeOcrLang(options.language || "eng"),
+    "--skip-text",
+    "--tesseract-oem",
+    "3",
+    "--tesseract-pagesegmode",
+    "3",
+  ];
+  if (options.deskew === "on") args.push("--deskew");
+  const oversample = Number(options.oversample);
+  if (Number.isInteger(oversample) && oversample >= 72 && oversample <= 600) {
+    args.push("--oversample", String(oversample));
+  }
+  return args;
+}
+
 async function ocr(ctx: ProcessContext): Promise<ServerOutput> {
   // ocrmypdf shells out to tesseract; ensure both up front so a missing
   // dependency surfaces as a clear 503 (MissingDependencyError) rather than a
   // generic mid-run CommandError.
   await ensureBinary("ocrmypdf");
   await ensureBinary("tesseract");
-  const lang = sanitizeOcrLang(ctx.options.language || "eng");
-
-  // Safe, always-on improvements (no extra deps beyond Tesseract/ocrmypdf):
-  //   --tesseract-oem 3 = LSTM neural net (Tesseract 4+ default, made explicit)
-  //   --psm 3           = automatic page segmentation (robust default)
-  // Opt-in image-processing flags (require Pillow; off by default to avoid
-  // breaking OCR if the optional image extras aren't installed):
-  //   --deskew          = straighten crooked scans (accuracy win on skewed pages)
-  //   --oversample N    = upscale low-DPI scans to N DPI (Tesseract sweet spot ~300)
-  const args = ["-l", lang, "--skip-text", "--tesseract-oem", "3", "--psm", "3"];
-  if (ctx.options.deskew === "on") args.push("--deskew");
-  const oversample = Number(ctx.options.oversample);
-  if (Number.isInteger(oversample) && oversample >= 72 && oversample <= 600) {
-    args.push("--oversample", String(oversample));
-  }
 
   const out = safeJoin(ctx.jobDir, "ocr.pdf");
-  args.push(ctx.inputPath, out);
+  const args = [...ocrCommandArgs(ctx.options), ctx.inputPath, out];
   await runCommand("ocrmypdf", args, { timeoutMs: 300_000, signal: ctx.signal });
   return {
     outputPath: out,
