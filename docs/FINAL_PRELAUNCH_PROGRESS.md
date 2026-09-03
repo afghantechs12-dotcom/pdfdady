@@ -222,6 +222,28 @@ reads honestly in the numbers - `refused after 30830ms - "This PDF has too many
 pages to edit It has 340 pages, and the Editor supports up to 200."` where the old
 run said only `no page was painted within 30s`.
 
+Group Q rollback (`d6dbf79`): the runbook is written from the entrypoint that
+actually ships (`docs/evidence/final-prelaunch/rollback-runbook.md`), not a
+template. Two facts drive it. `CMD` migrates before it serves and exits non-zero on
+a migration failure, so a bad schema never serves; but Prisma applies **forward
+only** and this repo has no reverse SQL, so rolling the image back does not roll the
+schema back. A release that added a migration therefore needs image-plus-snapshot,
+and everything written since the deploy is lost - which is why the runbook says roll
+forward with a fix where the release is merely imperfect. `pdfdadi:latest` is a
+mutable tag and no git tag exists, so the previous digest is the only way back and
+nothing in the repo stores it: **LAUNCH DECISION REQUIRED** for digest retention and
+for who authorizes a data-losing restore. The container path is NOT EXERCISED here
+(no Docker daemon, ENVIRONMENTAL); the standalone equivalent is what ran.
+
+Load probe PROBE DEFECT, found and fixed while reading its own output (`13dd074`):
+`uploadToWorkspace` deduplicates on `(workspaceId, sha256)` and returns the existing
+document, so the probe's 14 uploads of one buffer created **one** document. The row
+labelled "publishes x4 (distinct documents)" was consequently a second run of the
+same-document CAS race, and the capacity table turned its correct `1x201 3x409` into
+a shedding threshold that does not exist. Uploads now carry unique bytes and the row
+records how many distinct documents it used. The load part is being re-measured; the
+earlier upload and publish numbers must not be quoted.
+
 Next: finish the perf remainder and write N; then the reruns at final HEAD (D fresh
 environment, E tool matrix, F core workflows, G-J harness + offline leg, Gate B's
 `--auth` compare), L blank-chain leg, M readiness, P SEO/pricing, Q rollback
