@@ -14,6 +14,7 @@ import type { IUploadService } from "@/src/application/ports/storage/UploadServi
 import type { IJobRepository } from "@/src/application/ports/repositories/JobRepository";
 import type { IJobScheduler } from "@/src/application/ports/queue/JobScheduler";
 import type { WorkspaceSaveIntentRepository } from "@/src/application/ports/workspaces/WorkspaceSaveIntentRepository";
+import type { ISessionProvider } from "@/src/application/ports/auth/SessionProvider";
 import type { ILogger } from "@/src/application/ports/Logger";
 import type { Job } from "@/src/domain/entities/Job";
 import type { StoredFileOwnerType } from "@/src/domain/entities/StoredFile";
@@ -521,6 +522,8 @@ export interface FileRetentionHandlerDeps {
   scheduler: IJobScheduler;
   /** Required, not optional: an unbounded table is what forgetting to wire it looks like. */
   saveIntents: WorkspaceSaveIntentRepository;
+  /** Same rule. `sessions` gains a row per login and loses one only on logout. */
+  sessions: Pick<ISessionProvider, "pruneExpired">;
   logger: ILogger;
 }
 
@@ -531,9 +534,10 @@ export interface FileRetentionHandlerDeps {
  * addressed `ca/` objects are shared and left to their own lifecycle); the
  * metadata row is always removed when expired.
  *
- * It also prunes save intentions past `SAVE_INTENT_RETENTION_MS`. That rides here
- * rather than in a job of its own because this sweep already recurs, and a second
- * recurring job would be a second thing to forget to register.
+ * It also prunes save intentions past `SAVE_INTENT_RETENTION_MS`, and auth
+ * sessions past their own `expiresAt`. Both ride here rather than in jobs of
+ * their own because this sweep already recurs, and a second recurring job would
+ * be a second thing to forget to register.
  */
 export function createFileRetentionHandler(
   deps: FileRetentionHandlerDeps,
@@ -541,6 +545,7 @@ export function createFileRetentionHandler(
   return async () => {
     let purged = 0;
     let intentsPruned = 0;
+    let sessionsPruned = 0;
     try {
       const expired = await deps.fileMeta.listExpired(new Date(), 500);
       for (const f of expired) {
@@ -567,6 +572,13 @@ export function createFileRetentionHandler(
           error: err instanceof Error ? err.message : String(err),
         });
       }
+      try {
+        sessionsPruned = await deps.sessions.pruneExpired(new Date());
+      } catch (err) {
+        deps.logger.warn("Retention: failed to prune expired sessions", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     } finally {
       // Re-schedule the next sweep so the job recurs (the scheduler is
       // one-shot; recurring jobs re-schedule on completion).
@@ -581,7 +593,11 @@ export function createFileRetentionHandler(
         });
       }
     }
-    deps.logger.debug("Retention sweep complete", { purged, intentsPruned });
-    return { result: { purged, intentsPruned } };
+    deps.logger.debug("Retention sweep complete", {
+      purged,
+      intentsPruned,
+      sessionsPruned,
+    });
+    return { result: { purged, intentsPruned, sessionsPruned } };
   };
 }

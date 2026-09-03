@@ -3,6 +3,7 @@ import { Tokens } from "@/src/application/di/tokens";
 import type { IWorker } from "@/src/application/ports/queue/Worker";
 import type { IJobScheduler } from "@/src/application/ports/queue/JobScheduler";
 import type { WorkspaceSaveIntentRepository } from "@/src/application/ports/workspaces/WorkspaceSaveIntentRepository";
+import type { ISessionProvider } from "@/src/application/ports/auth/SessionProvider";
 import type { IObjectStorage } from "@/src/application/ports/storage/ObjectStorage";
 import type { IFileMetadataRepository } from "@/src/application/ports/storage/FileMetadataRepository";
 import type { IUploadService } from "@/src/application/ports/storage/UploadService";
@@ -96,6 +97,7 @@ export function ensureWorkerReady(): void {
       saveIntents: appContainer.resolve<WorkspaceSaveIntentRepository>(
         Tokens.WorkspaceSaveIntentRepository,
       ),
+      sessions: appContainer.resolve<ISessionProvider>(Tokens.SessionProvider),
       logger,
     }),
   );

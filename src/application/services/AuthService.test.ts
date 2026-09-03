@@ -85,6 +85,16 @@ class FakeSessionProvider implements ISessionProvider {
   async delete(token: string): Promise<void> {
     this.sessions.delete(token);
   }
+  async pruneExpired(now: Date): Promise<number> {
+    let n = 0;
+    for (const [token, s] of this.sessions) {
+      if (s.expiresAt < now) {
+        this.sessions.delete(token);
+        n += 1;
+      }
+    }
+    return n;
+  }
 }
 
 describe("AuthService (local flow)", () => {

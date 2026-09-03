@@ -403,6 +403,7 @@ describe("FileRetentionHandler", () => {
       fileMeta: env.fileMeta,
       scheduler: env.scheduler,
       saveIntents: new InMemoryWorkspaceSaveIntentRepository(),
+      sessions: { pruneExpired: async () => 0 },
       logger: env.logger,
     });
     const job = await env.jobRepo.create({
@@ -471,6 +472,7 @@ describe("FileRetentionHandler", () => {
       fileMeta: env.fileMeta,
       scheduler: env.scheduler,
       saveIntents,
+      sessions: { pruneExpired: async () => 0 },
       logger: env.logger,
     });
     const job = await env.jobRepo.create({ type: FILE_RETENTION_JOB_TYPE, payload: {} });
@@ -487,6 +489,83 @@ describe("FileRetentionHandler", () => {
     expect(
       await saveIntents.find({ organizationId: "org1", userId: "u1", key: "k-fresh" }),
     ).not.toBeNull();
+  });
+
+  /**
+   * `sessions`, and why it rides the same sweep.
+   *
+   * A row is written on every login and removed only by an explicit logout, so
+   * an abandoned tab left one behind forever — monotonic growth in an
+   * authentication table, the same shape as the save-intent finding above.
+   * `LocalSessionProvider.test.ts` proves the SQL against real SQLite; what is
+   * asserted here is that the recurring sweep calls it with a sane clock and
+   * reports what it removed.
+   */
+  it("prunes expired auth sessions and reports the count", async () => {
+    const prunedAt: Date[] = [];
+    const handler = createFileRetentionHandler({
+      storage: env.storage,
+      fileMeta: env.fileMeta,
+      scheduler: env.scheduler,
+      saveIntents: new InMemoryWorkspaceSaveIntentRepository(),
+      sessions: {
+        pruneExpired: async (now: Date) => {
+          prunedAt.push(now);
+          return 3;
+        },
+      },
+      logger: env.logger,
+    });
+    const job = await env.jobRepo.create({ type: FILE_RETENTION_JOB_TYPE, payload: {} });
+    const before = Date.now();
+    const { result } = await handler(job, {
+      progress: async () => {},
+      isCancelled: () => false,
+    } as JobContext);
+
+    expect(prunedAt).toHaveLength(1);
+    // Now, not a horizon: an unexpired session must survive its own sweep, so
+    // the cutoff is the clock and nothing earlier.
+    expect(prunedAt[0]!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(prunedAt[0]!.getTime()).toBeLessThanOrEqual(Date.now());
+    expect((result as { sessionsPruned: number }).sessionsPruned).toBe(3);
+  });
+
+  it("still purges files and re-schedules when the session prune throws", async () => {
+    const { file: expired } = await env.upload.uploadStream({
+      ownerType: "anon",
+      ownerId: "anon",
+      originalName: "o.pdf",
+      mimeType: "application/pdf",
+      data: webStream(Buffer.from("out")),
+      key: "jobs/old/output/o.pdf",
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    const handler = createFileRetentionHandler({
+      storage: env.storage,
+      fileMeta: env.fileMeta,
+      scheduler: env.scheduler,
+      saveIntents: new InMemoryWorkspaceSaveIntentRepository(),
+      sessions: {
+        pruneExpired: async () => {
+          throw new Error("sessions table locked");
+        },
+      },
+      logger: env.logger,
+    });
+    const job = await env.jobRepo.create({ type: FILE_RETENTION_JOB_TYPE, payload: {} });
+    const { result } = await handler(job, {
+      progress: async () => {},
+      isCancelled: () => false,
+    } as JobContext);
+
+    // A retention sweep that dies on its newest duty stops expiring files, which
+    // is a data-retention failure. It reports 0 and carries on instead.
+    expect((result as { sessionsPruned: number }).sessionsPruned).toBe(0);
+    expect((result as { purged: number }).purged).toBeGreaterThanOrEqual(1);
+    expect(await env.fileMeta.get(expired.id)).toBeNull();
+    const queued = await env.jobRepo.listByStatus("queued");
+    expect(queued.some((j) => j.type === FILE_RETENTION_JOB_TYPE)).toBe(true);
   });
 
   it("keeps the horizon longer than any client replay window", () => {

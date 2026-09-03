@@ -44,4 +44,17 @@ export class LocalSessionProvider implements ISessionProvider {
       // idempotent
     }
   }
+
+  /**
+   * `get` rejects an expired token, so a stale row is not an access risk — but
+   * nothing deleted one either. A row is written on every login and removed
+   * only by an explicit logout, so an abandoned tab left a row behind forever.
+   * The recurring `file-retention` sweep calls this.
+   */
+  async pruneExpired(now: Date): Promise<number> {
+    const { count } = await this.prisma.session.deleteMany({
+      where: { expiresAt: { lt: now } },
+    });
+    return count;
+  }
 }

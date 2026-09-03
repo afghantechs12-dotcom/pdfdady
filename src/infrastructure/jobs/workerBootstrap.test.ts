@@ -29,6 +29,7 @@ import { DOCUMENT_INGESTION_JOB_TYPE } from "@/src/application/services/Document
 const registered = new Map<string, JobHandler>();
 const scheduled: Array<{ type: string; runAt: Date }> = [];
 const pruneCutoffs: Date[] = [];
+const sessionPruneClocks: Date[] = [];
 let started = 0;
 
 const worker: IWorker = {
@@ -58,6 +59,15 @@ const fakes = new Map<symbol, unknown>([
     {
       pruneBefore: async (cutoff: Date) => {
         pruneCutoffs.push(cutoff);
+        return 0;
+      },
+    },
+  ],
+  [
+    Tokens.SessionProvider,
+    {
+      pruneExpired: async (now: Date) => {
+        sessionPruneClocks.push(now);
         return 0;
       },
     },
@@ -99,6 +109,7 @@ describe("ensureWorkerReady wires the recurring retention sweep", () => {
     registered.clear();
     scheduled.length = 0;
     pruneCutoffs.length = 0;
+    sessionPruneClocks.length = 0;
     started = 0;
     await boot();
   });
@@ -121,7 +132,7 @@ describe("ensureWorkerReady wires the recurring retention sweep", () => {
     expect(sweep!.runAt.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it("registered a handler that really prunes save intentions and re-schedules itself", async () => {
+  it("registered a handler that really prunes save intentions and sessions, and re-schedules itself", async () => {
     const handler = registered.get(FILE_RETENTION_JOB_TYPE);
     expect(handler).toBeDefined();
 
@@ -134,6 +145,10 @@ describe("ensureWorkerReady wires the recurring retention sweep", () => {
     // intentions that are still in flight.
     expect(pruneCutoffs).toHaveLength(1);
     expect(pruneCutoffs[0]!.getTime()).toBeLessThan(Date.now());
+    // The sessions prune is wired to the SAME sweep, so it is subject to the
+    // same failure: a bootstrap that resolves the provider but never hands it to
+    // the handler leaves an authentication table growing forever.
+    expect(sessionPruneClocks).toHaveLength(1);
     // And the sweep recurs: the initial schedule plus the handler's own.
     expect(scheduled.filter((s) => s.type === FILE_RETENTION_JOB_TYPE)).toHaveLength(2);
   });

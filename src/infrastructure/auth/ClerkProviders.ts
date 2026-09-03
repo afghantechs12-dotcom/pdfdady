@@ -34,6 +34,8 @@ export class ClerkSessionProvider implements ISessionProvider {
   async create(): Promise<UserSession> { throw new Error(NOT_IMPLEMENTED); }
   async get(): Promise<UserSession | null> { throw new Error(NOT_IMPLEMENTED); }
   async delete(): Promise<void> { throw new Error(NOT_IMPLEMENTED); }
+  /** Clerk owns session expiry; there is no local table to prune. */
+  async pruneExpired(): Promise<number> { return 0; }
 }
 
 export class ClerkOrganizationProvider implements IOrganizationProvider {
