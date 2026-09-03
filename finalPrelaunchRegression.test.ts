@@ -235,12 +235,19 @@ describe("R9..R12 hostile names and storage keys", () => {
       expect(base.length).toBeLessThanOrEqual(80);
     }
     /*
-     * A dot-only name survives AS a dot segment — `..` stays `..`. What makes that
-     * inert is not the sanitizer: it is the intake gate, which requires an
-     * extension from the tool's own allowlist, so the last segment of a staged key
-     * always ends in one. Both halves are asserted rather than asserted about.
+     * A dot-only name used to survive AS a dot segment — `..` came back `..`, and
+     * `..pdf` came back `..`. Nothing escaped, because the intake gate requires an
+     * extension from the tool's own allowlist and the storage guard refuses a
+     * traversal — but the sanitizer's contract is "a name", and `..` is not one:
+     * it reached the user as a download called `...pdf`. Now it takes the same
+     * fallback the empty string does. Both halves are still asserted, because the
+     * gate is what makes ANY residue inert and it must not quietly go away.
      */
-    expect(sanitizeBaseName("..")).toBe("..");
+    for (const dots of ["..", ".", "...", "..pdf"]) {
+      expect(sanitizeBaseName(dots), `${dots} must not survive as a path segment`).toBe(
+        "document",
+      );
+    }
     for (const [slug, config] of Object.entries(serverToolConfig)) {
       expect(config.extensions.length, slug).toBeGreaterThan(0);
       for (const ext of config.extensions) expect(ext, slug).toMatch(/^\.[a-z0-9]+$/);
@@ -253,14 +260,16 @@ describe("R9..R12 hostile names and storage keys", () => {
     await expect(
       validateUpload(new File([pdfBytes], "..", { type: "application/pdf" }), config),
     ).rejects.toThrow(UploadValidationError);
-    // The nearest name that IS accepted keeps the dots — and carries an extension,
-    // which is exactly what stops the composed key from ending in a dot segment.
+    // The nearest name that IS accepted still carries an extension the allowlist
+    // named — and its dot-only base now becomes the fallback, so the composed name
+    // is a name at both layers rather than only at the gate.
     const accepted = await validateUpload(
       new File([pdfBytes], "...pdf", { type: "application/pdf" }),
       config,
     );
     expect(accepted.ext).toBe(".pdf");
-    expect(`${sanitizeBaseName(accepted.originalName)}${accepted.ext}`).toBe("...pdf");
+    expect(accepted.originalName).toBe("...pdf");
+    expect(`${sanitizeBaseName(accepted.originalName)}${accepted.ext}`).toBe("document.pdf");
   });
 
   it("R12 a key that escapes the storage root is refused, at the store", async () => {
@@ -277,7 +286,9 @@ describe("R9..R12 hostile names and storage keys", () => {
       /*
        * The composed production key for R11's worst accepted name. The staging site
        * builds `tool-inputs/<uuid>/<base><ext>`, and `head` reading it back proves
-       * the bytes landed under the root at the path the key named.
+       * the bytes landed under the root at the path the key named. The base is now
+       * `document` rather than `..`, which is the point of the R11 fix — this line
+       * composes it rather than hard-coding it, so it follows the sanitizer.
        */
       const dotKey = `tool-inputs/11111111-2222-3333-4444-555555555555/${sanitizeBaseName("...pdf")}.pdf`;
       await storage.put(dotKey, Buffer.from("%PDF-1.7\n"), { contentType: "application/pdf" });

@@ -36,11 +36,22 @@ export function bufferToWebStream(data: Buffer): ReadableStream<Uint8Array> {
   return Readable.toWeb(Readable.from([data])) as ReadableStream<Uint8Array>;
 }
 
-/** Sanitized base name (no extension) for naming outputs; never empty. */
+/**
+ * Sanitized base name (no extension) for naming outputs; never empty, and never
+ * a path segment with a meaning of its own.
+ *
+ * `.` and `..` survive the character class (a dot is allowed — real filenames
+ * carry them), and an upload literally named `..pdf` used to come back out as
+ * `..`. Nothing escaped: every consumer joins through `safeJoin`, and the
+ * storage guard refuses a traversal. But the contract here is "a name", and a
+ * name that means "the parent directory" is not one — it reaches the user as a
+ * download called `...pdf` and reaches the log as a path segment. Folded into
+ * the same fallback the empty string already takes.
+ */
 export function sanitizeBaseName(name: string): string {
   const base = path.basename(name, path.extname(name));
   const cleaned = base.replace(/[^\w.-]+/g, "_").slice(0, 80);
-  return cleaned.length ? cleaned : "document";
+  return cleaned.length && !/^\.+$/.test(cleaned) ? cleaned : "document";
 }
 
 /** Collects declared option values from the form (never trusts arbitrary keys). */
