@@ -190,10 +190,43 @@ old residue rewritten; and a PROBE DEFECT in the harness itself — `--url` adve
 F5's skip reason (fixed in `71f9bf5`). **The harness is static. No report line may
 call it a live run.** Runtime behaviour comes from the six driving probes.
 
-Next: the reruns at final HEAD (D fresh environment, E tool matrix, F core
-workflows, G-J harness + offline leg), L blank-chain leg, M readiness, N perf
-write-up, O browser/a11y, P SEO/pricing, Q rollback rehearsal; then the R1-R30 map,
-the final regression gates at final HEAD, and the 37-section report.
+Group O is closed (`b5b6bc8`): **R28 keyboard workflow passes both signed out and
+signed in** — 13 gates each, 0 product failures, one row NOT EXERCISED (M5b, the OS
+file dialog, which no CDP client can drive). The four failures the first run showed
+were the probe's own: `tabThrough(n)` leaves focus on the nth stop, so Enter went to
+a footer link instead of the dropzone. Diagnosed with a separate CDP run and
+recorded in `keyboard-r28.log`. **R29**: Chromium EXERCISED, Firefox ENVIRONMENTAL
+(absent three ways), WebKit NOT EXERCISED (safaridriver refuses without
+`safaridriver --enable`), screen reader NOT EXERCISED — `cross-browser.log`.
+
+Brief mutations closed (`f75aac1`): the brief's A-O list is a different scheme from
+this repo's ledger letters, so it was mapped by behaviour. **Ten executed this
+session — A, B, D, E, F, G, H, I, K, O — every one RED then reverted through
+`git checkout --` and green again**; C, J, L, M, N already had valid evidence and
+were not rerun. Combined gate rerun after all ten reverts: **15 files, 288 tests,
+all passing at `f75aac1`** (`/tmp/mut-gate-rerun.log`). Three of the ten had no
+behavioural gate at all and would have stayed green under mutation, so the missing
+coverage was written first, run green and committed before the mutation: the argv
+seam `runCommand` (`runCommandInjection.test.ts`), the product's only
+`dangerouslySetInnerHTML` (`jsonLdEscape.test.ts`) - both `2940696` - and the
+404-not-403 job rule, which had only a source scan behind it (`b05108a`).
+Mutation I did more than fail an assertion: with `shell: true` the child really
+did execute a redirection out of a test argument and create the file.
+
+Perf/load at HEAD is **partial**: the page part (7 rows) and 5 of 6 workflow shapes
+completed, then the run died on the malformed shape with `CDP Runtime.evaluate timed
+out` (exit 2). A complete run exists from earlier today but predates `297c776`,
+which changed shipped editor code, so it cannot be the final evidence. The malformed
+shape and the load/capacity part are being re-run separately. The editor refusal now
+reads honestly in the numbers - `refused after 30830ms - "This PDF has too many
+pages to edit It has 340 pages, and the Editor supports up to 200."` where the old
+run said only `no page was painted within 30s`.
+
+Next: finish the perf remainder and write N; then the reruns at final HEAD (D fresh
+environment, E tool matrix, F core workflows, G-J harness + offline leg, Gate B's
+`--auth` compare), L blank-chain leg, M readiness, P SEO/pricing, Q rollback
+rehearsal; then the R1-R30 map, the final regression gates at final HEAD, and the
+37-section report.
 
 Command to resume the harness leg:
 `node scripts/final-prelaunch-audit.mjs --offline --json /tmp/audit-offline.json`
