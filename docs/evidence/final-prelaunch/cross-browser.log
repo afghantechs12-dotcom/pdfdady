@@ -1,0 +1,71 @@
+CROSS-BROWSER AND ASSISTIVE-TECHNOLOGY COVERAGE (R29) — audit host, 2026-09-03
+Every line below is a command that was run on the audit host and its real output.
+
+── Chromium: EXERCISED ────────────────────────────────────────────────
+$ ls ~/Library/Caches/ms-playwright
+chromium-1234
+chromium_headless_shell-1234
+ffmpeg-1011
+
+Every browser probe in this audit drives that Chromium over CDP
+(scripts/lib/probe-browser.mjs). It is the only engine present on this host.
+
+── Firefox: ENVIRONMENTAL (absent, three ways) ────────────────────────
+$ ls -d /Applications/Firefox.app
+ls: /Applications/Firefox.app: No such file or directory
+$ which firefox geckodriver
+firefox not found
+geckodriver not found
+$ ls ~/Library/Caches/ms-playwright | grep -i firefox
+(no output)
+
+No Firefox engine, no geckodriver, and no Playwright Firefox download. Nothing
+was measured in Gecko, so nothing about Gecko is claimed.
+
+── WebKit: NOT EXERCISED, and the refusal is recorded ─────────────────
+$ ls -d /Applications/Safari.app /System/Cryptexes/App/usr/bin/safaridriver
+/Applications/Safari.app
+/System/Cryptexes/App/usr/bin/safaridriver
+
+The engine and its WebDriver server are both present, so this is not absence —
+it is a machine-level permission the audit cannot grant itself. Measured rather
+than assumed:
+
+$ /System/Cryptexes/App/usr/bin/safaridriver -p 4470 &
+$ curl -s -X POST http://127.0.0.1:4470/session -H 'Content-Type: application/json' \
+       -d '{"capabilities":{"alwaysMatch":{"browserName":"safari"}}}'
+{"value":{"error":"session not created","message":"Could not create a session:
+You must enable 'Allow remote automation' in the Developer section of Safari
+Settings to control Safari via WebDriver.","stacktrace":""}}
+
+Enabling it is a human action in Safari Settings (plus `safaridriver --enable`,
+which prompts for administrator authorization), and no WebDriver client is a
+dependency of this repository:
+
+$ node -e '...Object.keys({...dependencies,...devDependencies}).filter(/playwright|puppeteer|selenium|webdriver|cypress/)'
+no webdriver/playwright/puppeteer/selenium dependency
+
+── The one engine-gated API in the product ────────────────────────────
+`EyeDropper` is Chromium-only and is the single browser API this product uses
+that a supported browser may not have. It is feature-detected, not assumed:
+
+  components/editor/color/ColorPopoverPanel.tsx:84-85
+    const eyedropperAvailable =
+      typeof window !== "undefined" && "EyeDropper" in window;
+  components/editor/color/ColorPopoverPanel.tsx:165
+    {eyedropperAvailable ? ( ...the screen-picker button... ) : null}
+
+So in Firefox or Safari the button is not rendered, and every other route to a
+colour (the brand swatches, the in-document swatches, the hex field, the opacity
+slider) is untouched. That is a graceful degradation by construction; it was NOT
+observed in a non-Chromium engine on this host.
+
+── Screen reader: NOT EXERCISED ───────────────────────────────────────
+No screen reader was driven. VoiceOver cannot be scripted from a probe without
+the same machine-level automation permission WebKit needs, and a synthetic
+accessibility-tree dump is not a screen-reader pass. What the probes DO establish
+is the tree a screen reader would read: one <main> landmark per page, a bypass
+block that moves focus to it, an accessible name on every control (45 on the
+merge tool), an alt decision on every <img>, `role="alert"` on error surfaces,
+and the full keyboard workflow in scenario M. None of that is a substitute for a
+person listening to it.

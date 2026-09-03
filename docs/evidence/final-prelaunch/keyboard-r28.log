@@ -1,0 +1,96 @@
+KEYBOARD WORKFLOW (R28) — scenario M of scripts/premium-ui-ux-probe.mjs
+HEAD 7c3c2a2 · audit host, 2026-09-03 · against the real artifact behind the TLS front
+$ node scripts/premium-ui-ux-probe.mjs --url https://172.20.10.2:3001 --only M [--auth]
+
+The claim under test: a keyboard-only user can complete a whole tool workflow —
+open the file dialog, run the tool, and act on the result — with no mouse event
+dispatched at any point. Every activation below is recorded at the capture phase
+by a listener installed before the first Tab, so "focus was on the control" and
+"the control was activated" are separate observations.
+
+The one seam, stated plainly: DOM.setFileInputFiles supplies the two files. The
+OS file dialog is not driveable from any probe, so what M2 proves is that Enter
+on the drop control fires the hidden input's own click() — the last thing the page
+controls before the OS takes over. Choosing a file inside that dialog is not
+exercised here and is not claimed.
+
+── run 1: signed out ──────────────────────────────────────────────────
+   PASS             M0 render  — /tools/merge-pdf — "Merge PDF Online — PDFDadi", 1472 chars, h1 1
+   PASS             M1 the file-open control is reachable by Tab, named and ringed  — Tab 13/24 -> "Drop your PDFs here. or click to browse", outline solid 2px, shadow rgb(255, 255, 255) 0px 0px 0px 2
+   PASS             M2 Enter on the file-open control opens the file picker  — Enter went to "Drop your PDFs here. or click to browse"; hidden file input received 1 programmatic click(s)
+   PASS             M3 the tool's action is reachable by Tab from the staged state, and ringed  — attached true, Tab 16/40 -> "Merge PDFs", outline solid 2px
+   PASS             M4 Enter on the focused action runs the tool through to a result  — result panel reached; keyboard activations so far: ["INPUT","Merge PDFs"]
+   PASS             M5 every enabled action the result offers is reachable by Tab, and every stop is ringed  — 4 offered [Download | Start over | Open in Editor | Sign in to save to Workspace]; unreachable none; unringed none
+   NOT EXERCISED    M5b a disabled action can be enabled from the keyboard  — the result offered no disabled action
+   PASS             M6 Enter on a result action does the thing it names  — focused Start over true, result panel still shown false, last activations ["INPUT","Merge PDFs","Start over"]
+   PASS             M7 focus advances through the result rather than cycling in place  — 46 distinct stops across 60 tabs
+   PASS             M8 no console errors across the whole keyboard flow  — clean (1 network entries ignored: https://172.20.10.2:3001/api/auth/me Failed to load resource: the server responded with a status of 401 (Unauthorized))
+   PASS             M9 one main landmark  — 1 <main> elements
+   PASS             M9 bypass block resolves  — #main focused 138x40, target exists
+   PASS             M9 every control has an accessible name  — 45 named controls
+   PASS             M9 every image decides its alt  — 0 <img> without alt
+   NOT EXERCISED    M — Keyboard tool workflow (R28) (13/14 gates passed)
+
+13 pass · 0 product failures · 0 environmental · 1 not exercised
+
+── run 2: --auth (a fresh throwaway account, registered by the probe) ──
+   PASS             M0 render  — /tools/merge-pdf — "Merge PDF Online — PDFDadi", 1437 chars, h1 1
+   PASS             M1 the file-open control is reachable by Tab, named and ringed  — Tab 10/24 -> "Drop your PDFs here. or click to browse", outline solid 2px, shadow rgb(255, 255, 255) 0px 0px 0px 2
+   PASS             M2 Enter on the file-open control opens the file picker  — Enter went to "Drop your PDFs here. or click to browse"; hidden file input received 1 programmatic click(s)
+   PASS             M3 the tool's action is reachable by Tab from the staged state, and ringed  — attached true, Tab 13/40 -> "Merge PDFs", outline solid 2px
+   PASS             M4 Enter on the focused action runs the tool through to a result  — result panel reached; keyboard activations so far: ["INPUT","Merge PDFs"]
+   PASS             M5 every enabled action the result offers is reachable by Tab, and every stop is ringed  — 4 offered [Download | Start over | Open in Editor | Save to Workspace]; unreachable none; unringed none
+   NOT EXERCISED    M5b a disabled action can be enabled from the keyboard  — the result offered no disabled action
+   PASS             M6 Enter on a result action does the thing it names  — focused Start over true, result panel still shown false, last activations ["INPUT","Merge PDFs","Start over"]
+   PASS             M7 focus advances through the result rather than cycling in place  — 41 distinct stops across 60 tabs
+   PASS             M8 no console errors across the whole keyboard flow  — clean (0 network entries ignored)
+   PASS             M9 one main landmark  — 1 <main> elements
+   PASS             M9 bypass block resolves  — #main focused 138x40, target exists
+   PASS             M9 every control has an accessible name  — 42 named controls
+   PASS             M9 every image decides its alt  — 0 <img> without alt
+   NOT EXERCISED    M — Keyboard tool workflow (R28) (13/14 gates passed)
+
+13 pass · 0 product failures · 0 environmental · 1 not exercised
+
+── what the two runs differ on, and why it matters ────────────────────
+Signed out the result offers 4 actions [Download | Start over | Open in Editor |
+Sign in to save to Workspace]; signed in the fourth becomes [Save to Workspace].
+M5 reads the set off the page rather than hard-coding it, so both runs are held
+to the same rule and neither can pass by knowing less than the product offers.
+
+M5b — "a disabled action can be enabled from the keyboard" — is NOT EXERCISED in
+both runs, and honestly: the result panel offered no disabled action to enable.
+Signed in, Save to Workspace is live immediately because a default destination is
+already selected. Nothing was faked to reach that gate.
+
+── the first run of this scenario reported 4 failures. All four were its own ──
+PRODUCT FAILURE  M2 ... hidden file input received 0 programmatic click(s)
+PRODUCT FAILURE  M3 ... attached true, 40 Tabs never reached "Merge PDFs"
+NOT EXERCISED    M4, M5, M6, M7 — "the action was never reached by Tab"
+
+Cause, measured with a standalone diagnostic (/tmp/kbdiag.mjs) rather than
+reasoned about: `tabThrough(n)` reports n stops and LEAVES focus on the nth, not
+on the one the caller was looking for. The drop control is stop 13 of a 24-stop
+sweep, so the Enter went to stop 24 — a footer link, which Enter obediently
+followed. The page then under test was /tools, which has no "Merge PDFs" button,
+so M3 and everything after it failed for a reason that had nothing to do with the
+product. The diagnostic on the same commit, with focus placed on the control:
+
+  focused before Enter: {"active":"DIV/button","name":"Drop your PDFs here. …"}
+  pickers after Enter at the dropzone: 1
+  pickers after Space:                 2          (both keys are bound)
+  staged: {"pdfs":2,"btn":{"text":"Merge PDFs","disabled":false,"tabIndex":0}}
+  tab 16  button "Merge PDFs"      ← reachable all along; the strict
+  strict /^merge pdfs?$/i match at tab 16    regex was never the problem
+
+Fixed in the probe, not in the product: M2 and M4 now re-tab to the exact stop
+they found (`tabThrough(dropStop + 1)`) and assert which control the key reached,
+so a mis-focused Enter reports itself as a probe fault instead of a defect. Focus
+is placed by Tab and never by `element.focus()` — except at M6, which says so.
+Classified PROBE DEFECT: the product was correct on every one of the four rows.
+
+── keyboard-only, end to end ──────────────────────────────────────────
+Zero Input.dispatchMouseEvent calls occur in scenario M. The recorded activation
+trail is the proof: ["INPUT","Merge PDFs","Start over"] — the hidden file input
+clicked by the dropzone's Enter handler, the tool's own action, and the result
+action, in that order, all from Tab and Enter.
