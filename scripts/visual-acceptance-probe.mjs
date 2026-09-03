@@ -112,6 +112,19 @@ const STILL_CSS = `*,*::before,*::after{
 html{scroll-behavior:auto!important}
 *{caret-color:transparent!important}`;
 
+/**
+ * Masked on EVERY surface, because they are per-run rather than per-design.
+ *
+ * `--auth` registers a throwaway account whose address carries a timestamp, and that
+ * address is painted into the account chip on every signed-in page. Left unmasked it
+ * differs on every run, ~0.1% of a narrow viewport — just over the threshold — and
+ * the harness reports a product failure on three surfaces that are in fact identical.
+ * The full-pass evidence for that is in the group-B write-up.
+ *
+ * Per-surface `masks` are added to these, never instead of them.
+ */
+const GLOBAL_MASKS = ["[data-user-identity]", "[data-relative-time]", "time"];
+
 const VERDICTS = ["PASS", "PRODUCT FAILURE", "ENVIRONMENTAL", "NOT EXERCISED", "MANUAL REVIEW REQUIRED"];
 const results = [];
 const shots = [];
@@ -174,7 +187,7 @@ async function sweep(b, surface) {
       record(surface.id, `${surface.id} ${key}`, "ENVIRONMENTAL", "Chrome returned no screenshot data");
       continue;
     }
-    const masks = await maskRects(b, surface.masks ?? []);
+    const masks = await maskRects(b, [...GLOBAL_MASKS, ...(surface.masks ?? [])]);
     const page = await b.evaluate(
       `({ scrollH: document.documentElement.scrollHeight, chars: document.body.innerText.trim().length })`,
     );
@@ -344,7 +357,7 @@ const SURFACES = [
   },
   {
     id: "08-workspace-populated", title: "Populated Workspace", group: "workspace",
-    needsAuth: true, minChars: 200, masks: ["time", "[data-relative-time]"],
+    needsAuth: true, minChars: 200,
     reach: async (c) =>
       c.workspaceId
         ? (await c.b.goto(BASE, `/workspaces/${c.workspaceId}`, 3200), "ok")
@@ -360,7 +373,7 @@ const SURFACES = [
   },
   {
     id: "10-activity-recent", title: "Activity / Recent", group: "workspace",
-    needsAuth: true, minChars: 150, masks: ["time", "[data-relative-time]"],
+    needsAuth: true, minChars: 150,
     reach: async (c) => (await c.b.goto(BASE, "/workspaces", 3200), "ok"),
   },
   { id: "11-editor-standalone", title: "Standalone Editor", group: "editor", minChars: 60, settle: 1800,
@@ -492,10 +505,31 @@ const SURFACES = [
   },
   { id: "15-pricing", title: "Pricing", group: "marketing", minChars: 400,
     reach: async (c) => (await c.b.goto(BASE, "/pricing", 2600), "ok") },
+  /*
+   * `anonymous` is not cosmetic here. Under `--auth` the browser holds a live
+   * session, and both of these routes redirect a signed-in visitor to
+   * `/workspaces` — so an earlier full pass captured the Workspace list under the
+   * names "sign in" and "register", passed the anti-vacuity floor on the substitute
+   * page's own text, and diffed only on the throwaway account's email. Two of the
+   * nineteen references documented the wrong page. The session is cleared for these
+   * and restored afterwards; `reach` now also refuses if the redirect still happens.
+   */
   { id: "16-login", title: "Authentication — sign in", group: "marketing", minChars: 120,
-    reach: async (c) => (await c.b.goto(BASE, "/login", 2400), "ok") },
+    anonymous: true,
+    reach: async (c) => {
+      await c.b.goto(BASE, "/login", 2400);
+      return /\/login/.test((await c.b.url()) ?? "")
+        ? "ok"
+        : `/login redirected to ${await c.b.url()} — the session was not cleared`;
+    } },
   { id: "17-register", title: "Authentication — register", group: "marketing", minChars: 150,
-    reach: async (c) => (await c.b.goto(BASE, "/register", 2400), "ok") },
+    anonymous: true,
+    reach: async (c) => {
+      await c.b.goto(BASE, "/register", 2400);
+      return /\/register/.test((await c.b.url()) ?? "")
+        ? "ok"
+        : `/register redirected to ${await c.b.url()} — the session was not cleared`;
+    } },
   { id: "18-not-found", title: "404", group: "states", minChars: 40,
     reach: async (c) => (await c.b.goto(BASE, "/gate-b-no-such-route", 2400), "ok") },
   {
@@ -669,25 +703,41 @@ async function main() {
         continue;
       }
       b.clearErrors();
-      let why = "reach threw";
+      /*
+       * An `anonymous` surface is captured with the jar emptied and refilled after,
+       * rather than by running it before sign-up: the order surfaces run in is the
+       * order they are declared, and a reader of this file should not have to know
+       * that a marketing surface must sit above the authenticated ones to be honest.
+       */
+      const jar = surface.anonymous && WITH_AUTH
+        ? (await b.send("Network.getCookies", {})).result?.cookies ?? []
+        : null;
+      if (jar) await b.send("Network.clearBrowserCookies", {});
       try {
-        why = await surface.reach(ctx);
-      } catch (err) {
-        why = `reach failed: ${err.message}`;
-      }
-      if (why !== "ok") {
-        record(surface.id, surface.id, "NOT EXERCISED", why);
-        continue;
-      }
-      await sweep(b, surface);
+        let why = "reach threw";
+        try {
+          why = await surface.reach(ctx);
+        } catch (err) {
+          why = `reach failed: ${err.message}`;
+        }
+        if (why !== "ok") {
+          record(surface.id, surface.id, "NOT EXERCISED", why);
+          continue;
+        }
+        await sweep(b, surface);
       /*
        * A surface whose SUBJECT is a failure logs the diagnostic that failure
        * writes. `allowedConsoleError` exempts that one string and nothing else, so
        * a driven error state stays a passing reference instead of being reported as
        * a defect of the product it is documenting.
        */
-      const js = b.errors().js.filter((e) => !surface.allowedConsoleError?.test(e));
-      if (js.length) record(surface.id, `${surface.id} console`, "PRODUCT FAILURE", `${js.length} JS error(s): ${js[0]}`);
+        const js = b.errors().js.filter((e) => !surface.allowedConsoleError?.test(e));
+        if (js.length) record(surface.id, `${surface.id} console`, "PRODUCT FAILURE", `${js.length} JS error(s): ${js[0]}`);
+      } finally {
+        // Restored even on `continue`, so one anonymous surface cannot silently sign
+        // the rest of the run out and turn every later reference into a login page.
+        if (jar?.length) await b.send("Network.setCookies", { cookies: jar });
+      }
     }
 
     const sheets = await contactSheets(b, "docs/evidence/final-prelaunch/visual");

@@ -137,7 +137,8 @@ export function UsageCard({
                   removed so the reset time stays right-aligned in both modes.
                 */}
                 <span>{meter.remainingLabel ?? ""}</span>
-                <span>{meter.resetLabel}</span>
+                {/* Clock-derived: "Resets in 13 hours" today, "1 day" tomorrow. */}
+                <span data-relative-time>{meter.resetLabel}</span>
               </div>
             </div>
           ))}

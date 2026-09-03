@@ -1,0 +1,225 @@
+{
+  "generatedAt": "2026-09-03T11:04:50.775Z",
+  "base": "https://172.20.10.2:3003",
+  "mode": "baseline",
+  "authenticated": false,
+  "viewports": [
+    "320x800",
+    "360x800",
+    "390x844",
+    "412x915",
+    "768x1024",
+    "1024x768",
+    "1280x800",
+    "1440x900",
+    "1920x1080"
+  ],
+  "compressOutcome": null,
+  "shots": [
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "320x800",
+      "device": "mobile",
+      "file": "19-app-error/320x800.png",
+      "w": 320,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 151,
+      "sha256": "adde0b0898e85fbb",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "360x800",
+      "device": "mobile",
+      "file": "19-app-error/360x800.png",
+      "w": 360,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 151,
+      "sha256": "c21de986ae380230",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "390x844",
+      "device": "mobile",
+      "file": "19-app-error/390x844.png",
+      "w": 390,
+      "h": 844,
+      "scrollH": 844,
+      "chars": 151,
+      "sha256": "ad4339ad723b5870",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "412x915",
+      "device": "mobile",
+      "file": "19-app-error/412x915.png",
+      "w": 412,
+      "h": 915,
+      "scrollH": 915,
+      "chars": 151,
+      "sha256": "490021798ce724ed",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "768x1024",
+      "device": "tablet",
+      "file": "19-app-error/768x1024.png",
+      "w": 768,
+      "h": 1024,
+      "scrollH": 1024,
+      "chars": 151,
+      "sha256": "8205d22134c6e088",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "1024x768",
+      "device": "tablet",
+      "file": "19-app-error/1024x768.png",
+      "w": 1024,
+      "h": 768,
+      "scrollH": 768,
+      "chars": 151,
+      "sha256": "ca5d9f07e35100d4",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "1280x800",
+      "device": "desktop",
+      "file": "19-app-error/1280x800.png",
+      "w": 1280,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 151,
+      "sha256": "c98c8353de913ea5",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "1440x900",
+      "device": "desktop",
+      "file": "19-app-error/1440x900.png",
+      "w": 1440,
+      "h": 900,
+      "scrollH": 900,
+      "chars": 151,
+      "sha256": "5b532ea7af2c481b",
+      "masks": []
+    },
+    {
+      "surface": "19-app-error",
+      "title": "Application error state",
+      "group": "states",
+      "viewport": "1920x1080",
+      "device": "desktop",
+      "file": "19-app-error/1920x1080.png",
+      "w": 1920,
+      "h": 1080,
+      "scrollH": 1080,
+      "chars": 151,
+      "sha256": "99f2e7fbbf180b83",
+      "masks": []
+    }
+  ],
+  "sheets": [
+    {
+      "sheet": "mobile",
+      "title": "Mobile — 320 / 360 / 390 / 412",
+      "captures": 4,
+      "png": "docs/evidence/final-prelaunch/visual/contact-mobile.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-mobile.html"
+    },
+    {
+      "sheet": "tablet",
+      "title": "Tablet — 768 / 1024",
+      "captures": 2,
+      "png": "docs/evidence/final-prelaunch/visual/contact-tablet.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-tablet.html"
+    },
+    {
+      "sheet": "desktop",
+      "title": "Desktop — 1280 / 1440 / 1920",
+      "captures": 3,
+      "png": "docs/evidence/final-prelaunch/visual/contact-desktop.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-desktop.html"
+    }
+  ],
+  "results": [
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 320x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 320x800"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 360x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 360x800"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 390x844",
+      "verdict": "PASS",
+      "detail": "baseline recorded 390x844"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 412x915",
+      "verdict": "PASS",
+      "detail": "baseline recorded 412x915"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 768x1024",
+      "verdict": "PASS",
+      "detail": "baseline recorded 768x1024"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 1024x768",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1024x768"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 1280x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1280x800"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 1440x900",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1440x900"
+    },
+    {
+      "surface": "19-app-error",
+      "id": "19-app-error 1920x1080",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1920x1080"
+    }
+  ]
+}

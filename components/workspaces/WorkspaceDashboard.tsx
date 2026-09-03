@@ -164,7 +164,7 @@ export function WorkspaceDashboard({
                       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-app-text">
                         {doc.name}
                       </span>
-                      <span className="shrink-0 text-[11px] text-app-muted">
+                      <span className="shrink-0 text-[11px] text-app-muted" data-relative-time>
                         {relativeTime(doc.updatedAt)}
                       </span>
                     </Link>

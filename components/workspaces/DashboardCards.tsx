@@ -88,7 +88,7 @@ export function FoldersCard({
                     {folder.itemCount !== undefined
                       ? `${folder.itemCount} item${folder.itemCount === 1 ? "" : "s"} · `
                       : ""}
-                    Updated {relativeTime(folder.updatedAt)}
+                    Updated <span data-relative-time>{relativeTime(folder.updatedAt)}</span>
                   </span>
                 </span>
               </Link>
@@ -143,7 +143,7 @@ export function ActivityCard({ entries }: { entries: DashboardActivity[] }) {
                   <span className="font-semibold">{entry.actorLabel ?? "Someone"}</span>{" "}
                   {describeActivity(entry)}
                 </span>
-                <span className="block text-[11px] text-app-muted">{relativeTime(entry.createdAt)}</span>
+                <span className="block text-[11px] text-app-muted" data-relative-time>{relativeTime(entry.createdAt)}</span>
               </span>
             </li>
           ))}

@@ -145,7 +145,15 @@ export function viewCountsFromLoadedPage(input: {
   };
 }
 
-/** A short relative time, e.g. "2 hours ago". */
+/**
+ * A short relative time, e.g. "2 hours ago".
+ *
+ * Every render of this MUST carry `data-relative-time`, which is the visual
+ * harness's global mask. Without it a screenshot reference of the dashboard is
+ * only stable while the run stays inside one minute of the document it created:
+ * `docs/evidence/final-prelaunch/visual/` records a full pass that was green for
+ * that reason rather than because the pixels were stable.
+ */
 export function relativeTime(value: string | Date, now: number = Date.now()): string {
   const time = toTime(value);
   if (time === 0) return "—";

@@ -148,7 +148,14 @@ export function AppUserMenu({ name, email, settingsHref = null, tone = "dark" }:
         >
           {initialsFor(name, email)}
         </span>
-        <span className="min-w-0 flex-1">
+        {/*
+          `data-user-identity` marks the two lines that are per-account rather than
+          per-design: a visual-regression run signs up a throwaway user, so without a
+          hook to mask this chip every authenticated reference diffs on the email and
+          a probe reports a product failure. It is a marker only — no behaviour,
+          no styling, and nothing reads it at runtime.
+        */}
+        <span className="min-w-0 flex-1" data-user-identity>
           <span className={cn("block truncate text-sm font-semibold", dark ? "text-white" : "text-app-text")}>
             {name ?? email.split("@")[0]}
           </span>
