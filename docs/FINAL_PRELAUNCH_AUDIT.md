@@ -465,3 +465,57 @@ resolves its static directory at startup**. Copying `.next/static` in after the
 process is running does not take effect — the server must be restarted. That is why
 `scripts/restart-origin` style restarts in this audit always re-copy and then start,
 in that order.
+
+## §26 — Deployment and rollback rehearsal
+
+The container rollback could not be exercised on this host — there is no Docker
+daemon — so [rollback-runbook.md](evidence/final-prelaunch/rollback-runbook.md) is
+procedure written from the shipped entrypoint, not evidence. What *is* evidence is
+the artifact the image carries. `sh scripts/r30-rollback-smoke.sh` swaps
+`.next/standalone` + `.next/static`, which is the standalone analogue of rolling an
+image digest back: the same claim that the bytes which served before serve again,
+minus the daemon. Full output:
+[r30-deploy-rollback.log](evidence/final-prelaunch/r30-deploy-rollback.log).
+
+| # | Gate | Result |
+|---|---|---|
+| 0 | the artifact now serving is kept aside as the rollback target | PASS — `6teqv2zm5azzpKU0nakv3` |
+| 1 | `npm run build` produces an artifact at HEAD | PASS — `Q0Vyn2Fqoa0Yn_j5UK-H-`, 234 lines |
+| 2 | the artifact built at HEAD boots and answers liveness | PASS — `/api/health` → 200 |
+| 3 | readiness answers on the new artifact | PASS — 503 degraded, **naming** `toolchain false` |
+| 4 | a real job completes on the new artifact and returns a PDF | PASS — 149102 bytes of `%PDF-` |
+| 5 | the PREVIOUS artifact boots again after a rollback | PASS — `6teqv2zm5azzpKU0nakv3` back, 200 |
+| 6 | a real job completes on the rolled-back artifact | PASS — 149106 bytes of `%PDF-` |
+| 7 | rolling forward again leaves HEAD serving | PASS — `Q0Vyn2Fqoa0Yn_j5UK-H-`, 200 |
+
+The rollback was not a configuration toggle: the HEAD build was removed from the
+tree and the kept directory copied back in its place before the boot. Both
+artifacts completed a real `compress-pdf` job on a 300-page fixture and returned
+bytes the client could read. The two outputs differ by four bytes because
+Ghostscript writes a fresh creation timestamp and document id into each one — not a
+corrupted result.
+
+The 503 at gate 3 was accepted **only because the body names which subsystem is
+false**. `soffice` genuinely is absent from this host (§16), so 503 is the truthful
+answer; a 503 that said nothing would have failed the gate.
+
+The database leg is deliberately not repeated here — the online `backup()` snapshot,
+its byte-exact restore and `prisma migrate status` against the restored file are
+already proven in §15. Repeating them would add a second copy of one fact.
+
+**The first run of this script failed, and the failure was its own.** It reported
+`FAIL — a real job completes on the new artifact: download was not a PDF` while the
+database showed that job `completed` in the same second. The script had submitted
+the job and then polled with no cookie jar, so submitter and poller were two
+different anonymous callers, and `/api/jobs/<id>` answered `{"error":"Job not
+found."}` — which is the R12 ownership rule working exactly as designed: a stranger
+gets 404 rather than 403, and never a stranger's bytes. Filed as a product failure
+it would have been a launch blocker that does not exist. Classified **PROBE DEFECT**,
+fixed in the script at `bfed32f`, and recorded because it is the fourth harness bug
+in this audit that produced a plausible, publishable, wrong failure.
+
+**Not exercised:** no Docker build, no `docker compose up`, no image digest pinned,
+no `prisma migrate deploy` inside a container, no load balancer observed draining on
+the 503. Zero downtime was not attempted — this rehearsal stops the server, swaps the
+artifact and starts it again, an outage window of a few seconds, which is what the
+runbook describes.

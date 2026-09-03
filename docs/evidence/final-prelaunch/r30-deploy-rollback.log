@@ -1,0 +1,82 @@
+R30 / GROUP Q — DEPLOY AND ROLLBACK REHEARSAL, standalone path
+Audit host, 2026-09-03. Every line below is a command that ran and its real output.
+
+$ sh scripts/r30-rollback-smoke.sh    (HEAD bfed32f, exit 0)
+
+R30 — DEPLOY AND ROLLBACK REHEARSAL (standalone path)
+HEAD bfed32f · 2026-09-03T22:17:16Z
+
+PASS  the artifact now serving is kept aside as the rollback target — BUILD_ID 6teqv2zm5azzpKU0nakv3
+PASS  npm run build produces an artifact at HEAD               — BUILD_ID Q0Vyn2Fqoa0Yn_j5UK-H-,      234 lines of output
+PASS  the artifact built at HEAD boots and answers liveness    — http://127.0.0.1:3002/api/health → 200
+PASS  readiness answers on the new artifact                    — 503 degraded, and says which: toolchain false
+PASS  a real job completes on the new artifact and returns a PDF — job cmtm35lm30004uo7v10bs4xac, 149102 bytes of %PDF- over http 200
+PASS  the PREVIOUS artifact boots again after a rollback       — BUILD_ID 6teqv2zm5azzpKU0nakv3, /api/health → 200
+PASS  a real job completes on the rolled-back artifact         — job cmtm35opb0004uobq0p30bqa3, 149106 bytes of %PDF- over http 200
+PASS  rolling forward again leaves HEAD serving                — BUILD_ID Q0Vyn2Fqoa0Yn_j5UK-H-, /api/health → 200
+
+────────────────────────────────────────────────────────────
+R30 REHEARSAL — PASS (container path NOT EXERCISED: no Docker daemon)
+
+── what each gate means ───────────────────────────────────────────────
+The container path is ENVIRONMENTAL on this host: there is no Docker daemon, so
+`docker compose` cannot be driven and the image rollback in
+rollback-runbook.md is procedure, not evidence. What CAN be exercised is the
+artifact the image carries. Swapping `.next/standalone` + `.next/static` is the
+standalone analogue of rolling an image digest back: the same claim that the
+bytes which served before serve again, minus the daemon.
+
+  previous artifact   6teqv2zm5azzpKU0nakv3, built 20:06 from the tree at 7c3c2a2
+  new artifact        Q0Vyn2Fqoa0Yn_j5UK-H-, built by this run at HEAD bfed32f
+
+Both artifacts booted, both answered liveness, and both completed a real
+compress-pdf job on a 300-page fixture and returned a PDF the client could read.
+The rollback was not a config toggle: the HEAD build was removed from the tree
+and the kept directory copied back in its place before the boot.
+
+Readiness answered 503 `toolchain: false` on both, which is the truthful answer
+on a host where `soffice` genuinely is absent (readiness-r23.log). A 503 was
+accepted by this gate only because the response names which subsystem is false —
+a 503 that said nothing would have failed it.
+
+The two downloads differ by four bytes (149102 vs 149106) for the same input.
+That is Ghostscript writing a different creation timestamp and document id into
+each output, not a corrupted result: both start with %PDF- and both were fetched
+over HTTP 200 through the signed-URL redirect.
+
+The database leg is deliberately NOT repeated here. The online `backup()`
+snapshot and its byte-exact restore, including `prisma migrate status` against
+the restored file, are already proven in migration-restore-drill.log (R22/§15).
+Repeating it would add a second copy of the same evidence, not a second fact.
+
+── the first run of this script FAILED, and the failure was its own ───
+FAIL  a real job completes on the new artifact and returns a PDF — download was not a PDF
+
+The database showed the job `completed` at the same second. The script had sent
+the POST and then polled the GET with no cookie jar, so the submitter and the
+poller were two different anonymous callers, and `/api/jobs/<id>` answered:
+
+  $ curl -sS http://127.0.0.1:3002/api/jobs/<id>            # no session
+  {"error":"Job not found."}
+  $ curl -sS -b jar http://127.0.0.1:3002/api/jobs/<id>     # the submitter
+  {"id":"cmtm32vhn000buob4xpdgazy1","status":"running","progress":null,
+   "result":null,"error":null,"errorType":null}
+
+That 404 is the R12 ownership rule working exactly as designed — a stranger gets
+404 rather than 403, and never a stranger's bytes. Reported as a product failure
+it would have been a deployment blocker that does not exist. Classified PROBE
+DEFECT and fixed in the script (`bfed32f`): one cookie jar per call, carried on
+every hop that belongs to the submitter.
+
+The same run surfaced a second thing about the download: it answers 302 to a
+signed URL on the public origin, whose certificate is self-signed here, so the
+fetch needs -L -k. Cookies are NOT carried to that hop — the jar is scoped to
+127.0.0.1 and the redirect goes to 172.20.10.2, so curl drops them itself, which
+is the right test because the signed URL is supposed to authorize itself.
+
+── not exercised ─────────────────────────────────────────────────────
+No Docker build, no `docker compose up`, no image digest pinned, no
+`prisma migrate deploy` inside a container, no load balancer draining on the 503.
+Zero-downtime deployment was not attempted: this rehearsal stops the server,
+swaps the artifact and starts it again, which is a restart with an outage window
+of a few seconds, and that is what the runbook describes.
