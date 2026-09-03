@@ -440,6 +440,125 @@ one; `REDIS_URL` is unset, so the multi-instance path is **NOT EXERCISED**. And 
 figure comes from one host under one contention profile: these are the product's
 proportions, not a capacity plan for production hardware.
 
+## §19 — Browser compatibility
+
+**One engine was exercised. The other two are recorded as unexercised, with the
+reason measured rather than assumed** —
+[cross-browser.log](evidence/final-prelaunch/cross-browser.log).
+
+| Engine | Status | Evidence |
+|---|---|---|
+| Chromium | **EXERCISED** — every browser probe in this audit | `~/Library/Caches/ms-playwright` holds `chromium-1234` and `chromium_headless_shell-1234` and nothing else; all probes drive it over CDP via `scripts/lib/probe-browser.mjs` |
+| Firefox / Gecko | **ENVIRONMENTAL** — absent three ways | no `/Applications/Firefox.app`, no `firefox`/`geckodriver` on `PATH`, no Playwright Firefox download |
+| WebKit / Safari | **NOT EXERCISED** — present but not permitted | `Safari.app` **and** `safaridriver` both exist; a real session request returned `session not created … You must enable 'Allow remote automation'` |
+
+The WebKit line is the one worth reading twice. This is not a missing dependency
+the audit could install: `safaridriver` was started on port 4470 and asked for a
+session, and the refusal above is its own answer. Enabling remote automation is a
+human action inside Safari Settings plus `safaridriver --enable`, which prompts for
+administrator authorisation. No WebDriver client (`playwright`, `puppeteer`,
+`selenium`, `webdriver`, `cypress`) is a dependency of this repository either, so
+there is no in-repo path to a Gecko or WebKit run. **R29 is satisfied in its
+"explicitly unexercised" form, not its "exercised" form.**
+
+What *can* be said across engines without running them is what the code asks the
+engine for. That was swept rather than assumed:
+
+| Feature used | Cross-engine status | How the code handles it |
+|---|---|---|
+| `EyeDropper` | Chromium-only | feature-detected at [ColorPopoverPanel.tsx:84-85](../components/editor/color/ColorPopoverPanel.tsx#L84-L85) and the button is not rendered at all when absent ([:165](../components/editor/color/ColorPopoverPanel.tsx#L165)) — every other route to a colour (brand swatches, in-document swatches, hex field, opacity slider) is untouched |
+| `navigator.clipboard` | secure-context only | optional-chained at [PropertiesPanel.tsx:482](../components/editor/panels/PropertiesPanel.tsx#L482) (`navigator.clipboard?.writeText`), so a context without it is a no-op, not a throw |
+| `ResizeObserver` (7 files), `IntersectionObserver` (4) | supported in all three engines | used unguarded, correctly |
+| `::-webkit-scrollbar` | Chromium/WebKit only | paired with `scrollbar-width: none` for Gecko in the same rule ([globals.css:81-87](../app/globals.css#L81-L87)); the comment there also forbids using it where the scrollbar is the only affordance |
+| CSS colour syntax | — | Tailwind 3.4.17 with `autoprefixer` 10.4.20; no `oklch()`, no `color-mix()`, no `:has()`, no `@container` anywhere in `app/`, `components/` or `styles/` |
+
+So the product uses one engine-gated API and it degrades by construction. That is a
+real reduction in cross-engine risk, and it is still **not a substitute for
+opening the site in Firefox and Safari.** Layout and text-metric differences,
+Gecko's PDF-render and download behaviour, WebKit's file-input and cookie handling,
+and iOS Safari's viewport are all unmeasured here. Nothing in this audit claims
+they work.
+
+**Recommendation before launch:** one manual pass through the merge flow and the
+Workspace Editor in Firefox and in Safari, on a machine where a human can grant the
+automation permission. That is a person-hours item, not a code change.
+
+## §20 — Accessibility
+
+**A keyboard-only user completes a whole tool workflow, twice, with zero mouse
+events dispatched** — scenario M of `scripts/premium-ui-ux-probe.mjs`, run signed
+out and again with `--auth`:
+[keyboard-r28.log](evidence/final-prelaunch/keyboard-r28.log).
+
+```
+$ node scripts/premium-ui-ux-probe.mjs --url https://172.20.10.2:3001 --only M [--auth]
+signed out: 13 pass · 0 product failures · 0 environmental · 1 not exercised
+--auth:     13 pass · 0 product failures · 0 environmental · 1 not exercised
+```
+
+The workflow it walks is the real one: Tab to the drop control (stop 13 of 24
+signed out, 10 of 24 signed in), **Enter** to open the file picker, Tab to
+`Merge PDFs` (stop 16 / 13 of 40), **Enter** to run the tool through to a result,
+then Tab across every action the result offers and **Enter** on one. The activation
+trail recorded at the capture phase is `["INPUT","Merge PDFs","Start over"]` — the
+hidden file input clicked by the dropzone's own Enter handler, the tool's action,
+and the result action, in that order. **Zero `Input.dispatchMouseEvent` calls occur
+anywhere in scenario M**, which is what makes "keyboard-only" a measurement rather
+than a description.
+
+| Gate | Signed out | `--auth` |
+|---|---|---|
+| M1 file-open control reachable by Tab, named, focus-ringed | PASS — outline solid 2px | PASS |
+| M2 Enter opens the file picker | PASS — hidden input received 1 programmatic `click()` | PASS |
+| M3 tool action reachable by Tab from the staged state, ringed | PASS | PASS |
+| M4 Enter on the action runs the tool to a result | PASS | PASS |
+| M5 every enabled result action reachable and ringed | PASS — 4 offered, unreachable none, unringed none | PASS — 4 offered |
+| M5b a disabled action can be enabled from the keyboard | **NOT EXERCISED** — the result offered no disabled action | **NOT EXERCISED** |
+| M6 Enter on a result action does the thing it names | PASS — `Start over` cleared the result panel | PASS |
+| M7 focus advances rather than cycling in place | PASS — 46 distinct stops in 60 Tabs | PASS — 41 in 60 |
+| M8 no console errors across the whole flow | PASS (signed out ignores one expected `401` on `/api/auth/me`) | PASS — 0 ignored |
+| M9 one `<main>` landmark · bypass block resolves · every control named · every `<img>` decides `alt` | PASS — 1 `<main>`, `#main` focused 138×40, **45** named controls, 0 `<img>` without `alt` | PASS — **42** named controls, 0 without `alt` |
+
+Two honest limits, both recorded in the log itself rather than smoothed over:
+
+- **M5b is NOT EXERCISED in both runs** because the result panel genuinely offered
+  no disabled action to enable — signed in, `Save to Workspace` is live immediately
+  since a default destination is already selected. Nothing was faked to reach a
+  green gate, and the scenario therefore reports **13/14**, not 14/14.
+- **The OS file dialog is the one seam.** `DOM.setFileInputFiles` supplies the two
+  files, because no probe can drive the native dialog. What M2 proves is the last
+  thing the page controls: Enter on the drop control fires the hidden input's own
+  `click()`. Choosing a file *inside* that dialog is not exercised and is not
+  claimed.
+
+M5 reads the offered action set off the page instead of hard-coding it, which is
+why the two runs differ legitimately — signed out offers
+`[Download | Start over | Open in Editor | Sign in to save to Workspace]`, signed in
+the fourth becomes `Save to Workspace` — and neither run can pass by knowing less
+than the product offers.
+
+**No screen reader was driven, and no synthetic tree is offered as a substitute.**
+VoiceOver needs the same machine-level automation permission WebKit needs (§19).
+What the probes do establish is the tree a screen reader would read: one `<main>`
+per page, a bypass block that actually moves focus into it, an accessible name on
+every control, an `alt` decision on every image, and `role="alert"` on error
+surfaces. A person listening to it is still an open item. Also unmeasured: reduced
+motion preferences, 200% zoom reflow, and Windows high-contrast mode.
+
+**R28 verdict: PASS** (13/14, one gate NOT EXERCISED for want of a disabled
+control). **Screen-reader acceptance: NOT EXERCISED.**
+
+**The first run of scenario M reported four product failures, and all four were the
+probe's.** `tabThrough(n)` returned focus on the *nth* stop rather than the one the
+caller asked for, so the Enter meant for the dropzone (stop 13) went to stop 24, a
+footer link, which Enter followed to `/tools` — a page with no `Merge PDFs` button,
+which then failed M3 and left M4–M7 unreached. A standalone diagnostic on the same
+commit, with focus placed on the control, showed the product was correct on all
+four rows: 1 picker after Enter, 2 after Space (both keys bound), and `Merge PDFs`
+reachable at tab 16 all along. Fixed in the probe (`tabThrough(dropStop + 1)` plus
+an assertion naming which control the key reached), never in the product.
+Classified **PROBE DEFECT** — the third of four such harness bugs in this audit.
+
 ## §25 — Deployment artifact
 
 `next build` with `output: "standalone"` produces `.next/standalone/server.js` plus a
