@@ -18,9 +18,13 @@ import { runCommand } from "./runCommand";
  * what the operating system receives, not about how the call is written.
  */
 const sentinel = join(tmpdir(), `pdfdadi-injection-${process.pid}.txt`);
+const redirected = join(tmpdir(), `pdfdadi-redirect-${process.pid}.txt`);
 
 afterEach(() => {
+  // Both are removed because a failing run means the shell DID create them, and
+  // a leftover would then fail the reverted run and read as a second defect.
   rmSync(sentinel, { force: true });
+  rmSync(redirected, { force: true });
 });
 
 describe("runCommand argument safety", () => {
@@ -33,11 +37,11 @@ describe("runCommand argument safety", () => {
   });
 
   it("does not expand substitutions, globs or redirections in an argument", async () => {
-    const hostile = "$(id) `id` $HOME * > /tmp/pdfdadi-should-not-exist && id";
+    const hostile = `$(id) \`id\` $HOME * > ${redirected} && id`;
     const { stdout } = await runCommand("/bin/echo", [hostile]);
 
     expect(stdout.trim()).toBe(hostile);
-    expect(existsSync("/tmp/pdfdadi-should-not-exist")).toBe(false);
+    expect(existsSync(redirected)).toBe(false);
   });
 
   it("keeps a hostile file name intact instead of splitting it into words", async () => {
