@@ -72,7 +72,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 erasure/export still `MANUAL REVIEW REQUIRED` |
 | K Retention | `1d36b30`, `2cb2467`; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, `saveIntentIdentity.test.ts` D24 | PARTIAL | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep); J3 account deletion / data export still unresolved |
 | L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
-| M Reliability | harness group L/M; `readyRoute.test.ts` (7) | PARTIAL | yes | run harness; readiness toolchain gate now asserted (Q1/Q2) |
+| M Reliability | harness group L/M; `readyRoute.test.ts` (7); `readiness-r23.log` (live, `ab490fe`) | PARTIAL | yes | run harness; readiness proved red on a host whose `soffice` is really absent while liveness stays 200 |
 | N Performance | `perf-load-wf.json` (full), `perf-load.log` (truncated earlier run) | PARTIAL | no | document; log lags the JSON |
 | O Browser + a11y | `keyboard-r28.log` (13 gates signed out + 13 signed in), `cross-browser.log` | COMPLETE — FINAL EVIDENCE VALID | no | R28 PASS with M5b NOT EXERCISED (OS file dialog); R29 Chromium exercised, Firefox ENVIRONMENTAL, WebKit + screen reader NOT EXERCISED |
 | P SEO/pricing | harness groups O,P,Q; `seoIndexingTruth.test.ts` (5) | PARTIAL | yes | run harness; noindex + sitemap truth now asserted (S1–S3) |
@@ -243,6 +243,36 @@ same-document CAS race, and the capacity table turned its correct `1x201 3x409` 
 a shedding threshold that does not exist. Uploads now carry unique bytes and the row
 records how many distinct documents it used. The load part is being re-measured; the
 earlier upload and publish numbers must not be quoted.
+
+R23 has live evidence now, not only unit tests (`ab490fe`): on this host
+`/api/health` answers 200 while `/api/health/ready` answers **503 with
+`toolchain:false`**, because LibreOffice genuinely is not installed here
+(ENVIRONMENTAL). That is the liveness/readiness split behaving correctly and is
+what brief mutation O attacked. Two operator notes came out of it: the container
+HEALTHCHECK asks `/api/health`, which never looks at the toolchain, so the deploy
+signal to watch is readiness; and the dependency probe caches for 30 s, so a fixed
+dependency still reads false for up to half a minute.
+
+Reading that led to a real coverage gap, now closed (`04e380f`): **nothing tied the
+image's installed packages to the binaries readiness requires.** Add a binary to
+`dependencyCheck.ts` and the image silently lacks it - container boots, HEALTHCHECK
+green, every load balancer drains it, nothing in the deploy output explains why. The
+gate walks `binaryInfo` and asserts the Dockerfile installs each `apt` package (the
+same string shown to self-hosting users as an install hint). Mutation: remove
+`libreoffice` from the install block -> RED on *soffice needs libreoffice*, reverted
+byte-identical through git -> 8/8 green.
+
+Two probe defects found by reading the probe's own output rather than trusting it,
+both fixed and both re-measured (see the N row): the one-document upload collapse
+(`13dd074`) and **the refusal clock** (`6b2a201`) - the editor's error panel was read
+only after the 300x100ms paint poll gave up, so every refusal was dated at the
+deadline and a document declined in about two seconds was reported as *refused after
+30830ms*. Paint and panel are now polled in one predicate.
+
+Observed and NOT fixed: `Dockerfile` has CRLF line endings (the only deploy-critical
+file that does; `restart-origin.sh` is clean). BuildKit tolerates them and the
+container path is NOT EXERCISED here, so this is recorded as P2 hygiene rather than
+changed blind in an artifact no build on this host can verify.
 
 Next: finish the perf remainder and write N; then the reruns at final HEAD (D fresh
 environment, E tool matrix, F core workflows, G-J harness + offline leg, Gate B's
