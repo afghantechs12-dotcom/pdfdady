@@ -439,6 +439,18 @@ async function localMerge(b, d, shape, tiny) {
  * measuring its own wrong assumption. The href length and the on-screen size are
  * checked too, so a zero-sized or empty placeholder cannot pass as a painted page.
  */
+/**
+ * The editor's own refusal panel, read as text.
+ *
+ * Shared by the poll and by the after-the-poll fallback so the two cannot drift
+ * into disagreeing about what counts as a refusal.
+ */
+const PANEL_TEXT = `(() => {
+  const t = (document.body.innerText || "").replace(/\\s+/g, " ");
+  const m = t.match(/(This PDF has too many pages to edit|We couldn't open this PDF|Document not found|You don't have access|This document isn't ready|Your session has expired|Could not open this document)[^.]*\\.?/);
+  return m ? m[0].slice(0, 120) : null;
+})()`;
+
 const PAGE_PAINTED = `(() => {
   for (const node of document.querySelectorAll("svg image")) {
     const href = node.getAttribute("href") || node.getAttribute("xlink:href") || "";
@@ -470,25 +482,32 @@ async function editorLoad(b, d, href) {
    * changes only when the requested document is the one on screen.
    */
   const here = JSON.stringify(href.split("?")[0]);
-  const painted = await d.until(`(location.pathname === ${here} ? ${PAGE_PAINTED} : null)`, {
-    tries: 300,
-    every: 100,
-  });
-  if (painted === "painted") return { ms: ms(t0) };
   /*
-   * A slow load and a REFUSED one look identical to a poll that gives up, and
-   * reporting "no page was painted within 30s" for a document the editor
-   * deliberately declines is the harness describing its own blind spot as a
-   * product property. The editor says why in its own error panel, so it is read:
-   * the two many-page fixtures are refused in about two seconds by
-   * MAX_OPEN_PAGES, not waited on for thirty.
+   * Painted AND refused are both polled, in one predicate. Reading the panel only
+   * after the poll gives up dates every refusal at the 30s deadline, so a document
+   * the editor declines in two seconds was reported as "refused after 30830ms" —
+   * the harness's own budget printed where a measurement belongs.
+   */
+  const settled = await d.until(
+    `(() => {
+       if (location.pathname !== ${here}) return null;
+       const painted = ${PAGE_PAINTED};
+       if (painted) return painted;
+       return ${PANEL_TEXT} ? "refused:" + ${PANEL_TEXT} : null;
+     })()`,
+    { tries: 300, every: 100 },
+  );
+  if (settled === "painted") return { ms: ms(t0) };
+  if (typeof settled === "string" && settled.startsWith("refused:")) {
+    return { refused: `refused after ${ms(t0)}ms — "${settled.slice(8)}"` };
+  }
+  /*
+   * Neither painted nor refused within 30s. The panel is read once more because a
+   * refusal that rendered in the final poll interval would otherwise be reported
+   * as silence, and only then is the honest "nothing happened" string used.
    */
   const panel = await b.send("Runtime.evaluate", {
-    expression: `(() => {
-      const t = (document.body.innerText || "").replace(/\\s+/g, " ");
-      const m = t.match(/(This PDF has too many pages to edit|We couldn't open this PDF|Document not found|You don't have access|This document isn't ready|Your session has expired|Could not open this document)[^.]*\\.?/);
-      return m ? m[0].slice(0, 120) : null;
-    })()`,
+    expression: PANEL_TEXT,
     returnByValue: true,
   });
   const said = panel.result?.result?.value ?? null;
