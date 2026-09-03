@@ -6,7 +6,7 @@ import {
   getTools,
 } from "@/data/admin";
 
-export const metadata = { title: "Tools — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Tools — PDFDadi Admin" } };
 
 export default async function AdminToolsPage() {
   const [tools, cats, orphans] = await Promise.all([

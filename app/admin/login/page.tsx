@@ -9,7 +9,7 @@ import { isAdminPasswordSet } from "@/lib/admin/passwords";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Admin Login — PDFDadi",
+  title: { absolute: "Admin Login — PDFDadi" },
   robots: { index: false, follow: false },
 };
 

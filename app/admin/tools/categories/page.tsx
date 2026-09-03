@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { CategoriesManager } from "@/components/admin/CategoriesManager";
 import { getToolCategories } from "@/data/admin";
 
-export const metadata = { title: "Tool Categories — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Tool Categories — PDFDadi Admin" } };
 
 export default async function AdminToolCategoriesPage() {
   const cats = await getToolCategories();

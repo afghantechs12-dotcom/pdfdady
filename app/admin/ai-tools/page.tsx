@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SimpleListEditor } from "@/components/admin/SimpleListEditor";
 import { getAiTools } from "@/data/admin";
 
-export const metadata = { title: "AI Tools — PDFDadi Admin" };
+export const metadata = { title: { absolute: "AI Tools — PDFDadi Admin" } };
 
 export default async function AdminAiToolsPage() {
   const items = await getAiTools();

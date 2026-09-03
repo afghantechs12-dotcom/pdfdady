@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { NavForm } from "@/components/admin/NavForm";
 import { getFooterColumns, getNavLinks } from "@/data/admin";
 
-export const metadata = { title: "Navigation — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Navigation — PDFDadi Admin" } };
 
 export default async function AdminNavPage() {
   const [links, footerColumns] = await Promise.all([getNavLinks(), getFooterColumns()]);

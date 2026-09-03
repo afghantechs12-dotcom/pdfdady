@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SimpleListEditor } from "@/components/admin/SimpleListEditor";
 import { getUseCases } from "@/data/admin";
 
-export const metadata = { title: "Use Cases — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Use Cases — PDFDadi Admin" } };
 
 export default async function AdminUseCasesPage() {
   const items = await getUseCases();

@@ -13,7 +13,7 @@
  * invoked, and each page's `metadata` is read from the imported module rather
  * than grepped out of its source.
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import robots from "./robots";
@@ -163,5 +163,73 @@ describe("R25 — the sitemap tells the truth about what it advertises", () => {
     expect(new Set(urls).size).toBe(urls.length);
     const origins = new Set(urls.map((u) => new URL(u).origin));
     expect(origins.size).toBe(1);
+  });
+});
+
+/**
+ * R24, the half that was missing: a 404 is a route too.
+ *
+ * `pageFiles()` above cannot see this one — Next's 404 is `not-found.tsx`, not
+ * `page.tsx` — so every unknown public url was outside the rule this file
+ * enforces. There was no root `not-found.tsx` at all, which meant a mistyped
+ * marketing url got Next's framework default page: no brand, no navigation, no
+ * link back, and (because that page carries its own `prefers-color-scheme:dark`
+ * styles) a near-black screen on a dark-mode machine. The visual harness
+ * recorded exactly that as the reference for `18-not-found` and passed it.
+ */
+describe("R24 — the public 404 is the product's own page, not the framework's", () => {
+  it("exists at the root, so it answers for every route group", async () => {
+    const mod = await import("./not-found");
+    expect(typeof mod.default, "app/not-found.tsx must default-export a component")
+      .toBe("function");
+  });
+
+  it("is noindex, like every other page the sitemap does not advertise", async () => {
+    const { metadata } = await import("./not-found");
+    expect(metadata?.robots).toMatchObject({ index: false });
+  });
+
+  it("offers a way back, which is the only thing a 404 owes the visitor", async () => {
+    const src = readFileSync(join(APP, "not-found.tsx"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .filter((line) => !/^\s*\/\//.test(line))
+      .join(" ");
+    expect(src, "a dead end is the framework default's actual defect")
+      .toMatch(/href="\/"/);
+    expect(src, "and it must carry its own chrome: the root layout has no header")
+      .toMatch(/<Logo|LogoMark/);
+    expect(src, "the root layout's skip link targets #main on every route")
+      .toContain('id="main"');
+  });
+});
+
+/**
+ * The doubled brand, found at runtime on the new 404: "Page not found — PDFDadi
+ * — PDFDadi".
+ *
+ * `app/layout.tsx` declares an admin-editable `title.template` (`%s — PDFDadi`
+ * by default), so any page whose own title already ends in the product name gets
+ * it appended a second time. Five authenticated pages did — every `brandTitle()`
+ * caller — because nothing between them and the root layout re-declares the
+ * template. The rule is derived from the template itself rather than from a list
+ * of files, so the next page to brand its own title is caught the day it lands.
+ */
+describe("page titles do not brand themselves twice", () => {
+  it("uses title.absolute for any title that already carries the product name", async () => {
+    // `getSITE()` is where the root layout reads its template from; importing
+    // `./layout` itself pulls in `next/font/google`, which needs the Next build.
+    const { getSITE } = await import("@/lib/seo/metadata");
+    const suffix = (await getSITE()).titleTemplate.replace("%s", "").trim();
+    expect(suffix, "the root template must still append something, or this rule is moot")
+      .not.toBe("");
+
+    const offenders: string[] = [];
+    for (const file of [...pageFiles(), join(APP, "not-found.tsx"), join(APP, "workspaces/not-found.tsx")]) {
+      const mod = (await import(file)) as { metadata?: { title?: unknown } };
+      const title = mod.metadata?.title;
+      if (typeof title === "string" && title.includes(suffix)) offenders.push(file.slice(APP.length + 1));
+    }
+    expect(offenders, `these titles render as "…${suffix} ${suffix}"`).toEqual([]);
   });
 });

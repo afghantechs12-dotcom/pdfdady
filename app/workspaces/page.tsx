@@ -8,7 +8,7 @@ import { BRAND, brandTitle } from "@/lib/brand";
 import { LogoMark } from "@/components/layout/Logo";
 import { workspacePageActor, pageWorkspaceService } from "@/src/application/services/workspacePageData";
 
-export const metadata = { title: brandTitle("Workspaces"), robots: { index: false, follow: false } };
+export const metadata = { title: { absolute: brandTitle("Workspaces") }, robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 /**

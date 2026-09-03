@@ -1,7 +1,7 @@
 import { SectionHeader } from "@/components/admin/Section";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 
-export const metadata = { title: "Analytics — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Analytics — PDFDadi Admin" } };
 
 /**
  * Processing analytics.

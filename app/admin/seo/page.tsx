@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SeoForm } from "@/components/admin/SeoForm";
 import { getSeo } from "@/data/admin";
 
-export const metadata = { title: "SEO — PDFDadi Admin" };
+export const metadata = { title: { absolute: "SEO — PDFDadi Admin" } };
 
 export default async function AdminSeoPage() {
   const initial = await getSeo();

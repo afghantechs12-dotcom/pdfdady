@@ -16,7 +16,7 @@ import { loadWorkspaceForRoute } from "@/src/application/services/workspaceRoute
 import { brandTitle } from "@/lib/brand";
 
 export const metadata = {
-  title: brandTitle("Workspace"),
+  title: { absolute: brandTitle("Workspace") },
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

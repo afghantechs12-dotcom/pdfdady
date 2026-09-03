@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { FaqManager } from "@/components/admin/FaqManager";
 import { getFaqs } from "@/data/admin";
 
-export const metadata = { title: "FAQ — PDFDadi Admin" };
+export const metadata = { title: { absolute: "FAQ — PDFDadi Admin" } };
 
 export default async function AdminFaqPage() {
   const items = await getFaqs();

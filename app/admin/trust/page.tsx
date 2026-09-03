@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SimpleListEditor } from "@/components/admin/SimpleListEditor";
 import { getTrust } from "@/data/admin";
 
-export const metadata = { title: "Trust Strip — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Trust Strip — PDFDadi Admin" } };
 
 export default async function AdminTrustPage() {
   const items = await getTrust();

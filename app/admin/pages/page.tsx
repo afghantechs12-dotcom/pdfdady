@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { PagesManager, type PageContent } from "@/components/admin/PagesManager";
 import { readStore } from "@/data/admin";
 
-export const metadata = { title: "Pages — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Pages — PDFDadi Admin" } };
 
 export default async function AdminPagesPage() {
   const s = await readStore();

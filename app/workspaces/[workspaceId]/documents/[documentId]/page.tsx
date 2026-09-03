@@ -13,7 +13,7 @@ import {
 } from "@/src/application/services/workspaceRouteAccess";
 
 export const metadata = {
-  title: brandTitle("Document"),
+  title: { absolute: brandTitle("Document") },
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

@@ -5,7 +5,7 @@ import {
 } from "@/components/admin/ServerToolsManager";
 import { getServerTools, getTools } from "@/data/admin";
 
-export const metadata = { title: "Server Tools — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Server Tools — PDFDadi Admin" } };
 
 export default async function AdminServerToolsPage() {
   const [configs, tools] = await Promise.all([getServerTools(), getTools()]);

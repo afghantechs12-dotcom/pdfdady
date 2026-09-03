@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SiteSettingsForm } from "@/components/admin/SiteSettingsForm";
 import { getSite } from "@/data/admin";
 
-export const metadata = { title: "Site Settings — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Site Settings — PDFDadi Admin" } };
 
 export default async function AdminSitePage() {
   const initial = await getSite();

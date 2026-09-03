@@ -5,7 +5,7 @@ import {
 } from "@/components/admin/BlogManager";
 import { getBlogAuthor, getBlogPosts } from "@/data/admin";
 
-export const metadata = { title: "Blog — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Blog — PDFDadi Admin" } };
 
 export default async function AdminBlogPage() {
   const [posts, author] = await Promise.all([getBlogPosts(), getBlogAuthor()]);

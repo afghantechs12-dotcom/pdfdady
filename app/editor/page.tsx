@@ -4,7 +4,7 @@ import { currentUser } from "@/src/application/services/authSession";
 import { resolveSaveTarget } from "@/src/application/services/workspaceSaveTarget";
 
 export const metadata: Metadata = {
-  title: "PDF Editor — PDFDadi",
+  title: "PDF Editor",
   description:
     "PDFDadi's premium visual PDF editor: add and edit text, images, shapes, highlights, signatures, and annotations on your PDF with professional selection, snapping, layers, and history.",
   robots: { index: false, follow: false },

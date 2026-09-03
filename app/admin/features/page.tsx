@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { SimpleListEditor } from "@/components/admin/SimpleListEditor";
 import { getFeatures } from "@/data/admin";
 
-export const metadata = { title: "Features — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Features — PDFDadi Admin" } };
 
 export default async function AdminFeaturesPage() {
   const items = await getFeatures();

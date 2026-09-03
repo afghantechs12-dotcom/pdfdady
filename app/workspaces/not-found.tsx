@@ -3,7 +3,7 @@ import { FolderX } from "lucide-react";
 import { brandTitle } from "@/lib/brand";
 
 export const metadata = {
-  title: brandTitle("Workspace not found"),
+  title: { absolute: brandTitle("Workspace not found") },
   robots: { index: false, follow: false },
 };
 

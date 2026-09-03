@@ -6,7 +6,7 @@ import { safeRedirectPath } from "@/src/application/services/authValidation";
 import { resolveReturnTo } from "@/components/auth/returnTo";
 
 export const metadata: Metadata = {
-  title: "Create your workspace — PDFDadi",
+  title: "Create your workspace",
   description:
     "Create a PDFDadi account and get a workspace for your documents in seconds.",
   robots: { index: false, follow: false },

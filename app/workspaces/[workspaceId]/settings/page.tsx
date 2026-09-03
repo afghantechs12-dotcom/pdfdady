@@ -14,7 +14,7 @@ import { loadWorkspaceForRoute } from "@/src/application/services/workspaceRoute
 import { memberIdentities } from "@/src/application/services/memberDirectory";
 
 export const metadata = {
-  title: brandTitle("Workspace settings"),
+  title: { absolute: brandTitle("Workspace settings") },
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";

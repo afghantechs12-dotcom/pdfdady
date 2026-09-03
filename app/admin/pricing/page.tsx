@@ -2,7 +2,7 @@ import { SectionHeader } from "@/components/admin/Section";
 import { PricingManager } from "@/components/admin/PricingManager";
 import { getPricingPlans } from "@/data/admin";
 
-export const metadata = { title: "Pricing — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Pricing — PDFDadi Admin" } };
 
 export default async function AdminPricingPage() {
   const plans = await getPricingPlans();

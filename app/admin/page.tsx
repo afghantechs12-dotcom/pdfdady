@@ -27,7 +27,7 @@ import {
   readStore,
 } from "@/data/admin";
 
-export const metadata = { title: "Dashboard — PDFDadi Admin" };
+export const metadata = { title: { absolute: "Dashboard — PDFDadi Admin" } };
 
 export default async function AdminDashboardPage() {
   const [tools, posts, faqs, pricing, useCases, features, trust, store] =
