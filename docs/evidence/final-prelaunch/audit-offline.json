@@ -1,0 +1,685 @@
+{
+  "generatedAt": "2026-09-03T09:19:34.513Z",
+  "results": [
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A1",
+      "title": "the working tree is clean, so what is measured is what is committed",
+      "verdict": "PRODUCT FAILURE",
+      "detail": "9 uncommitted path(s): ?? docs/FINAL_PRELAUNCH_AUDIT.md, ?? docs/FINAL_PRELAUNCH_PROGRESS.md, ?? docs/qa/final-prelaunch/"
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A2",
+      "title": "the lockfile is present and matches package.json's name",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A3",
+      "title": "no secret value is committed anywhere in the current tree",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "2 match(es) in sha256-pinned synthetic fixtures, read and confirmed not live: src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe live secret key; src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe webhook secret. Any edit to that file makes these red again."
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A4",
+      "title": "no secret value is reachable anywhere in local Git history",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "1493 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision."
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A5",
+      "title": "no database file or user upload is committed",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A6",
+      "title": "the build ignores what the deploy must not carry",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "A",
+      "groupTitle": "Repository and build integrity",
+      "id": "A7",
+      "title": "the repository has no configured remote, so nothing has been published",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B1",
+      "title": "a production start without DATABASE_URL, ADMIN_SECRET or a site URL is refused",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B2",
+      "title": "the gate refuses a DATABASE_URL the shipped Prisma provider cannot open",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B3",
+      "title": "the gate refuses a relative SQLite path, which a container deploy deletes",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B4",
+      "title": "the gate refuses the public dev fallback secret and a short one",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B5",
+      "title": "`next build` is exempt, so CI compiles without deployment secrets",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B6",
+      "title": "the boot summary reports a derived engine label, never the URL",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "B",
+      "groupTitle": "Production configuration gate",
+      "id": "B7",
+      "title": "half-configured object storage is refused rather than silently local",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C1",
+      "title": "every COPY source in the Dockerfile exists, so the image can build",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C2",
+      "title": "the image carries the migration toolchain it needs on a no-egress network",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C3",
+      "title": "all stages run one supported Node major",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C4",
+      "title": "the compose file supplies every variable the gate requires",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C5",
+      "title": "the database and the stored documents live on declared volumes",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C6",
+      "title": "the runtime writes only where the image has given its user ownership",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C7",
+      "title": "the image actually builds",
+      "verdict": "ENVIRONMENTAL",
+      "detail": "no Docker daemon on this machine — C1..C6 are static truths about the same file, and none of them substitutes for a build"
+    },
+    {
+      "group": "C",
+      "groupTitle": "Deployment artifact",
+      "id": "C8",
+      "title": "the built image migrates a fresh volume and serves",
+      "verdict": "ENVIRONMENTAL",
+      "detail": "no Docker daemon — the boot, the migration and the mount are UNVERIFIED at runtime"
+    },
+    {
+      "group": "D",
+      "groupTitle": "Tool inventory and capability truth",
+      "id": "D1",
+      "title": "the registry, the capability records and the tool pages agree on one inventory",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "D",
+      "groupTitle": "Tool inventory and capability truth",
+      "id": "D2",
+      "title": "every functional tool has a page that renders it",
+      "verdict": "PASS",
+      "detail": "18 client tools have own pages; 14 server tools resolve a config through [slug]"
+    },
+    {
+      "group": "D",
+      "groupTitle": "Tool inventory and capability truth",
+      "id": "D3",
+      "title": "no tool whose output is an archive or an office document offers a Workspace save",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "D",
+      "groupTitle": "Tool inventory and capability truth",
+      "id": "D4",
+      "title": "the save route accepts the job shape every save-offering tool produces",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E1",
+      "title": "a user session cookie is httpOnly, sameSite and secure in production",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E2",
+      "title": "a user session is a stored record, so logout revokes it server-side",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E3",
+      "title": "login rotates the session token, closing session fixation",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E4",
+      "title": "password verification does not distinguish an unknown email from a wrong password",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E5",
+      "title": "admin session semantics are recorded as they are, not as one would wish",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "admin session is a stateless HMAC (max age 1000 * 60 * 60 * 24 * 7), so an individual token cannot be revoked; rotating ADMIN_SECRET invalidates all of them. Accept or schedule."
+    },
+    {
+      "group": "E",
+      "groupTitle": "Authentication and session",
+      "id": "E6",
+      "title": "no default admin password ships, and an initialized deployment cannot be re-setup",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "verify by hand that no password hash is seeded in the shipped store"
+    },
+    {
+      "group": "F",
+      "groupTitle": "Tenant isolation",
+      "id": "F1",
+      "title": "every Workspace API route resolves the actor server-side",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "F",
+      "groupTitle": "Tenant isolation",
+      "id": "F2",
+      "title": "no Workspace route trusts an organization id from the client without re-resolving it",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "F",
+      "groupTitle": "Tenant isolation",
+      "id": "F3",
+      "title": "every mutating Workspace route enforces same-origin",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "F",
+      "groupTitle": "Tenant isolation",
+      "id": "F4",
+      "title": "the job routes authorize per job, not per session",
+      "verdict": "PASS",
+      "detail": "via resolveJobActor or legacyJobAccessDenied/processingResultStream/processingResultRedirect"
+    },
+    {
+      "group": "F",
+      "groupTitle": "Tenant isolation",
+      "id": "F5",
+      "title": "a cross-tenant read is refused end-to-end",
+      "verdict": "NOT EXERCISED",
+      "detail": "no --url given"
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G1",
+      "title": "no external binary is invoked through a shell",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G2",
+      "title": "a hostile filename survives neither the filesystem path nor the display name",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "sanitizeBaseName returns \".\"/\"..\" for a dot-only upload name (lib/server/toolJobSubmit.ts:40). Not an escape — the storage guard blocks that — but the documented contract is a name, so the one-line fix is to fold /^\\.+$/ into the existing empty-string fallback. P3."
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G3",
+      "title": "the request body is bounded before it is buffered",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G4",
+      "title": "the concurrency limiter actually blocks past its ceiling, and both upload routes release in a finally",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G5",
+      "title": "job output expires, and the sweep reschedules itself",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "G",
+      "groupTitle": "File and processing security",
+      "id": "G6",
+      "title": "hostile document fixtures (zip bomb, encrypted, malformed xref, embedded JS)",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "must run against controlled fixtures only; the brief forbids executing unsafe payloads outside them"
+    },
+    {
+      "group": "H",
+      "groupTitle": "Web security and CSP",
+      "id": "H1",
+      "title": "the static security headers are all present",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "H",
+      "groupTitle": "Web security and CSP",
+      "id": "H2",
+      "title": "the CSP is enforced, not report-only",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "H",
+      "groupTitle": "Web security and CSP",
+      "id": "H3",
+      "title": "the production policy has no wildcard, no unsafe-eval, and pins the legacy vectors to none",
+      "verdict": "PASS",
+      "detail": "dev adds unsafe-eval/inline for HMR only"
+    },
+    {
+      "group": "H",
+      "groupTitle": "Web security and CSP",
+      "id": "H4",
+      "title": "the mutating API surface is same-origin gated",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "H",
+      "groupTitle": "Web security and CSP",
+      "id": "H5",
+      "title": "a CSP violation has somewhere to land",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "I",
+      "groupTitle": "Dependencies",
+      "id": "I1",
+      "title": "the lockfile is in sync with package.json",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "I",
+      "groupTitle": "Dependencies",
+      "id": "I2",
+      "title": "no dependency is pinned to a git URL or a local path",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "I",
+      "groupTitle": "Dependencies",
+      "id": "I3",
+      "title": "npm audit — known advisories",
+      "verdict": "ENVIRONMENTAL",
+      "detail": "skipped by --offline; the registry is not reachable in this run"
+    },
+    {
+      "group": "I",
+      "groupTitle": "Dependencies",
+      "id": "I4",
+      "title": "the runtime engine the image ships is the one package.json asks for",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "package.json declares no engines.node"
+    },
+    {
+      "group": "J",
+      "groupTitle": "Privacy and retention",
+      "id": "J1",
+      "title": "a public run keeps nothing: the sweep deletes stored input and output",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "J",
+      "groupTitle": "Privacy and retention",
+      "id": "J2",
+      "title": "the privacy copy on the site is the copy the code can keep",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "J",
+      "groupTitle": "Privacy and retention",
+      "id": "J3",
+      "title": "no account deletion and no data export exist anywhere in the tree",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "grep for deleteAccount/exportData across app, src and lib returns nothing. Whether a launch may ship without a self-service erasure and portability path is a question for qualified legal review against the launch jurisdictions; this audit does not answer it."
+    },
+    {
+      "group": "J",
+      "groupTitle": "Privacy and retention",
+      "id": "J4",
+      "title": "the log line for a document names it, never carries it",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "K",
+      "groupTitle": "Schema and migrations",
+      "id": "K1",
+      "title": "the migration lock, the schema and the gate name one engine",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "K",
+      "groupTitle": "Schema and migrations",
+      "id": "K2",
+      "title": "every migration is applied by one ordered directory set with no gaps",
+      "verdict": "PASS",
+      "detail": "23 migrations"
+    },
+    {
+      "group": "K",
+      "groupTitle": "Schema and migrations",
+      "id": "K3",
+      "title": "no migration is destructive without an explicit statement of intent",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "data-losing DDL to confirm against production data: 20260802175053_autosave_snapshot_metadata: DROP COLUMN, so this migration"
+    },
+    {
+      "group": "K",
+      "groupTitle": "Schema and migrations",
+      "id": "K4",
+      "title": "prisma validate accepts the schema",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "L",
+      "groupTitle": "Reliability and lifecycle",
+      "id": "L1",
+      "title": "liveness is static and readiness touches the database",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "L",
+      "groupTitle": "Reliability and lifecycle",
+      "id": "L2",
+      "title": "readiness reveals whether, never why",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "L",
+      "groupTitle": "Reliability and lifecycle",
+      "id": "L3",
+      "title": "readiness requires all seven binaries, and omits storage writability",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "toolchainOk is Object.values(deps).every(Boolean) over soffice/gs/qpdf/pdftoppm/pdfinfo/tesseract/ocrmypdf. All seven back shipping tools, and the Dockerfile installs all seven, so the container path is satisfiable. But a host missing one binary answers 503 forever while 30 of 32 tools work, and the Dockerfile HEALTHCHECK hits /api/health (static), so the container still reports healthy. Readiness also never writes to the storage volume, so a full or read-only disk is ready. Operator decision: accept, or split per-subsystem readiness."
+    },
+    {
+      "group": "L",
+      "groupTitle": "Reliability and lifecycle",
+      "id": "L4",
+      "title": "the worker is started by the app, not by an operator remembering to",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "L",
+      "groupTitle": "Reliability and lifecycle",
+      "id": "L5",
+      "title": "a job that dies mid-flight is retried or failed, never left running forever",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "M",
+      "groupTitle": "Observability",
+      "id": "M1",
+      "title": "the startup gate prints what it accepted, on one line, before traffic",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "M",
+      "groupTitle": "Observability",
+      "id": "M2",
+      "title": "a request failure is logged with a correlation id",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "M",
+      "groupTitle": "Observability",
+      "id": "M3",
+      "title": "log aggregation, alerting and an on-call route",
+      "verdict": "NOT EXERCISED",
+      "detail": "no aggregation target is configured in this tree; a single-container deployment logs to stdout only. Not a code defect — an operations decision this audit cannot exercise."
+    },
+    {
+      "group": "N",
+      "groupTitle": "Performance budget",
+      "id": "N1",
+      "title": "the standalone build output exists to be measured",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "N",
+      "groupTitle": "Performance budget",
+      "id": "N2",
+      "title": "no route opts out of static rendering without a reason to",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "marketing pages opting out of static rendering: app/(marketing)/server-status/page.tsx, app/(marketing)/tools/[slug]/page.tsx, app/login/page.tsx, app/register/page.tsx, app/signup/page.tsx"
+    },
+    {
+      "group": "N",
+      "groupTitle": "Performance budget",
+      "id": "N3",
+      "title": "sustained load, cold-start latency and memory ceiling under concurrency",
+      "verdict": "NOT EXERCISED",
+      "detail": "the brief forbids destructive load against production, and no load-test environment exists in this tree"
+    },
+    {
+      "group": "O",
+      "groupTitle": "SEO and route truth",
+      "id": "O1",
+      "title": "robots keeps crawlers out of the admin surface and the API",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "O",
+      "groupTitle": "SEO and route truth",
+      "id": "O2",
+      "title": "every route the sitemap advertises is a route that exists",
+      "verdict": "PASS",
+      "detail": "8 static routes + tool and blog [slug] pages"
+    },
+    {
+      "group": "O",
+      "groupTitle": "SEO and route truth",
+      "id": "O3",
+      "title": "a tool the sitemap advertises is a tool a user can run",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "P",
+      "groupTitle": "Commercial truth",
+      "id": "P1",
+      "title": "Business is non-purchasable by domain law, not by copy",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "P",
+      "groupTitle": "Commercial truth",
+      "id": "P2",
+      "title": "a deployment that cannot take money says so instead of half-selling",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "P",
+      "groupTitle": "Commercial truth",
+      "id": "P3",
+      "title": "the static pricing copy is the fallback for a deployment that cannot charge",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "P",
+      "groupTitle": "Commercial truth",
+      "id": "P4",
+      "title": "entitlement moves only behind a signature check",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "Q",
+      "groupTitle": "Analytics and consent",
+      "id": "Q1",
+      "title": "no third-party analytics script is loaded",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "Q",
+      "groupTitle": "Analytics and consent",
+      "id": "Q2",
+      "title": "the CSP would block a third-party beacon even if one were added",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "Q",
+      "groupTitle": "Analytics and consent",
+      "id": "Q3",
+      "title": "an analytics event carries a tool name, never a document",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "Q",
+      "groupTitle": "Analytics and consent",
+      "id": "Q4",
+      "title": "whether first-party measurement needs a consent banner in the launch jurisdictions",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "measurement is first-party and self-hosted (POST /api/analytics/events) with no third-party script and no cross-site identifier, and the only cookie is the session cookie. Whether that is 'strictly necessary' under the applicable rules is a question for qualified legal review, and the brief forbids inventing a consent system without confirmed launch requirements."
+    },
+    {
+      "group": "R",
+      "groupTitle": "Accessibility and responsive layout",
+      "id": "R1",
+      "title": "the Phase 6 layout probe exists and is runnable",
+      "verdict": "PASS",
+      "detail": ""
+    },
+    {
+      "group": "R",
+      "groupTitle": "Accessibility and responsive layout",
+      "id": "R2",
+      "title": "111 rendered-layout assertions across 9 viewports",
+      "verdict": "NOT EXERCISED",
+      "detail": "delegated: the Phase 6 probe owns this and needs a running server. Run it separately and report its own count; folding its result in here would double-count the same evidence under a second number."
+    },
+    {
+      "group": "R",
+      "groupTitle": "Accessibility and responsive layout",
+      "id": "R3",
+      "title": "visual acceptance of the rendered screenshots by a human",
+      "verdict": "MANUAL REVIEW REQUIRED",
+      "detail": "Entry Gate B requires human approval of the contact sheets. Self-generated screenshots are not approval."
+    }
+  ]
+}

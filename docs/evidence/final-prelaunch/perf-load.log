@@ -1,0 +1,12 @@
+PERF/LOAD PROBE — pages https://172.20.10.2:3001 · api http://127.0.0.1:3002 (origin header https://172.20.10.2:3001)
+fixtures: tiny 2KB, ordinary 5KB, large 22778KB, many-page 104KB, encrypted 6KB, malformed 3KB
+parts: page,workflow,load · page runs: 3 · workflow runs: 2
+
+  · page/Homepage: lcp=92 (80–96) fcp=92 (80–96) ttfb=11 (11–18) cls=0.005 inp=16 (16–16) hydrate=97 (84–108) kb=398 (398–398) js=162 (162–162) requests=39 js_errors=0
+  · page/Tools directory: lcp=64 (56–72) fcp=64 (56–72) ttfb=14 (7–16) cls=0.005 inp=24 (24–24) hydrate=83 (70–88) kb=320 (320–320) js=199 (199–199) requests=40 js_errors=0
+  · page/Merge (tool page): lcp=44 (40–56) fcp=44 (40–56) ttfb=10 (10–12) cls=0.005 inp=24 (16–32) hydrate=58 (52–65) kb=285 (284–285) js=188 (188–188) requests=29 js_errors=0
+  · page/Pricing: lcp=44 (36–48) fcp=44 (36–48) ttfb=9 (8–11) cls=0.005 inp=16 (16–16) hydrate=55 (48–62) kb=285 (285–287) js=162 (162–162) requests=58 js_errors=0
+  · page/Editor (standalone): lcp=60 (56–72) fcp=60 (56–72) ttfb=10 (10–18) cls=0.001 inp=24 (24–24) hydrate=73 (72–81) kb=393 (393–393) js=308 (308–308) requests=22 js_errors=0
+  · page/Workspace: lcp=104 (100–116) fcp=52 (48–56) ttfb=17 (16–18) cls=0.017 inp=24 (24–24) hydrate=69 (68–71) kb=294 (294–294) js=196 (196–196) requests=39 js_errors=0
+  · page/Workspace Editor: lcp=412 (400–428) fcp=44 (36–44) ttfb=12 (12–13) cls=0.212 inp=16 (16–16) hydrate=61 (47–62) kb=920 (920–921) js=458 (458–458) requests=43 js_errors=0
+  · workflow/tiny (2 KB): local_merge=516 (510–522) local_download=4 (4–4) upload=12 (10–14) job_submit=14 (9–18) server_processing=2998 (2995–3000) result_download=n/a — 302 workspace_save=12 (9–14) editor_load=n/a — no page was painted within 48s publish=11 (9–13) reopen=n/a — no page was painted within 48s
