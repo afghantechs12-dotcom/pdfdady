@@ -30,11 +30,26 @@ table grows without limit, so none of them was ever the guard for this.
 Reverted with `git checkout -- src/infrastructure/jobs/PdfToolWorkerHandler.ts`;
 `git diff --stat` empty afterwards, and the three files re-run green (37 tests).
 
-## What this row cannot prove
+## What P1 could not prove, and what now does
 
 That the sweep is *registered*. P1 breaks the handler; a deployment that never
-registers `file-retention` would keep every gate green. `workerBootstrap.ts`
-resolves `Tokens.WorkspaceSaveIntentRepository` into it, and the dependency is
-required rather than optional precisely so a forgotten wiring is a type error
-instead of an unbounded table — but the registration itself is proved by the
-worker's own bootstrap test, not here.
+registers `file-retention` keeps P1's gate green while nothing expires at all —
+not a stored output, not an intention row. Nothing in this repository asserted
+that wiring: `ensureWorkerReady` had no test, and every test that touches it
+mocks it away (`storedOutputFidelity.test.ts:60`).
+
+`src/infrastructure/jobs/workerBootstrap.test.ts` is that assertion, and it is
+behavioural rather than "register was called" — it RUNS the handler the bootstrap
+registered and requires it to prune. Two more mutations check it:
+
+| # | Mutation | Applied to | Observed |
+|---|---|---|---|
+| P2 | The retention handler is never registered on the worker | `workerBootstrap.ts` | **RED** — 2 failed / 1 passed. *registers every job type the product depends on* + *registered a handler that really prunes save intentions* |
+| P3 | The first sweep is scheduled in the past instead of the future | `workerBootstrap.ts` | **RED** — 1 failed / 2 passed. *schedules the first sweep, in the future rather than immediately* |
+
+Both reverted with `git checkout --`; `git status --short` clean afterwards.
+
+What none of the three reaches: that a *deployed* process ever calls
+`ensureWorkerReady`. It is called lazily from the tool and job routes, so the
+proof of that is a runtime observation — a `file-retention` row appearing in the
+jobs table after real traffic — recorded with the final probe runs, not here.

@@ -407,5 +407,36 @@
     ],
     "exit": 1,
     "note": "The state this repository shipped in until 1d36b30, applied as a mutation to prove the new gate is the thing that catches it."
+  },
+  {
+    "id": "P2",
+    "title": "The retention handler is never registered on the worker",
+    "file": "src/infrastructure/jobs/workerBootstrap.ts",
+    "gate": [
+      "src/infrastructure/jobs/workerBootstrap.test.ts"
+    ],
+    "failed": 2,
+    "passed": 1,
+    "red": true,
+    "failing": [
+      "ensureWorkerReady wires the recurring retention sweep > registers every job type the product depends on, and starts the worker",
+      "ensureWorkerReady wires the recurring retention sweep > registered a handler that really prunes save intentions and re-schedules itself"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "P3",
+    "title": "The first sweep is scheduled in the past instead of the future",
+    "file": "src/infrastructure/jobs/workerBootstrap.ts",
+    "gate": [
+      "src/infrastructure/jobs/workerBootstrap.test.ts"
+    ],
+    "failed": 1,
+    "passed": 2,
+    "red": true,
+    "failing": [
+      "ensureWorkerReady wires the recurring retention sweep > schedules the first sweep, in the future rather than immediately"
+    ],
+    "exit": 1
   }
 ]
