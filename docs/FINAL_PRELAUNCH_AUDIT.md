@@ -225,12 +225,21 @@ experimental.proxyClientMaxBodySize: expected undefined to be defined`,
 
 ## §14 — Database and migrations
 
-`node scripts/migration-restore-drill.mjs` — **`PASS 13/13`**. Log:
+`node scripts/migration-restore-drill.mjs` — **`PASS 16/16`**. Log:
 `docs/evidence/final-prelaunch/migration-restore-drill.log`.
 
 The drill never touches the live database: every path is inside a fresh `mkdtemp`
-directory that is removed on the way out. It rehearses the upgrade a launch actually
-performs, on a database that already holds documents:
+directory that is removed on the way out.
+
+**The blank chain first (R5), kept separate on purpose.** `migrate deploy` against an
+empty file applies all **23** migrations (exit 0), `migrate status` then reports head
+with nothing pending and no drift, and the schema it produced is the current one —
+**42 tables, `workspace_save_intents` present**. That is what a *first* deployment
+does, so it is recorded; it proves the chain is self-consistent from zero and nothing
+more, which is why it is not allowed to stand in for the leg below.
+
+**Then the upgrade a launch actually performs**, on a database that already holds
+documents:
 
 1. The first 22 migrations build the **pre-Phase-5** schema (40 tables;
    `workspace_save_intents` absent), and `prisma migrate resolve --applied` records

@@ -154,6 +154,49 @@ async function main() {
     console.log(`MIGRATION + RESTORE DRILL in ${root}`);
     console.log(`  ${earlier.length} migration(s) to reach the pre-Phase-5 schema, then ${head}\n`);
 
+    /*
+     * ---- 0. the blank chain (R5) -----------------------------------------------
+     *
+     * The leg every project has and nobody trusts: `migrate deploy` against an
+     * empty file. It proves only that the SQL parses and that the chain is
+     * self-consistent from zero — which is exactly what a FIRST deployment does,
+     * so it has to be recorded, and it is deliberately kept separate from the
+     * populated leg below so neither can be mistaken for the other.
+     */
+    const blankFile = join(root, "blank.db");
+    const blankUrl = `file:${blankFile}`;
+    const blankDeploy = prisma(["migrate", "deploy"], blankUrl);
+    record(
+      `migrate deploy applies all ${all.length} migrations to an empty database`,
+      blankDeploy.code === 0,
+      blankDeploy.code === 0
+        ? `exit 0, ${all.length} migration(s)`
+        : blankDeploy.out.trim().split("\n").slice(-3).join(" ").slice(0, 220),
+    );
+    const blankStatus = prisma(["migrate", "status"], blankUrl);
+    const blankClean =
+      blankStatus.code === 0 && !/pending|drift|not yet been applied/i.test(blankStatus.out);
+    record(
+      "the blank database lands at migration head with nothing pending and no drift",
+      blankClean,
+      blankClean ? "up to date" : blankStatus.out.trim().split("\n").slice(-3).join(" ").slice(0, 220),
+    );
+    const blankDb = new DatabaseSync(blankFile);
+    const blankTables = blankDb
+      .prepare(`SELECT count(*) n FROM sqlite_master WHERE type = 'table'`)
+      .get().n;
+    const blankIntents = blankDb
+      .prepare(
+        `SELECT count(*) n FROM sqlite_master WHERE type='table' AND name='workspace_save_intents'`,
+      )
+      .get().n;
+    blankDb.close();
+    record(
+      "and the schema it produced is the current one, table for table",
+      blankTables > 30 && blankIntents === 1,
+      `${blankTables} tables, workspace_save_intents present=${blankIntents === 1}`,
+    );
+
     // ---- 1. the database the last release shipped ------------------------------
     const db = new DatabaseSync(live);
     for (const m of earlier) db.exec(readFileSync(join(MIGRATIONS, m, "migration.sql"), "utf8"));

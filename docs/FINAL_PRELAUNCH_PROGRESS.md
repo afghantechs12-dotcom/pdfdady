@@ -71,7 +71,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | F Core workflows | Phase 5 probe logs; `saveToWorkspaceRoute.test.ts` | PARTIAL | yes | final-HEAD probe run |
 | G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 erasure/export still `MANUAL REVIEW REQUIRED` |
 | K Retention | `1d36b30`, `2cb2467`; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, `saveIntentIdentity.test.ts` D24 | PARTIAL | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep); J3 account deletion / data export still unresolved |
-| L DB/backup/restore | `migration-restore-drill.log` — 13/13 | COMPLETE — FINAL EVIDENCE VALID | no | blank-chain leg still to record |
+| L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
 | M Reliability | harness group L/M; `readyRoute.test.ts` (7) | PARTIAL | yes | run harness; readiness toolchain gate now asserted (Q1/Q2) |
 | N Performance | `perf-load-wf.json` (full), `perf-load.log` (truncated earlier run) | PARTIAL | no | document; log lags the JSON |
 | O Browser + a11y | none beyond Phase 6 | NOT STARTED | — | Firefox/WebKit availability, keyboard pass |

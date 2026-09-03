@@ -1,6 +1,9 @@
-MIGRATION + RESTORE DRILL in /var/folders/2r/w29d3y252f7fb6md7d29w1mw0000gn/T/pdfdadi-drill-gg7w7V
+MIGRATION + RESTORE DRILL in /var/folders/2r/w29d3y252f7fb6md7d29w1mw0000gn/T/pdfdadi-drill-UWCAUP
   22 migration(s) to reach the pre-Phase-5 schema, then 20260902100000_add_workspace_save_intents
 
+PASS  migrate deploy applies all 23 migrations to an empty database  — exit 0, 23 migration(s)
+PASS  the blank database lands at migration head with nothing pending and no drift  — up to date
+PASS  and the schema it produced is the current one, table for table  — 42 tables, workspace_save_intents present=true
 PASS  the pre-Phase-5 schema builds, and does NOT yet contain the migration under test  — 40 tables, workspace_save_intents present=false
 PASS  Prisma records the shipped migrations as applied, with its own table and checksums  — 22 baselined
 PASS  the database holds a populated Workspace before the migration runs  — users=1 organizations=1 organization_memberships=1 workspaces=1 document_records=1 document_versions=2 document_ingestions=1
@@ -16,4 +19,4 @@ PASS  the backup restores the destroyed Workspace exactly  — content sha256 92
 PASS  the restored database is at migration head, not at the schema it was baselined from  — Environment variables loaded from .env
 
 ────────────────────────────────────────────────────────────────────────
-MIGRATION + RESTORE DRILL — PASS 13/13
+MIGRATION + RESTORE DRILL — PASS 16/16
