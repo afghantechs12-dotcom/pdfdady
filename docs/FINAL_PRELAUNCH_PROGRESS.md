@@ -65,7 +65,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 |---|---|---|---|---|
 | A Phase 5 reconciliation | 4 probe logs; audit doc Gate A | COMPLETE — FINAL EVIDENCE VALID | no | none |
 | B Visual acceptance | 156 captures / 18 surfaces + 19 in its own run; 5 sheets; `visual/GATE-B-VISUAL-ACCEPTANCE.md`; mutation N red-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun compare at final HEAD; verdict is `VISUAL ACCEPTANCE PENDING` |
-| C Launch profile | none | NOT STARTED | — | document decisions; invent nothing |
+| C Launch profile | `evidence/final-prelaunch/LAUNCH-PROFILE.md` | COMPLETE — FINAL EVIDENCE VALID | no | 7 `LAUNCH DECISION REQUIRED` rows stand; they are the operator's, not the audit's |
 | D Fresh environment | `clean-worktree-5a4adca-npm-ci-build-probe.log` (at `5a4adca`) | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD |
 | E Tool runtime matrix | `tool-matrix.log/json` — 29/29, 2 env, 3 not exercised | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD (ocr fix landed after) |
 | F Core workflows | Phase 5 probe logs; `saveToWorkspaceRoute.test.ts` | PARTIAL | yes | final-HEAD probe run |
@@ -171,8 +171,16 @@ and mutation N — homepage `<h1> mt-4 -> mt-16`, built and served, `PASS 0/9` a
 claimed. Baselines stay under gitignored `docs/screenshots/final-prelaunch/` (41 MB),
 so the compare is reproducible on this host only.
 
-Next: Group C (launch profile, `LAUNCH DECISION REQUIRED` wherever the code cannot
-say), then the reruns at final HEAD (D fresh environment, E tool matrix, F core
+Group C is closed: `evidence/final-prelaunch/LAUNCH-PROFILE.md`. Free-only or paid is
+three environment variables and the code refuses to show a price it cannot charge;
+registration is open with **no email verification and no password recovery**; SQLite is
+enforced at boot (Postgres means regenerating the migration history, not a config
+change); storage `local|r2` with half-configured refused; queue `memory|redis`;
+first-party analytics only and **no error monitoring** (`ConsoleErrorReporter`);
+retention 1h outputs / 15min sweep / 30-day save intents; support is one mailto.
+Seven rows are `LAUNCH DECISION REQUIRED` and stay that way.
+
+Next: the reruns at final HEAD (D fresh environment, E tool matrix, F core
 workflows, G-J harness + offline leg), L blank-chain leg, M readiness, N perf
 write-up, O browser/a11y, P SEO/pricing, Q rollback rehearsal; then the R1-R30 map,
 the final regression gates at final HEAD, and the 37-section report.
