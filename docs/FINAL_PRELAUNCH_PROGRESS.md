@@ -41,6 +41,10 @@ resume without re-deriving state. No secrets, cookies or document contents here.
 | `1ba3a84` | mutation P1 — the sweep's three other retention tests stay green while the table grows |
 | `2cb2467` | K — `ensureWorkerReady` had no test, so nothing asserted the sweep is wired (P2, P3) |
 | `2cb8173` | M — the readiness probe's toolchain gate was asserted by nothing (Q1, Q2) |
+| `c1bc852` | progress checkpoint |
+| `450657d` | R24/R25 — the Workspace file manager was the one indexable private page |
+| `3be5379` | mutations S1–S3 — the sitemap's availability gate is load-bearing (13 slugs) |
+| `72c9630` | R17 — `lib/server/cleanup.ts` had no test, nor did the two guards around `rm` (T1–T3) |
 
 ### Stale audit processes found and stopped
 
@@ -70,10 +74,10 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | M Reliability | harness group L/M; `readyRoute.test.ts` (7) | PARTIAL | yes | run harness; readiness toolchain gate now asserted (Q1/Q2) |
 | N Performance | `perf-load-wf.json` (full), `perf-load.log` (truncated earlier run) | PARTIAL | no | document; log lags the JSON |
 | O Browser + a11y | none beyond Phase 6 | NOT STARTED | — | Firefox/WebKit availability, keyboard pass |
-| P SEO/pricing | harness groups O,P,Q | PARTIAL | yes | run harness |
+| P SEO/pricing | harness groups O,P,Q; `seoIndexingTruth.test.ts` (5) | PARTIAL | yes | run harness; noindex + sitemap truth now asserted (S1–S3) |
 | Q Deployment/rollback | `deploymentArtifact.test.ts`; mutation C | PARTIAL | yes | rollback rehearsal |
-| R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` uses its OWN R1..R30 numbering | PARTIAL | — | map brief topics → tests, add missing |
-| Mutations | A–O, P1–P3, Q1–Q2 (29 rows) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | visual mutation still owed |
+| R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` (own R1..R30) + `seoIndexingTruth.test.ts` (R24/R25), `tempFileLifecycle.test.ts` (R17) | PARTIAL | — | map brief topics → tests for §28 |
+| Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | visual mutation still owed |
 | Final verification | none at final HEAD | NOT STARTED | — | suite, tsc, eslint, prisma, 6 probes, fidelity |
 
 ## Known findings so far
@@ -94,6 +98,20 @@ the sweep is *registered* (`ensureWorkerReady` had no test at all — every test
 that touches it mocks it away), and nothing made a missing toolchain binary
 affect `/api/health/ready`.
 
+Found and fixed in session 2, group R: `app/workspaces/[workspaceId]/page.tsx` —
+the Workspace file manager, the page a signed-in user lives on — exported no
+`metadata` at all and has no `app/workspaces/layout.tsx` above it, so it inherited
+the root layout's indexable defaults while all three of its siblings declared
+`robots:{index:false,follow:false}`. Fixed in `450657d`. The test derives the
+private-route set from the tree and from `sitemap()`'s own output rather than
+listing it, because a hardcoded list is exactly what would have stayed green.
+Mutation S2 also corrected a claim in `app/sitemap.ts`'s own comment: its
+availability gate is not belt-and-braces behind `getToolsList`, it is the only
+thing keeping 13 unavailable slugs (5 `planned`, 8 `coming-soon-ai`) out of the
+sitemap. And `lib/seo/adminRuntime.ts`'s `import "server-only"` — a Next-supplied
+package absent from `node_modules` — is why nothing in this repository had ever
+*called* `sitemap()` or `robots()`; stubbed in `test/stubs/server-only.ts`.
+
 Open, not yet resolved: the `22 MB` upload leg of the perf probe answered
 `400 Malformed multipart body.`; no account deletion or data export exists (J3);
 SQLite vs PostgreSQL for launch is LAUNCH DECISION REQUIRED.
@@ -107,10 +125,11 @@ No production credentials, no Docker daemon check yet, no human visual approval.
 
 ## Next action
 
-Brief-R coverage gaps still open, in order: R24 (private routes not indexed — 11
-route files declare `robots:{index:false}`, no test), R25 (sitemap registry
-truth — only the harness reads source), R17 (`lib/server/cleanup.ts` has no
-test). Then group B (visual), then the 21-step final verification.
+Group B (visual acceptance): baselines for `13-publish-state`, `14-conflict-dialog`,
+`19-app-error`; full compare pass; regenerate all 5 contact sheets; the
+visible-visual-regression mutation; record `VISUAL ACCEPTANCE PENDING` (no human
+approval has been given and none may be claimed). Then C, then the reruns at final
+HEAD (D, E, F, G–J harness), then the 21-step final verification and the report.
 
 Command to resume the harness leg:
 `node scripts/final-prelaunch-audit.mjs --offline --json /tmp/audit-offline.json`
