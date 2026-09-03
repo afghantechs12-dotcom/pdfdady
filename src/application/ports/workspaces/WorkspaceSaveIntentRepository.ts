@@ -75,4 +75,18 @@ export interface WorkspaceSaveIntentRepository {
 
   /** Marks a claim released after a failed attempt, so the same key may retry. */
   fail(id: string): Promise<void>;
+
+  /**
+   * Deletes rows untouched since `cutoff`, and answers how many went. The reason
+   * this exists is that nothing else bounds the table: one row is written per
+   * save-to-workspace operation and no other lifecycle ever reaches it, so
+   * without a sweep `workspace_save_intents` grows for the life of the
+   * deployment while holding a userId, a workspaceId and a payload checksum.
+   *
+   * Status is deliberately NOT part of the condition. A `pending` row older than
+   * the horizon is not an operation in flight — it is one whose process died,
+   * and deleting it has exactly the effect `reclaim` would have had: the key
+   * becomes usable again.
+   */
+  pruneBefore(cutoff: Date): Promise<number>;
 }

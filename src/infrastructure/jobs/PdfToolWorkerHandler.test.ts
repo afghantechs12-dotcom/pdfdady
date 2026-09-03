@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import { LocalFileStorage } from "@/src/infrastructure/storage/LocalFileStorage";
 import { InMemoryStoredFileRepository } from "@/src/infrastructure/persistence/InMemoryStoredFileRepository";
 import { InMemoryJobRepository } from "@/src/infrastructure/persistence/InMemoryJobRepository";
+import { InMemoryWorkspaceSaveIntentRepository } from "@/src/infrastructure/persistence/InMemoryWorkspaceSaveIntentRepository";
 import { InMemoryQueue } from "@/src/infrastructure/queue/InMemoryQueue";
 import { InMemoryWorker } from "@/src/infrastructure/queue/InMemoryWorker";
 import { InMemoryJobEvents } from "@/src/infrastructure/queue/InMemoryJobEvents";
@@ -31,6 +32,7 @@ import {
   createPdfToolHandler,
   createPdfToolBatchHandler,
   createFileRetentionHandler,
+  SAVE_INTENT_RETENTION_MS,
 } from "./PdfToolWorkerHandler";
 import type { JobContext } from "@/src/application/ports/queue/Worker";
 
@@ -400,6 +402,7 @@ describe("FileRetentionHandler", () => {
       storage: env.storage,
       fileMeta: env.fileMeta,
       scheduler: env.scheduler,
+      saveIntents: new InMemoryWorkspaceSaveIntentRepository(),
       logger: env.logger,
     });
     const job = await env.jobRepo.create({
@@ -424,6 +427,72 @@ describe("FileRetentionHandler", () => {
     // Re-scheduled a new retention job (queued).
     const queued = await env.jobRepo.listByStatus("queued");
     expect(queued.some((j) => j.type === FILE_RETENTION_JOB_TYPE)).toBe(true);
+  });
+
+  /**
+   * The save-intent horizon, and why the sweep is where it is asserted.
+   *
+   * `workspace_save_intents` gains a row per save-to-workspace operation and no
+   * other lifecycle deletes one: no cascade reaches it, and the service that
+   * writes it only ever moves a status. Before this sweep learned about it the
+   * table was unbounded for the life of a deployment — a userId, a workspaceId
+   * and a payload checksum per save, kept forever. This test is the policy: rows
+   * past the horizon go, rows inside it stay, and the count is reported.
+   */
+  it("prunes save intentions past the horizon and keeps the ones inside it", async () => {
+    const saveIntents = new InMemoryWorkspaceSaveIntentRepository();
+    const meaning = {
+      workspaceId: "ws1",
+      sourceKind: "local-result" as const,
+      sourceIdentity: "res-1",
+      payloadChecksum: "a".repeat(64),
+    };
+    const stale = await saveIntents.insertPending(
+      { organizationId: "org1", userId: "u1", key: "k-stale" },
+      meaning,
+    );
+    const fresh = await saveIntents.insertPending(
+      { organizationId: "org1", userId: "u1", key: "k-fresh" },
+      meaning,
+    );
+    expect(stale).not.toBeNull();
+    expect(fresh).not.toBeNull();
+    // Age the stale row past the horizon by rewriting the twin's clock, which is
+    // the only way to be a month old inside a test that runs in milliseconds.
+    Object.assign(
+      (saveIntents as unknown as { rows: Map<string, { id: string; updatedAt: Date }> }).rows.get(
+        "org1\u0000u1\u0000k-stale",
+      )!,
+      { updatedAt: new Date(Date.now() - SAVE_INTENT_RETENTION_MS - 60_000) },
+    );
+
+    const handler = createFileRetentionHandler({
+      storage: env.storage,
+      fileMeta: env.fileMeta,
+      scheduler: env.scheduler,
+      saveIntents,
+      logger: env.logger,
+    });
+    const job = await env.jobRepo.create({ type: FILE_RETENTION_JOB_TYPE, payload: {} });
+    const { result } = await handler(job, {
+      progress: async () => {},
+      isCancelled: () => false,
+    } as JobContext);
+
+    expect((result as { intentsPruned: number }).intentsPruned).toBe(1);
+    expect(
+      await saveIntents.find({ organizationId: "org1", userId: "u1", key: "k-stale" }),
+    ).toBeNull();
+    // Anti-vacuity: a sweep that deleted the table would pass the line above.
+    expect(
+      await saveIntents.find({ organizationId: "org1", userId: "u1", key: "k-fresh" }),
+    ).not.toBeNull();
+  });
+
+  it("keeps the horizon longer than any client replay window", () => {
+    // The one number this policy is: shorter than a week and a legitimate retry
+    // starts duplicating documents instead of answering with the first one.
+    expect(SAVE_INTENT_RETENTION_MS).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000);
   });
 });
 

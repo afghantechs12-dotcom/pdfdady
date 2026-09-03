@@ -732,3 +732,58 @@ describe("D19 — documents saved before intentions existed still work", () => {
     expect(Buffer.from(await storage.get(intentional.file.key)).equals(data)).toBe(true);
   });
 });
+
+/**
+ * D24 — the intention table is bounded, proved against the real column.
+ *
+ * The horizon itself lives with the sweep that applies it
+ * (`SAVE_INTENT_RETENTION_MS`, asserted in `PdfToolWorkerHandler.test.ts`). What
+ * has to be proved HERE is the adapter, because the in-memory twin compares two
+ * `Date` objects in a Map while Prisma compares a column, and a twin that agreed
+ * with a broken adapter is how an unbounded table stays unbounded through a green
+ * suite. The cutoff is moved rather than the row's age: that asks the real
+ * database the same question in both directions without assuming how SQLite
+ * spells a DateTime.
+ */
+describe("D24 — save intentions are pruned by cutoff, not kept forever", () => {
+  it("deletes a row older than the cutoff and keeps one newer than it", async () => {
+    const intents = new PrismaWorkspaceSaveIntentRepository(prisma);
+    const intent = localIntent("D24-a");
+
+    await save(world, world.users.saver!, world.workspaces.Home!, resultBytes("D24-a"), {
+      name: "bounded-a.pdf",
+      intent,
+    });
+    // Read by the key the client actually minted: querying a label the padding
+    // never produced would make every assertion below pass on an empty table.
+    expect(await intentRows(intent.key)).toHaveLength(1);
+
+    // A cutoff before the row was written: nothing is eligible, and the sweep
+    // must not take a live intention with it.
+    expect(await intents.pruneBefore(new Date(Date.now() - 60_000))).toBe(0);
+    expect(await intentRows(intent.key)).toHaveLength(1);
+
+    // A cutoff after it: the row is past the horizon and goes.
+    expect(await intents.pruneBefore(new Date(Date.now() + 60_000))).toBe(1);
+    expect(await intentRows(intent.key)).toHaveLength(0);
+  });
+
+  it("leaves the document the pruned intention produced", async () => {
+    // The row is bookkeeping for one press of Save, not the save itself. Losing
+    // it must cost the user nothing.
+    const intent = localIntent("D24-b");
+    const saved = await save(world, world.users.saver!, world.workspaces.Home!, resultBytes("D24-b"), {
+      name: "bounded-b.pdf",
+      intent,
+    });
+    expect(await intentRows(intent.key)).toHaveLength(1);
+    expect(
+      await new PrismaWorkspaceSaveIntentRepository(prisma).pruneBefore(new Date(Date.now() + 60_000)),
+    ).toBe(1);
+
+    expect(await intentRows(intent.key)).toHaveLength(0);
+    const doc = await prisma.documentRecord.findUnique({ where: { id: saved.document.id } });
+    expect(doc?.name).toBe("bounded-b.pdf");
+    expect(Buffer.from(await storage.get(saved.file.key)).equals(resultBytes("D24-b"))).toBe(true);
+  });
+});

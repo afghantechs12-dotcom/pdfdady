@@ -93,6 +93,17 @@ export class InMemoryWorkspaceSaveIntentRepository implements WorkspaceSaveInten
     this.patch(id, { status: "failed" });
   }
 
+  async pruneBefore(cutoff: Date): Promise<number> {
+    let count = 0;
+    for (const [scope, row] of [...this.rows]) {
+      if (row.updatedAt.getTime() < cutoff.getTime()) {
+        this.rows.delete(scope);
+        count += 1;
+      }
+    }
+    return count;
+  }
+
   private locate(id: string): [string, WorkspaceSaveIntent] | null {
     for (const [scope, row] of this.rows) {
       if (row.id === id) return [scope, row];

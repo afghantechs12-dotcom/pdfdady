@@ -105,4 +105,13 @@ export class PrismaWorkspaceSaveIntentRepository implements WorkspaceSaveIntentR
       data: { status: "failed" },
     });
   }
+
+  async pruneBefore(cutoff: Date): Promise<number> {
+    // `updatedAt`, not `createdAt`: a row reclaimed for a fresh attempt is live
+    // again, and its age should be measured from that attempt.
+    const { count } = await this.prisma.workspaceSaveIntent.deleteMany({
+      where: { updatedAt: { lt: cutoff } },
+    });
+    return count;
+  }
 }

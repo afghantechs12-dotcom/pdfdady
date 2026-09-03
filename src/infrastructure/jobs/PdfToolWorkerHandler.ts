@@ -13,6 +13,7 @@ import type { IFileMetadataRepository } from "@/src/application/ports/storage/Fi
 import type { IUploadService } from "@/src/application/ports/storage/UploadService";
 import type { IJobRepository } from "@/src/application/ports/repositories/JobRepository";
 import type { IJobScheduler } from "@/src/application/ports/queue/JobScheduler";
+import type { WorkspaceSaveIntentRepository } from "@/src/application/ports/workspaces/WorkspaceSaveIntentRepository";
 import type { ILogger } from "@/src/application/ports/Logger";
 import type { Job } from "@/src/domain/entities/Job";
 import type { StoredFileOwnerType } from "@/src/domain/entities/StoredFile";
@@ -64,6 +65,20 @@ export const TOOL_OUTPUT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /** How often the retention sweep runs (re-scheduled on each completion). */
 export const RETENTION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * How long a save intention is kept after its last attempt.
+ *
+ * The row's only job is to make one save-to-workspace operation idempotent for as
+ * long as a client might retry it, and no client retries for a month. Longer than
+ * that it is only a userId, a workspaceId and a payload checksum sitting in a
+ * table nothing bounds.
+ *
+ * ponytail: the ceiling is deliberate — replaying an intention key older than this
+ * horizon saves the payload a second time rather than answering with the first
+ * document. Raise the horizon if a client is ever given a longer replay window.
+ */
+export const SAVE_INTENT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /** Key prefixes for ephemeral tool files (never content-addressed/shared). */
 const TOOL_KEY_PREFIXES = ["tool-inputs/", "jobs/"];
@@ -504,6 +519,8 @@ export interface FileRetentionHandlerDeps {
   storage: IObjectStorage;
   fileMeta: IFileMetadataRepository;
   scheduler: IJobScheduler;
+  /** Required, not optional: an unbounded table is what forgetting to wire it looks like. */
+  saveIntents: WorkspaceSaveIntentRepository;
   logger: ILogger;
 }
 
@@ -513,12 +530,17 @@ export interface FileRetentionHandlerDeps {
  * under the ephemeral tool key prefixes are deleted from storage (content-
  * addressed `ca/` objects are shared and left to their own lifecycle); the
  * metadata row is always removed when expired.
+ *
+ * It also prunes save intentions past `SAVE_INTENT_RETENTION_MS`. That rides here
+ * rather than in a job of its own because this sweep already recurs, and a second
+ * recurring job would be a second thing to forget to register.
  */
 export function createFileRetentionHandler(
   deps: FileRetentionHandlerDeps,
 ): JobHandler {
   return async () => {
     let purged = 0;
+    let intentsPruned = 0;
     try {
       const expired = await deps.fileMeta.listExpired(new Date(), 500);
       for (const f of expired) {
@@ -536,6 +558,15 @@ export function createFileRetentionHandler(
           });
         }
       }
+      try {
+        intentsPruned = await deps.saveIntents.pruneBefore(
+          new Date(Date.now() - SAVE_INTENT_RETENTION_MS),
+        );
+      } catch (err) {
+        deps.logger.warn("Retention: failed to prune save intentions", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     } finally {
       // Re-schedule the next sweep so the job recurs (the scheduler is
       // one-shot; recurring jobs re-schedule on completion).
@@ -550,7 +581,7 @@ export function createFileRetentionHandler(
         });
       }
     }
-    deps.logger.debug("Retention sweep complete", { purged });
-    return { result: { purged } };
+    deps.logger.debug("Retention sweep complete", { purged, intentsPruned });
+    return { result: { purged, intentsPruned } };
   };
 }

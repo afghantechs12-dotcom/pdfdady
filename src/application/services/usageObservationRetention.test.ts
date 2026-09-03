@@ -150,6 +150,7 @@ describe("the recurring retention sweep leaves usage data alone", () => {
         delete: async (id: string) => void deleted.push(id),
       } as never,
       scheduler: { schedule: async () => undefined } as never,
+      saveIntents: { pruneBefore: async () => 0 } as never,
       logger,
     });
 
