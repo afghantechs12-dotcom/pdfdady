@@ -1,0 +1,56 @@
+READINESS AND LIVENESS TRUTH (R23) — audit host, 2026-09-03T21:15:02Z
+HEAD 04e380f · every command below was run on the audit host; the output is real.
+
+── Liveness is up; readiness is degraded, and says which subsystem ────
+$ curl -sS -o /dev/null -w %{http_code} http://127.0.0.1:3002/api/health
+200
+
+$ curl -sSi http://127.0.0.1:3002/api/health/ready | head -1
+HTTP/1.1 503 Service Unavailable
+$ curl -sS http://127.0.0.1:3002/api/health/ready
+{
+    "ok": false,
+    "status": "degraded",
+    "dataDir": true,
+    "toolchain": false,
+    "database": true,
+    "checks": [
+        {
+            "name": "database",
+            "healthy": true
+        }
+    ]
+}
+
+── Why: one of the seven binaries in binaryInfo is genuinely absent ───
+$ command -v soffice    → not found
+$ command -v gs         → /opt/homebrew/bin/gs
+$ command -v qpdf       → /opt/homebrew/bin/qpdf
+$ command -v pdftoppm   → /opt/homebrew/bin/pdftoppm
+$ command -v pdfinfo    → /opt/homebrew/bin/pdfinfo
+$ command -v tesseract  → /opt/homebrew/bin/tesseract
+$ command -v ocrmypdf   → /opt/homebrew/bin/ocrmypdf
+
+── What this is and is not ────────────────────────────────────────────
+PASS, and the strongest form of it: readiness is red on a host where a
+required binary really is missing, while liveness stays green. That is the
+split the two endpoints exist to make — liveness answers "is the process
+alive", readiness answers "should traffic come here" — and it is what
+mutation O (readiness green while a dependency is unavailable) tried to break.
+
+The missing binary is ENVIRONMENTAL: LibreOffice is not installed on this
+macOS audit host. The shipped image installs it (Dockerfile apt line), and as
+of 04e380f a test walks binaryInfo and fails if the image stops installing any
+of the seven.
+
+Two operational consequences, for the operator rather than the code:
+  · A load balancer reading /api/health/ready would never route to THIS host.
+    That is correct behaviour, not a defect.
+  · The container HEALTHCHECK asks /api/health, which does not look at the
+    toolchain. A container missing a binary is therefore "healthy" and not
+    ready — deliberate (a restart would not install a binary), but it means
+    the deploy signal to watch is readiness, not the container's health state.
+
+The readiness dependency probe caches for 30 s (DEP_CACHE_MS). A dependency
+fixed seconds ago still reads false until the cache expires; a rollback
+verification must wait that out rather than conclude the fix failed.
