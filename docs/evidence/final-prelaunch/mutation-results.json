@@ -1,0 +1,395 @@
+[
+  {
+    "id": "A1",
+    "title": "Write a scrypt hash back into the shipped admin store",
+    "file": "data/admin/store.json",
+    "gate": [
+      "data/admin/shippedStoreSecrets.test.ts"
+    ],
+    "failed": 2,
+    "passed": 0,
+    "red": true,
+    "failing": [
+      "R1 the shipped admin store carries no credential > no JSON file under data/admin holds a scrypt password hash",
+      "R1 the shipped admin store carries no credential > store.json ships with no admin password set"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "E1",
+    "title": "The pilot gate stops gating: every slug is piloted",
+    "file": "lib/server/processingPilot.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 3,
+    "passed": 28,
+    "red": true,
+    "failing": [
+      "R1..R3 the shipped default job shape > R1 defaults every tool to the legacy path \u2014 no flag, no pipeline",
+      "R1..R3 the shipped default job shape > R2 an operator turning the pilot ON moves exactly one tool",
+      "R1..R3 the shipped default job shape > R3 every save-offering tool therefore produces a legacy job by default"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "E2",
+    "title": "Delete the slug gate, so the env override moves every tool",
+    "file": "lib/server/processingPilot.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R1..R3 the shipped default job shape > R2 an operator turning the pilot ON moves exactly one tool"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "F1",
+    "title": "The reported output MIME stops overriding the capability",
+    "file": "components/tools/resultWorkflow.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "components/tools/resultWorkflowWiring.test.ts"
+    ],
+    "failed": 5,
+    "passed": 59,
+    "red": true,
+    "failing": [
+      "C1-C4 \u2014 a member of several Workspaces chooses one before anything is saved > C2 shows no selector for a result that would have no Save button at all",
+      "R4..R8 the two result actions > R5 a run that REPORTED a non-PDF output overrides the capability",
+      "R4..R8 the two result actions > R8 several Workspaces hold Save inert until one is chosen",
+      "T6/T7 \u2014 the actions a result offers agree with the capability record > C7 lets the RUN's MIME withdraw the Workspace action too, not only the editor",
+      "T6/T7 \u2014 the actions a result offers agree with the capability record > T6 believes the RUN's own MIME type over the tool's general one"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "F2",
+    "title": "Save is offered before a destination is settled",
+    "file": "components/tools/resultWorkflow.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "components/tools/resultWorkflowWiring.test.ts"
+    ],
+    "failed": 6,
+    "passed": 58,
+    "red": true,
+    "failing": [
+      "C1-C4 \u2014 a member of several Workspaces chooses one before anything is saved > C2 holds Save inert while the choice is open, and releases it once made",
+      "R4..R8 the two result actions > R7 a signed-out user is offered sign-in, never a save",
+      "R4..R8 the two result actions > R8 several Workspaces hold Save inert until one is chosen",
+      "T20 \u2014 the auth boundary offers a route in, never a silent upload > offers no Save while the destination is unknown, and none when there is none",
+      "T20 \u2014 the auth boundary offers a route in, never a silent upload > offers sign-in instead of Save when nobody is signed in, and returns to the tool",
+      "T6/T7 \u2014 the actions a result offers agree with the capability record > C5 hides Open in Editor for a PDF the editor cannot parse, and KEEPS the Workspace"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "G1",
+    "title": "Drop the header-injection replace from the download name",
+    "file": "src/application/services/documentContent.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 2,
+    "passed": 29,
+    "red": true,
+    "failing": [
+      "R28..R30 the naming path, end to end > R30 the whole name path composes: upload name in, safe header out",
+      "R9..R12 hostile names and storage keys > R9 a filename cannot inject a header"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "G2",
+    "title": "Append .pdf unconditionally",
+    "file": "src/application/services/documentContent.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R9..R12 hostile names and storage keys > R10 a download is named once, with one extension"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "H1",
+    "title": "Stop sanitizing the staged base name",
+    "file": "lib/server/toolJobSubmit.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 2,
+    "passed": 29,
+    "red": true,
+    "failing": [
+      "R28..R30 the naming path, end to end > R30 the whole name path composes: upload name in, safe header out",
+      "R9..R12 hostile names and storage keys > R11 an upload name reaches the filesystem as one path segment"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "H2",
+    "title": "Accept any extension at the intake",
+    "file": "lib/server/validateUpload.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 2,
+    "passed": 29,
+    "red": true,
+    "failing": [
+      "R19..R20 upload intake > R20 the intake's four ceilings are enforced where the file arrives",
+      "R9..R12 hostile names and storage keys > R11b a name with no allowed extension never reaches staging"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "H3",
+    "title": "Remove the storage root containment guard",
+    "file": "src/infrastructure/storage/LocalFileStorage.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R9..R12 hostile names and storage keys > R12 a key that escapes the storage root is refused, at the store"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "I1",
+    "title": "Serve a version whose manifest could not be read",
+    "file": "src/application/services/documentContent.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "src/application/services/documentContent.test.ts"
+    ],
+    "failed": 2,
+    "passed": 54,
+    "red": true,
+    "failing": [
+      "R13..R18 content availability > R15 a manifest that could not be read reliably serves nothing",
+      "resolveDocumentContent > refuses to serve from a degraded manifest"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "I2",
+    "title": "A pending ingestion stops being waitable",
+    "file": "src/application/services/documentContent.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "src/application/services/documentContentPreparation.test.ts"
+    ],
+    "failed": 2,
+    "passed": 39,
+    "red": true,
+    "failing": [
+      "R13..R18 content availability > R18 a save that has not been ingested yet is waitable, and says so",
+      "preparationFromIngestion > treats pending and processing as waitable"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "I3",
+    "title": "Serve a zero-byte source artifact",
+    "file": "src/application/services/documentContent.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "src/application/services/documentContent.test.ts"
+    ],
+    "failed": 2,
+    "passed": 54,
+    "red": true,
+    "failing": [
+      "R13..R18 content availability > R16 a version with no usable source artifact serves nothing",
+      "resolveDocumentContent > treats a zero-byte source as unavailable rather than as an empty PDF"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "J1",
+    "title": "Stop sniffing the leading bytes before a binary runs",
+    "file": "lib/server/validateUpload.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R19..R20 upload intake > R19 a claimed extension is checked against the actual leading bytes"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "K1",
+    "title": "Drop the upload size ceiling",
+    "file": "lib/server/validateUpload.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R19..R20 upload intake > R20 the intake's four ceilings are enforced where the file arrives"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "K2",
+    "title": "Accept an empty upload",
+    "file": "lib/server/validateUpload.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R19..R20 upload intake > R20 the intake's four ceilings are enforced where the file arrives"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "L1",
+    "title": "Remove the concurrency ceiling",
+    "file": "lib/server/concurrency.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R21..R23 saturation, sessions, and error text > R21 the concurrency ceiling holds, and a release admits the waiter"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "L2",
+    "title": "Put the tuning knob in the saturation message",
+    "file": "lib/server/concurrency.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R21..R23 saturation, sessions, and error text > R21 the concurrency ceiling holds, and a release admits the waiter"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "M1",
+    "title": "Let script read the session cookie",
+    "file": "src/application/services/authHttp.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R21..R23 saturation, sessions, and error text > R22 the session cookie is unreadable to script and cleared the same way it was set"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "M2",
+    "title": "Clear the cookie with attributes that do not mirror the set",
+    "file": "src/application/services/authHttp.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 30,
+    "red": true,
+    "failing": [
+      "R21..R23 saturation, sessions, and error text > R22 the session cookie is unreadable to script and cleared the same way it was set"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "N1",
+    "title": "Return the internal failure text to the client",
+    "file": "src/application/services/workspaceHttp.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "src/application/services/workspaceHttp.test.ts"
+    ],
+    "failed": 1,
+    "passed": 43,
+    "red": true,
+    "failing": [
+      "R21..R23 saturation, sessions, and error text > R23 an unexpected failure reaches the client as a generic 500"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "O1",
+    "title": "Drop the event property allowlist",
+    "file": "src/domain/metering/events.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "src/domain/metering/events.test.ts"
+    ],
+    "failed": 1,
+    "passed": 49,
+    "red": true,
+    "failing": [
+      "R24..R27 measurement, pricing, capability truth > R24 a failure event carries its category and nothing about the document"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "O2",
+    "title": "Print a price for a plan that cannot be bought",
+    "file": "data/pricing.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "data/pricing.test.ts"
+    ],
+    "failed": 2,
+    "passed": 41,
+    "red": true,
+    "failing": [
+      "R24..R27 measurement, pricing, capability truth > R25 a plan that cannot be bought shows no price and no checkout",
+      "pricing data stays truthful about the free tier > unavailable plans do not masquerade as purchasable"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "O3",
+    "title": "Claim a Workspace can hold a non-PDF output",
+    "file": "lib/tools/capability.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts",
+      "lib/tools/capability.test.ts"
+    ],
+    "failed": 7,
+    "passed": 63,
+    "red": true,
+    "failing": [
+      "R24..R27 measurement, pricing, capability truth > R26 the capability record cannot invent a tool, and answers only for real ones",
+      "R4..R8 the two result actions > R4 no tool whose output is not a PDF claims either action",
+      "T1 \u2014 the inventory is complete and internally consistent > finds no cross-field disagreement",
+      "T22 \u2014 output capability matches the processors > C5 \u2014 answers the editor question and the Workspace question separately",
+      "T22 \u2014 output capability matches the processors > C5 \u2014 the inventory self-check refuses each dimension's own contradiction",
+      "T22 \u2014 output capability matches the processors > never claims an editable or saveable output for a non-PDF result"
+    ],
+    "exit": 1
+  }
+]
