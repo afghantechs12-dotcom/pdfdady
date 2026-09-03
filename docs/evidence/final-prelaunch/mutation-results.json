@@ -391,5 +391,21 @@
       "T22 \u2014 output capability matches the processors > never claims an editable or saveable output for a non-PDF result"
     ],
     "exit": 1
+  },
+  {
+    "id": "P1",
+    "title": "The recurring sweep stops pruning save intentions",
+    "file": "src/infrastructure/jobs/PdfToolWorkerHandler.ts",
+    "gate": [
+      "src/infrastructure/jobs/PdfToolWorkerHandler.test.ts"
+    ],
+    "failed": 1,
+    "passed": 12,
+    "red": true,
+    "failing": [
+      "FileRetentionHandler > prunes save intentions past the horizon and keeps the ones inside it"
+    ],
+    "exit": 1,
+    "note": "The state this repository shipped in until 1d36b30, applied as a mutation to prove the new gate is the thing that catches it."
   }
 ]
