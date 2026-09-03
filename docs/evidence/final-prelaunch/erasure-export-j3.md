@@ -15,7 +15,7 @@ to a person.
 
 ## Why it is not a small feature
 
-`model User` in `prisma/schema.prisma` has **no relations at all** — 14 scalar
+`model User` in `prisma/schema.prisma` has **no relations at all** — eight scalar
 fields and nothing else. The 41-model schema carries a user id in **23 columns
 across 22 models**, every one a plain `String` with no foreign key to `users` and
 therefore no cascade:
