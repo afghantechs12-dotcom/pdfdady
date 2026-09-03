@@ -102,6 +102,21 @@ export const LAYOUT_PROBE = `(() => {
  * pixels that are not the CSS pixels the viewport matrix names, and every width
  * assertion measures something the brief did not ask for.
  */
+/** What `tabThrough` reads about the element focus landed on. */
+const STOP_PROBE = `(() => {
+  const a = document.activeElement;
+  if (!a || a === document.body) return null;
+  const cs = getComputedStyle(a);
+  const r = a.getBoundingClientRect();
+  return {
+    tag: a.tagName.toLowerCase(),
+    name: (a.getAttribute('aria-label') || a.textContent || a.getAttribute('name') || '').trim().replace(/\\s+/gu,' ').slice(0, 48),
+    outline: cs.outlineStyle + ' ' + cs.outlineWidth,
+    shadow: cs.boxShadow.slice(0, 80),
+    visible: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
+  };
+})()`;
+
 export async function openBrowser({ port = 9455, width = 1440, height = 900, insecure = false } = {}) {
   spawnSync("pkill", ["-f", `remote-debugging-port=${port}`], { stdio: "ignore" });
   await sleep(350);
@@ -247,35 +262,81 @@ export async function openBrowser({ port = 9455, width = 1440, height = 900, ins
     layout: () => evaluate(LAYOUT_PROBE),
     text: () => evaluate("document.body.innerText"),
     url: () => evaluate("location.href"),
-    /** Tab N times from the document start and report where focus landed. */
+    /**
+     * Tab N times from the document start and report where focus landed.
+     *
+     * The reset is not `document.body.focus()`, and not `blur()` either. Body is
+     * not focusable, so `focus()` on it is a no-op; and blurring does NOT move the
+     * *sequential focus navigation starting point*, which is what Tab actually
+     * advances from. Both leave a second sweep CONTINUING from wherever the first
+     * one stopped — reporting a rotation of the tab order as if it were the order.
+     * Measured on this build: from a fresh load a sweep starts at "Skip to
+     * content"; after `blur()` the next sweep started at "AI Assistant", stop 4.
+     *
+     * That is not academic. It made the keyboard scenario press Enter on a footer
+     * link, follow it, and then report the destination page's missing button as a
+     * product failure.
+     *
+     * Focusing `<html>` behind a temporary `tabindex="-1"` moves the starting point
+     * to the document start, so the first Tab lands on the first focusable element
+     * every time (verified idempotent across repeated sweeps).
+     */
     tabThrough: async (steps) => {
-      await evaluate("document.body.focus()");
+      await evaluate(`(() => {
+        const root = document.documentElement;
+        const had = root.getAttribute("tabindex");
+        root.setAttribute("tabindex", "-1");
+        root.focus();
+        const ok = document.activeElement === root;
+        if (had === null) root.removeAttribute("tabindex");
+        else root.setAttribute("tabindex", had);
+        return ok;
+      })()`);
       const seen = [];
       for (let i = 0; i < steps; i += 1) {
         await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
         await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
         await sleep(45);
-        seen.push(
-          await evaluate(`(() => {
-            const a = document.activeElement;
-            if (!a || a === document.body) return null;
-            const cs = getComputedStyle(a);
-            const r = a.getBoundingClientRect();
-            return {
-              tag: a.tagName.toLowerCase(),
-              name: (a.getAttribute('aria-label') || a.textContent || a.getAttribute('name') || '').trim().replace(/\\s+/gu,' ').slice(0, 48),
-              outline: cs.outlineStyle + ' ' + cs.outlineWidth,
-              shadow: cs.boxShadow.slice(0, 80),
-              visible: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight,
-            };
-          })()`),
-        );
+        let stop = await evaluate(STOP_PROBE);
+        /*
+         * `app/globals.css` sets `scroll-behavior: smooth`, so the browser's own
+         * scroll-focus-into-view is still in flight 45ms after the Tab and a control
+         * on its way into the viewport samples as invisible. Measured: the merge
+         * action at top 816 with innerHeight 757 and scrollY still climbing. Re-read
+         * once, after it settles, rather than reporting a moving target as hidden.
+         */
+        if (stop && stop.visible === false) {
+          await sleep(420);
+          stop = await evaluate(STOP_PROBE);
+        }
+        seen.push(stop);
       }
       return seen;
     },
+    /**
+     * A real key press — including the `text` Chrome needs to run default actions.
+     *
+     * `rawKeyDown`, and even a bare `keyDown`, dispatch the DOM event but do NOT
+     * perform the browser's own activation behaviour: measured on this build, Enter
+     * on the focused native `<button>` recorded ZERO clicks under both and one click
+     * under `keyDown` with `text: "\r"`. An element with an explicit `onKeyDown`
+     * handler (the upload dropzone) answers all three, which is exactly why this
+     * looked like a product defect on the button and not on the dropzone.
+     *
+     * A string third argument is read as that `text`, which is how
+     * `workflow-completeness-probe.mjs` has always called it.
+     */
     key: async (key, code, extra = {}) => {
-      await send("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, ...extra });
-      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, ...extra });
+      const opts = typeof extra === "string" ? { text: extra } : extra;
+      const text = key === "Enter" ? "\r" : key.length === 1 ? key : undefined;
+      await send("Input.dispatchKeyEvent", {
+        type: "keyDown",
+        key,
+        code,
+        ...(text === undefined ? {} : { text, unmodifiedText: text }),
+        ...opts,
+      });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key, code, ...opts });
       await sleep(160);
     },
     click: async (x, y) => {

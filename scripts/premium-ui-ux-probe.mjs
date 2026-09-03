@@ -1305,6 +1305,294 @@ async function scenarioK(ctx) {
   await ctx.a11y(S, "K7");
 }
 
+/* ═════════════ M — a whole tool workflow, keyboard only (R28) ═════════════ */
+
+/**
+ * R28: "keyboard workflow completes". Scenario K proves the homepage's keyboard
+ * contract — a language, a bypass link, focus that is visible and advances. It
+ * proves nothing about getting WORK done, and "the skip link is fine" is not the
+ * claim R28 makes.
+ *
+ * So this drives Merge PDF from an empty page to a downloadable result with no
+ * mouse event dispatched at any point: Tab to reach every control, Enter to
+ * activate it, and the product's own state changes read back as the proof. Merge
+ * is the deliberate choice — it is local, so the leg runs on a host with no
+ * server tool binaries and depends on nothing that could make a keyboard failure
+ * look environmental.
+ *
+ * ONE step cannot be driven and is not pretended: choosing a file in the OS
+ * picker. `DOM.setFileInputFiles` is the only way to attach, so the keyboard
+ * claim is split at exactly that seam — M2 proves Enter on the drop control
+ * OPENS the picker (the hidden input's own `click()` fires), and the attach that
+ * follows stands in for the part of the dialog that belongs to the operating
+ * system. Everything after it is real keyboard input again.
+ */
+async function scenarioM(ctx) {
+  const S = "M";
+  if (!existsSync(FIXTURE)) {
+    envFail(S, "M0 render", `${FIXTURE} is absent, so no workflow can be exercised`);
+    return;
+  }
+  const g = await ctx.open(S, "/tools/merge-pdf", { min: 600, expect: "Merge" });
+  if (!g) return;
+
+  /*
+   * Every activation from here on is recorded at the capture phase. A keyboard
+   * Enter on a button dispatches a real click event, so this hook is what
+   * distinguishes "focus was on the control" from "the control was activated" —
+   * and it cannot be satisfied by a mouse, because none is dispatched.
+   */
+  await ctx.b.evaluate(`(() => {
+    window.__kb = { clicks: [], pickers: 0 };
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest("button, a, [role=button]") || e.target;
+      window.__kb.clicks.push((el.getAttribute("aria-label") || el.textContent || el.tagName).trim().replace(/\\s+/gu, " ").slice(0, 40));
+    }, true);
+    const realClick = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === "file") window.__kb.pickers += 1;
+      return realClick.apply(this, arguments);
+    };
+    return true;
+  })()`);
+
+  // M1: the drop control is IN tab order, named, and ringed. The file input
+  // itself is deliberately aria-hidden with tabindex -1 (C1), so the dropzone is
+  // the only keyboard route to opening a file — if it is unreachable there is no
+  // keyboard route at all.
+  const toDrop = await ctx.b.tabThrough(24);
+  const dropStop = toDrop.findIndex(
+    (f) => f && /add files|choose|drop|browse|select files/i.test(f.name || ""),
+  );
+  const dropFocus = dropStop >= 0 ? toDrop[dropStop] : null;
+  gate(
+    S,
+    "M1 the file-open control is reachable by Tab, named and ringed",
+    !!dropFocus &&
+      dropFocus.visible &&
+      !(/none/.test(dropFocus.outline) && (!dropFocus.shadow || dropFocus.shadow === "none")),
+    dropFocus
+      ? `Tab ${dropStop + 1}/24 -> "${dropFocus.name}", outline ${dropFocus.outline}, shadow ${dropFocus.shadow.slice(0, 32)}`
+      : `24 Tabs never reached a file-open control: ${toDrop.filter(Boolean).map((f) => f.name).slice(0, 8).join(" | ")}`,
+  );
+  if (!dropFocus) {
+    for (const [id, what] of [
+      ["M2 picker opens from the keyboard", "the control was never reached"],
+      ["M3 the action is reachable and ringed", "the control was never reached"],
+      ["M4 Enter runs the tool", "the control was never reached"],
+      ["M5 every result action is reachable and ringed", "the control was never reached"],
+      ["M6 Enter activates a result action", "the control was never reached"],
+      ["M7 focus does not become trapped in the result", "the control was never reached"],
+    ])
+      skip(S, id, what);
+    return;
+  }
+
+  /*
+   * M2: Enter on it opens the picker.
+   *
+   * Focus is re-established by tabbing to that exact stop rather than by
+   * `element.focus()`: a keyboard claim that needs a script to place focus is not
+   * a keyboard claim. The sweep above ended on stop 24, so pressing Enter without
+   * this re-tab tests whatever stop 24 happens to be — which, the first time this
+   * ran, was a footer link that Enter obediently followed.
+   */
+  const landed = (await ctx.b.tabThrough(dropStop + 1))[dropStop];
+  await ctx.b.key("Enter", "Enter", { windowsVirtualKeyCode: 13 });
+  const pickers = await ctx.b.evaluate("window.__kb.pickers");
+  gate(
+    S,
+    "M2 Enter on the file-open control opens the file picker",
+    pickers >= 1 && !!landed && /drop/i.test(landed.name || ""),
+    `Enter went to "${landed ? landed.name : "nothing"}"; hidden file input received ${pickers} programmatic click(s)`,
+  );
+
+  // The OS dialog seam. Two DISTINCT files, because merge needs two.
+  const second = "/tmp/pdfdadi-probe-second.pdf";
+  copyFileSync(FIXTURE, second);
+  const attached = await ctx.attach(
+    [FIXTURE, second].map((p) => (p.startsWith("/") ? p : `${process.cwd()}/${p}`)),
+  );
+  await sleep(1400);
+
+  // M3: from the staged state, Tab reaches the tool's own action. Focus is reset
+  // to the document start so this measures the page's order, not a leftover.
+  const toAction = await ctx.b.tabThrough(40);
+  const actionStop = toAction.findIndex((f) => f && /^merge pdfs?$/i.test((f.name || "").trim()));
+  const actionFocus = actionStop >= 0 ? toAction[actionStop] : null;
+  gate(
+    S,
+    "M3 the tool's action is reachable by Tab from the staged state, and ringed",
+    attached &&
+      !!actionFocus &&
+      actionFocus.visible &&
+      !(/none/.test(actionFocus.outline) && (!actionFocus.shadow || actionFocus.shadow === "none")),
+    actionFocus
+      ? `attached ${attached}, Tab ${actionStop + 1}/40 -> "${actionFocus.name}", outline ${actionFocus.outline}`
+      : `attached ${attached}, 40 Tabs never reached "Merge PDFs"`,
+  );
+  if (!actionFocus) {
+    for (const [id, what] of [
+      ["M4 Enter runs the tool", "the action was never reached by Tab"],
+      ["M5 every result action is reachable and ringed", "the action was never reached by Tab"],
+      ["M6 Enter activates a result action", "the action was never reached by Tab"],
+      ["M7 focus does not become trapped in the result", "the action was never reached by Tab"],
+    ])
+      skip(S, id, what);
+    return;
+  }
+
+  // M4: Enter runs it — again from a real re-tab to that stop, not a focus() call.
+  await ctx.b.tabThrough(actionStop + 1);
+  await ctx.b.key("Enter", "Enter", { windowsVirtualKeyCode: 13 });
+  let done = false;
+  for (let i = 0; i < 40 && !done; i += 1) {
+    await sleep(400);
+    done = (await ctx.b.evaluate(`/Your file is ready/.test(document.body.innerText)`)) === true;
+  }
+  const activated = await ctx.b.evaluate("JSON.stringify(window.__kb.clicks)");
+  gate(
+    S,
+    "M4 Enter on the focused action runs the tool through to a result",
+    done,
+    done
+      ? `result panel reached; keyboard activations so far: ${activated}`
+      : `no result panel after 16s; keyboard activations: ${activated}`,
+  );
+  if (!done) {
+    for (const [id, what] of [
+      ["M5 every result action is reachable and ringed", "no result was produced"],
+      ["M6 Enter activates a result action", "no result was produced"],
+      ["M7 focus does not become trapped in the result", "no result was produced"],
+    ])
+      skip(S, id, what);
+    return;
+  }
+
+  // M5: every action the result offers must be reachable and ringed. The set is
+  // read off the page rather than hard-coded, so a signed-in run with Save to
+  // Workspace and Open in Editor is held to the same rule as a signed-out one.
+  const offered =
+    JSON.parse(
+      (await ctx.b.evaluate(`(() => {
+    const panel = [...document.querySelectorAll('[role="status"]')].find((n) => /Your file is ready/.test(n.innerText));
+    const root = panel ? panel.closest("section, div") || panel : document.body;
+    return JSON.stringify([...root.querySelectorAll("button, a")]
+      .filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+      .map((n) => ({
+        label: (n.getAttribute("aria-label") || n.textContent || "").trim().replace(/\\s+/gu, " ").slice(0, 40),
+        disabled: n.disabled === true || n.getAttribute("aria-disabled") === "true",
+      }))
+      .filter((a) => a.label));
+  })()`)) ?? "[]",
+    ) ?? [];
+  const stops = (await ctx.b.tabThrough(60)).filter(Boolean);
+  const tabReached = (label) =>
+    stops.some((f) => (f.name || "").toLowerCase().includes(label.toLowerCase().slice(0, 18)));
+  /*
+   * A DISABLED control is correctly OUT of the tab order, so requiring it here would
+   * be this probe asserting a defect where the platform is behaving. That is not a
+   * theoretical distinction: signed in with two Workspaces, `Save to Workspace` is
+   * rendered disabled until the destination `<select>` has a choice in it, and the
+   * first version of this gate reported the product's own guard as unreachable.
+   * M5b then has to prove the keyboard can LIFT that state — otherwise excusing the
+   * button here would quietly drop the signed-in save from the keyboard claim.
+   */
+  const mustReach = offered.filter((a) => !a.disabled);
+  const unreachable = mustReach.filter((a) => !tabReached(a.label));
+  const unringed = stops.filter(
+    (f) => /none/.test(f.outline) && (!f.shadow || f.shadow === "none"),
+  );
+  gate(
+    S,
+    "M5 every enabled action the result offers is reachable by Tab, and every stop is ringed",
+    mustReach.length > 0 && unreachable.length === 0 && unringed.length === 0,
+    `${offered.length} offered [${offered.map((a) => a.label + (a.disabled ? " (disabled)" : "")).join(" | ")}]; unreachable ${unreachable.length ? unreachable.map((a) => a.label).join(", ") : "none"}; unringed ${unringed.length ? unringed.map((f) => `"${f.name}"`).join(", ") : "none"}`,
+  );
+
+  /*
+   * M5b: the disabled action, and the keyboard route out of it. The destination is a
+   * native `<select>`, so ArrowDown on it IS the platform's own selection change —
+   * no mouse, no script-placed focus, no click.
+   */
+  const gatedAction = offered.find((a) => a.disabled);
+  if (!gatedAction) {
+    skip(S, "M5b a disabled action can be enabled from the keyboard", "the result offered no disabled action");
+  } else {
+    const selectStops = await ctx.b.tabThrough(60);
+    const selectStop = selectStops.findIndex((f) => f && f.tag === "select");
+    if (selectStop < 0) {
+      gate(
+        S,
+        "M5b a disabled action can be enabled from the keyboard",
+        false,
+        `"${gatedAction.label}" is disabled and 60 Tabs found no control that could enable it`,
+      );
+    } else {
+      await ctx.b.tabThrough(selectStop + 1);
+      await ctx.b.key("ArrowDown", "ArrowDown", { windowsVirtualKeyCode: 40 });
+      await sleep(600);
+      const now = await ctx.b.evaluate(`(() => {
+        const b = [...document.querySelectorAll("button")].find((n) => /save to workspace/i.test(n.textContent || ""));
+        const sel = document.querySelector("select");
+        return JSON.stringify({ chosen: sel ? sel.selectedIndex : -1, value: sel ? !!sel.value : false, disabled: b ? b.disabled : null });
+      })()`);
+      const state = JSON.parse(now ?? "{}");
+      const after = (await ctx.b.tabThrough(60)).filter(Boolean);
+      gate(
+        S,
+        "M5b a disabled action can be enabled from the keyboard, and is then reachable",
+        state.value === true &&
+          state.disabled === false &&
+          after.some((f) => /save to workspace/i.test(f.name || "")),
+        `select stop ${selectStop + 1}, one ArrowDown -> option ${state.chosen}; "${gatedAction.label}" disabled ${state.disabled}; reachable ${after.some((f) => /save to workspace/i.test(f.name || ""))}`,
+      );
+    }
+  }
+
+  /*
+   * M6: activation, not just reachability. "Start over" is the one result action
+   * whose effect is observable without leaving the page or writing a file, so it
+   * is the one driven — and its effect is the tool returning to its empty state,
+   * which no amount of focus management can fake.
+   */
+  const reached = await ctx.b.evaluate(`(() => {
+    const el = [...document.querySelectorAll("button, a")].find((n) => /start over/i.test(n.textContent || ""));
+    if (!el) return false;
+    el.focus();
+    return document.activeElement === el;
+  })()`);
+  await ctx.b.key("Enter", "Enter", { windowsVirtualKeyCode: 13 });
+  await sleep(1200);
+  const after = await ctx.b.evaluate(`(() => {
+    const t = document.body.innerText;
+    return JSON.stringify({
+      result: /Your file is ready/.test(t),
+      clicks: window.__kb.clicks.slice(-3),
+    });
+  })()`);
+  const state = JSON.parse(after ?? "{}");
+  gate(
+    S,
+    "M6 Enter on a result action does the thing it names",
+    reached === true && state.result === false,
+    `focused Start over ${reached}, result panel still shown ${state.result}, last activations ${JSON.stringify(state.clicks)}`,
+  );
+
+  // M7: no trap. Sixty stops that keep producing new elements, and focus that
+  // returns to the document rather than cycling inside one panel forever.
+  const distinct = new Set(stops.map((f) => f.tag + "|" + f.name)).size;
+  gate(
+    S,
+    "M7 focus advances through the result rather than cycling in place",
+    distinct >= Math.min(10, stops.length) && stops.length >= 10,
+    `${distinct} distinct stops across ${stops.length} tabs`,
+  );
+
+  ctx.errors(S, "M8 no console errors across the whole keyboard flow");
+  await ctx.a11y(S, "M9");
+}
+
 /* ═══════════════════════ L — state matrix (§13, §16) ══════════════════════ */
 
 async function scenarioL(ctx) {
@@ -1385,6 +1673,7 @@ const SCENARIOS = [
   ["I", "Pricing", scenarioI],
   ["J", "Responsive global shell", scenarioJ],
   ["K", "Keyboard and accessibility", scenarioK],
+  ["M", "Keyboard tool workflow (R28)", scenarioM],
   ["L", "State matrix", scenarioL],
 ];
 
