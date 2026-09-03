@@ -2,7 +2,7 @@
 ────────────────────────────────────────────────────────────────────────
 A. Repository and build integrity
 ────────────────────────────────────────────────────────────────────────
-  ✗ A1 the working tree is clean, so what is measured is what is committed — 1 uncommitted path(s):  M scripts/final-prelaunch-audit.mjs
+  ✓ A1 the working tree is clean, so what is measured is what is committed
   ✓ A2 the lockfile is present and matches package.json's name
   ? A3 no secret value is committed anywhere in the current tree — 2 match(es) in sha256-pinned synthetic fixtures, read and confirmed not live: src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe live secret key; src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe webhook secret. Any edit to that file makes these red again.
   ? A4 no secret value is reachable anywhere in local Git history — 1564 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
@@ -157,15 +157,11 @@ R. Accessibility and responsive layout
   ? R3 visual acceptance of the rendered screenshots by a human — Entry Gate B requires human approval of the contact sheets. Self-generated screenshots are not approval.
 
 ────────────────────────────────────────────────────────────────────────
-PASS 65/66 exercised
-  PRODUCT FAILURE        1
+PASS 66/66 exercised
+  PRODUCT FAILURE        0
   ENVIRONMENTAL          3   (not a pass)
   NOT EXERCISED          4   (not a pass)
   MANUAL REVIEW REQUIRED 12   (not a pass)
   85 assertions recorded in total
 
-Product failures:
-  A1 the working tree is clean, so what is measured is what is committed
-      1 uncommitted path(s):  M scripts/final-prelaunch-audit.mjs
-
-JSON written to docs/evidence/final-prelaunch/audit-offline.json
+JSON written to docs/evidence/final-prelaunch/audit-static.json

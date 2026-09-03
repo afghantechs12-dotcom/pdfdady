@@ -69,7 +69,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | D Fresh environment | `clean-worktree-5a4adca-npm-ci-build-probe.log` (at `5a4adca`) | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD |
 | E Tool runtime matrix | `tool-matrix.log/json` — 29/29, 2 env, 3 not exercised | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD (ocr fix landed after) |
 | F Core workflows | Phase 5 probe logs; `saveToWorkspaceRoute.test.ts` | PARTIAL | yes | final-HEAD probe run |
-| G–J security | harness groups B,E,F,G,H,I | PARTIAL | yes | harness has never been run to a log |
+| G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 erasure/export still `MANUAL REVIEW REQUIRED` |
 | K Retention | `1d36b30`, `2cb2467`; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, `saveIntentIdentity.test.ts` D24 | PARTIAL | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep); J3 account deletion / data export still unresolved |
 | L DB/backup/restore | `migration-restore-drill.log` — 13/13 | COMPLETE — FINAL EVIDENCE VALID | no | blank-chain leg still to record |
 | M Reliability | harness group L/M; `readyRoute.test.ts` (7) | PARTIAL | yes | run harness; readiness toolchain gate now asserted (Q1/Q2) |
@@ -179,6 +179,16 @@ change); storage `local|r2` with half-configured refused; queue `memory|redis`;
 first-party analytics only and **no error monitoring** (`ConsoleErrorReporter`);
 retention 1h outputs / 15min sweep / 30-day save intents; support is one mailto.
 Seven rows are `LAUNCH DECISION REQUIRED` and stay that way.
+
+Groups G–J are recorded: `docs/evidence/final-prelaunch/audit-static.{log,json}`,
+**PASS 66/66 exercised, 0 PRODUCT FAILURE**, 3 ENVIRONMENTAL (no Docker daemon; npm
+audit offline), 4 NOT EXERCISED, 12 MANUAL REVIEW REQUIRED, 85 assertions. Two
+findings came out of the run: G2, a P3 in `sanitizeBaseName` (a file named `..pdf`
+came back out named `...pdf`) fixed in `d84ed4a` with the R11 test that had pinned the
+old residue rewritten; and a PROBE DEFECT in the harness itself — `--url` advertised
+"live checks" and the `live()` helper was called zero times, so `--url` only changed
+F5's skip reason (fixed in `71f9bf5`). **The harness is static. No report line may
+call it a live run.** Runtime behaviour comes from the six driving probes.
 
 Next: the reruns at final HEAD (D fresh environment, E tool matrix, F core
 workflows, G-J harness + offline leg), L blank-chain leg, M readiness, N perf
