@@ -1,0 +1,17 @@
+
+manifest: docs/screenshots/final-prelaunch/visual-manifest.json (156 captures)
+sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (69)
+sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (35)
+sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (52)
+sheet: docs/evidence/final-prelaunch/visual/contact-workflow-states.png (39)
+sheet: docs/evidence/final-prelaunch/visual/contact-editor-states.png (36)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 156/156 exercised
+
+NOT EXERCISED (1) — never counted as a pass:
+  19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.

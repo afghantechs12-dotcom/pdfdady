@@ -45,6 +45,7 @@ resume without re-deriving state. No secrets, cookies or document contents here.
 | `450657d` | R24/R25 — the Workspace file manager was the one indexable private page |
 | `3be5379` | mutations S1–S3 — the sitemap's availability gate is load-bearing (13 slugs) |
 | `72c9630` | R17 — `lib/server/cleanup.ts` had no test, nor did the two guards around `rm` (T1–T3) |
+| `a14e7c1` | P1 — every advertised upload ceiling was unreachable (Next clones API bodies at 10 MiB) |
 
 ### Stale audit processes found and stopped
 
@@ -63,7 +64,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | Audit area | Existing evidence | Status | Rerun? | Remaining action |
 |---|---|---|---|---|
 | A Phase 5 reconciliation | 4 probe logs; audit doc Gate A | COMPLETE — FINAL EVIDENCE VALID | no | none |
-| B Visual acceptance | 138 baseline shots / 16 surfaces; 4 contact sheets from a 1-surface rerun | PARTIAL | yes | baseline 13/14/19, full compare, regenerate 5 sheets |
+| B Visual acceptance | 156 captures / 18 surfaces + 19 in its own run; 5 sheets; `visual/GATE-B-VISUAL-ACCEPTANCE.md`; mutation N red-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun compare at final HEAD; verdict is `VISUAL ACCEPTANCE PENDING` |
 | C Launch profile | none | NOT STARTED | — | document decisions; invent nothing |
 | D Fresh environment | `clean-worktree-5a4adca-npm-ci-build-probe.log` (at `5a4adca`) | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD |
 | E Tool runtime matrix | `tool-matrix.log/json` — 29/29, 2 env, 3 not exercised | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD (ocr fix landed after) |
@@ -77,7 +78,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | P SEO/pricing | harness groups O,P,Q; `seoIndexingTruth.test.ts` (5) | PARTIAL | yes | run harness; noindex + sitemap truth now asserted (S1–S3) |
 | Q Deployment/rollback | `deploymentArtifact.test.ts`; mutation C | PARTIAL | yes | rollback rehearsal |
 | R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` (own R1..R30) + `seoIndexingTruth.test.ts` (R24/R25), `tempFileLifecycle.test.ts` (R17) | PARTIAL | — | map brief topics → tests for §28 |
-| Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | visual mutation still owed |
+| Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) + N (visual) recorded RED-and-reverted | COMPLETE — MUST RERUN AFTER LATER CHANGES | no | none owed |
 | Final verification | none at final HEAD | NOT STARTED | — | suite, tsc, eslint, prisma, 6 probes, fidelity |
 
 ## Known findings so far
@@ -112,9 +113,16 @@ sitemap. And `lib/seo/adminRuntime.ts`'s `import "server-only"` — a Next-suppl
 package absent from `node_modules` — is why nothing in this repository had ever
 *called* `sitemap()` or `robots()`; stubbed in `test/stubs/server-only.ts`.
 
-Open, not yet resolved: the `22 MB` upload leg of the perf probe answered
-`400 Malformed multipart body.`; no account deletion or data export exists (J3);
-SQLite vs PostgreSQL for launch is LAUNCH DECISION REQUIRED.
+Found and fixed in session 3: every advertised upload ceiling (100 MiB Workspace,
+110 MiB jobs) was unreachable past 10.004 MiB, because `proxy.ts`'s `/api/*` matcher
+makes Next clone every API body and the clone is capped at 10 MiB — truncated
+silently, so the route answered `400 Malformed multipart body.` about a valid PDF.
+`experimental.proxyClientMaxBodySize: "120mb"` (`a14e7c1`), pinned by `proxy.test.ts`
+against both ceilings, re-proved at runtime in `upload-ceiling.log` (22 and 60 MiB
+now parse; 101 MiB gets the honest 413).
+
+Open, not yet resolved: no account deletion or data export exists (J3); SQLite vs
+PostgreSQL for launch is LAUNCH DECISION REQUIRED.
 
 ## Environmental blockers (host)
 
@@ -123,13 +131,51 @@ SQLite vs PostgreSQL for launch is LAUNCH DECISION REQUIRED.
 WebKit builds absent from `~/Library/Caches/ms-playwright` (chromium only).
 No production credentials, no Docker daemon check yet, no human visual approval.
 
+## Report skeleton — recovered from the brief, not re-derived
+
+The brief is quoted in the session that opened this audit; a working copy is at
+`/tmp/audit-brief.md` (untracked). The final report uses exactly these sections:
+
+1 Launch profile · 2 Baseline reproduced · 3 Phase 5 reconciliation (all seven) ·
+4 Visual acceptance · 5 Fresh-environment reproducibility · 6 Tool runtime matrix
+(all 32) · 7 Core workflow acceptance · 8 Authentication and sessions ·
+9 Authorization and tenant isolation · 10 File and processing security ·
+11 Web security · 12 Dependencies and secrets · 13 Privacy and retention ·
+14 Database and migrations · 15 Backup and restore · 16 Reliability and lifecycle ·
+17 Observability · 18 Performance and load · 19 Browser compatibility ·
+20 Accessibility · 21 SEO and route truth · 22 Pricing and commercial truth ·
+23 Analytics and cookies · 24 Email and support · 25 Deployment artifact ·
+26 Deployment and rollback rehearsal · 27 Tests added (map R1–R30) ·
+28 Final audit probe (A–R, separate totals) · 29 Mutation testing (A–O) ·
+30 Verification (exact results and exit codes) · 31 Files changed ·
+32 Commits and working tree · 33 P0 · 34 P1 · 35 P2 ·
+36 Environmental / not exercised · 37 Release decision, ending in exactly one verdict.
+
+Harness scenario groups for §28 are A–R (A public routes/SEO, B auth/session,
+C local tool workflow, D tool dependencies, E job/result ownership, F Workspace
+authorization, G save intent/retry, H editor/publication, I conflict, J trash/
+deletion, K pricing truth, L visual, M responsive/a11y, N headers/hostile metadata,
+O retention/cleanup, P health/readiness, Q browser compatibility, R deployment smoke
+and rollback). Required mutations are A–O as lettered in the brief §26.
+
 ## Next action
 
-Group B (visual acceptance): baselines for `13-publish-state`, `14-conflict-dialog`,
-`19-app-error`; full compare pass; regenerate all 5 contact sheets; the
-visible-visual-regression mutation; record `VISUAL ACCEPTANCE PENDING` (no human
-approval has been given and none may be claimed). Then C, then the reruns at final
-HEAD (D, E, F, G–J harness), then the 21-step final verification and the report.
+Group B is closed: `docs/evidence/final-prelaunch/visual/GATE-B-VISUAL-ACCEPTANCE.md`
+records 156 captures over 18 surfaces (plus 19 in its own broken-`DATABASE_URL` run,
+NOT EXERCISED against a healthy server), the four-run cross-build compare, the
+mask-binding table (including `time`, which binds nothing), four PROBE DEFECT records
+(13, 14, 16, 17), the mobile-editor resize artifact with its 390x844 counter-proof,
+and mutation N — homepage `<h1> mt-4 -> mt-16`, built and served, `PASS 0/9` at
+23-36% of pixels against a 0.1% threshold, reverted through Git, rebuilt, `PASS
+156/156`. Verdict `VISUAL ACCEPTANCE PENDING`; no human approval exists and none is
+claimed. Baselines stay under gitignored `docs/screenshots/final-prelaunch/` (41 MB),
+so the compare is reproducible on this host only.
+
+Next: Group C (launch profile, `LAUNCH DECISION REQUIRED` wherever the code cannot
+say), then the reruns at final HEAD (D fresh environment, E tool matrix, F core
+workflows, G-J harness + offline leg), L blank-chain leg, M readiness, N perf
+write-up, O browser/a11y, P SEO/pricing, Q rollback rehearsal; then the R1-R30 map,
+the final regression gates at final HEAD, and the 37-section report.
 
 Command to resume the harness leg:
 `node scripts/final-prelaunch-audit.mjs --offline --json /tmp/audit-offline.json`

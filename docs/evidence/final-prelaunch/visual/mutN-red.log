@@ -1,0 +1,23 @@
+
+manifest: docs/screenshots/final-prelaunch/visual-manifest.json (9 captures)
+sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (4)
+sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (2)
+sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (3)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 0/9 exercised
+
+PRODUCT FAILURE (9) — never counted as a pass:
+  01-homepage 320x800: 71164/256000 px differ (27.7984%), worst box 280x614 at 20,186
+  01-homepage 360x800: 76749/288000 px differ (26.6490%), worst box 320x614 at 20,186
+  01-homepage 390x844: 97778/329160 px differ (29.7053%), worst box 370x692 at 0,152
+  01-homepage 412x915: 127021/376980 px differ (33.6944%), worst box 412x763 at 0,152
+  01-homepage 768x1024: 274207/786432 px differ (34.8672%), worst box 768x864 at 0,160
+  01-homepage 1024x768: 282237/786432 px differ (35.8883%), worst box 992x754 at 32,14
+  01-homepage 1280x800: 372047/1024000 px differ (36.3327%), worst box 1248x786 at 32,14
+  01-homepage 1440x900: 405885/1296000 px differ (31.3183%), worst box 1364x835 at 72,14
+  01-homepage 1920x1080: 478596/2073600 px differ (23.0804%), worst box 1920x1066 at 0,14
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.

@@ -1,0 +1,12 @@
+
+manifest: docs/screenshots/final-prelaunch/baseline-manifest.json (9 captures)
+sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (4)
+sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (2)
+sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (3)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 9/9 exercised
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.

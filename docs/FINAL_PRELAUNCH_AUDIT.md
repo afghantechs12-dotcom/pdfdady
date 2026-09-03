@@ -95,6 +95,53 @@ mislabelled two of its own rows as product failures.
 
 ---
 
+## §4 — Visual acceptance
+
+**Verdict: `VISUAL ACCEPTANCE PENDING`.** Full record:
+`docs/evidence/final-prelaunch/visual/GATE-B-VISUAL-ACCEPTANCE.md`.
+
+`node scripts/visual-acceptance-probe.mjs --url … --auth` drives 18 surfaces through
+9 viewports — **156 captures**, every state reached by real uploads, real jobs and
+real saves rather than injected markup — plus surface 19 (the error boundary) in its
+own run against a deliberately broken `DATABASE_URL`. Result: **`PASS 156/156`**
+(`visual-compare-5.log`), with `19-app-error` reported **NOT EXERCISED** against a
+healthy server and never counted as a pass.
+
+What the machine established, and the limit of it: the references exist, each
+carries real text above a per-surface floor, the pixels do not move across runs or
+across a rebuild that touched 28 files (147 of 156 rows bit-identical, 146 of them at
+exactly 0 differing pixels), and a deliberate visible regression is caught by 230×.
+Whether the product *looks right* is not established here and cannot be — no human
+approval exists, and nothing in the evidence directory may be read as approval.
+
+Three product defects came out of this gate, two of them invisible to the gate's own
+pass/fail: **P2** — there was no root `app/not-found.tsx`, so every unknown public URL
+got Next's framework 404 (no brand, no navigation, no way back, near-black under
+`prefers-color-scheme: dark`), and both the 0.1% pixel compare and the 40-character
+anti-vacuity floor passed that page nine times; only the contact sheet caught it
+(fixed, `b29f79f`). **P3** — 27 pages branded their own titles under the root layout's
+admin-editable `title.template`, rendering `"Page not found — PDFDadi — PDFDadi"`
+(same commit). **P3** — three rows were green by luck, because `relativeTime()` output
+was unmasked and baseline and compare both ran inside the same minute (fixed,
+`223399b`).
+
+Four harness rows described their own blind spot as a property of the product and are
+classified **PROBE DEFECT**, all four fixed: surface 13 fed a PDF to an image picker
+and reported NOT EXERCISED against a behaving product; surface 14 PATCHed a GET/PUT
+route for a 405, compared the wrong revision domain, looked for a `[role="dialog"]`
+the product renders as `role="alert"`, and blamed "an unwinnable race"; surfaces 16
+and 17 captured the Workspace list under the names "sign in" and "register", because
+`/login` and `/register` redirect a signed-in visitor. One scope defect is recorded
+and deliberately NOT fixed: surfaces are reached once and then resized, so the
+phone-width editor captures are of a demoted docked Inspector, not of a phone-first
+paint — measured directly at 390×844, a first paint shows no drawer and no dialog.
+
+**Mutation N.** [Hero.tsx:116](../components/home/Hero.tsx#L116), `mt-4` → `mt-16`
+on the homepage `<h1>`, singly, through a real production build and the standalone
+artifact: `PASS 0/9`, 23.08–36.33% of pixels differing at every viewport against a
+0.1% threshold. Reverted with `git checkout -- components/home/Hero.tsx`, rebuilt,
+rerun: `PASS 156/156`.
+
 ## §6 — Available-tool runtime matrix
 
 `node scripts/tool-runtime-matrix-probe.mjs` drives every tool the product offers
@@ -119,12 +166,62 @@ accompanied by a second row each that DOES run here: the refusal message a missi
 binary produces is asserted to blame the server rather than the user's file and to
 leak no path, stack, or command line. Both pass.
 
-**The one product defect this matrix found is a P1, and it is fixed** — see §33.
+**The one product defect this matrix found is a P1, and it is fixed** — see §34.
 `ocr-pdf` passed `--psm 3` to `ocrmypdf`, which rejects it
 (`unrecognized arguments: --psm`), so every OCR request in every environment answered
 "Processing failed. The file may be unsupported or damaged. Please try a different
 file." about a perfectly valid PDF. Fixed in `46baf5e`; the row now reads
 `[PASS] ocr-pdf 56235 bytes, starts "%PDF", named multipage-fixture-ocr.pdf`.
+
+## §10 — File and processing security: the upload ceilings
+
+`docs/evidence/final-prelaunch/upload-ceiling.log` records both directions of this
+one at runtime, against the real artifact behind the real TLS front.
+
+**P1, fixed.** Every advertised upload ceiling in this product was unreachable by a
+factor of ten, and the refusal blamed the user's file. `proxy.ts` is Next 16's
+renamed middleware, and its matcher covers `/api/*`; that makes Next clone the body
+of every API request, and the clone is capped by `DEFAULT_BODY_CLONE_SIZE_LIMIT`
+(10 MiB) in `next/dist/server/body-streams.js`. Past that the body is truncated
+silently — the only trace is a `console.warn` on the server — so
+`request.formData()` threw and the route answered
+`400 "Malformed multipart body."` about a perfectly valid PDF.
+
+| Body | Phase 6 HEAD (limit unset) | Audit HEAD (`120mb`) |
+|---|---|---|
+| 10.000 MiB | `401` — parsed, reached auth | `401` |
+| 10.004 MiB | **`400 Malformed multipart body.`** | `401` |
+| 22 MiB (the perf fixture) | **`400`** | **`401` — parsed** |
+| 60 MiB | **`400`** | **`401` — parsed** |
+| 101 MiB | `400` | **`413 PAYLOAD_TOO_LARGE "Upload too large."`** |
+
+The 10 MiB boundary was bisected to 4 KiB (`401` at `10485760`, `400` at
+`10489856`), and a JSON body on a route that parses before it authorizes fails the
+same way at the same size, so this was the proxy's clone rather than anything in the
+upload route. The advertised ceilings it blocked are
+`DOCUMENT_INGESTION_LIMITS.maxUploadBytes` = 100 MiB and the jobs route's own
+110 MiB.
+
+Fixed in `a14e7c1` by `experimental.proxyClientMaxBodySize: "120mb"` in
+`next.config.mjs` — above both ceilings, so the ceiling a user is told about is the
+one that refuses them, and the refusal is the product's honest 413. The 101 MiB row
+is refused on `content-length` before the body is buffered.
+
+**Pinned by test, not by memory.** `proxy.test.ts` gained
+`describe("proxy — the body-clone limit clears every advertised upload ceiling")`:
+it parses the configured size the way `bytes` does, reads
+`DOCUMENT_INGESTION_LIMITS` and the jobs route's own literal from source, and
+asserts the clone limit exceeds both — so raising a ceiling later without raising
+the clone limit is red. It also asserts the matcher still covers the upload routes,
+because the day `/api/*` leaves the matcher is the day this knob stops mattering and
+the test should be re-read rather than silently still passing. R16.
+
+**Mutation R16.** `experimental.proxyClientMaxBodySize` deleted from
+`next.config.mjs`, singly: `AssertionError: next.config.mjs must set
+experimental.proxyClientMaxBodySize: expected undefined to be defined`,
+`Tests 1 failed | 25 passed (26)`. Reverted with `git checkout -- next.config.mjs`
+(the fix was committed first, precisely so the revert could not destroy it), and the
+26 pass again.
 
 ## §14 — Database and migrations
 

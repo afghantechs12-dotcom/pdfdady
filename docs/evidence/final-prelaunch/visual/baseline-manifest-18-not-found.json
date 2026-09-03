@@ -1,0 +1,225 @@
+{
+  "generatedAt": "2026-09-03T13:39:52.387Z",
+  "base": "https://172.20.10.2:3001",
+  "mode": "baseline",
+  "authenticated": false,
+  "viewports": [
+    "320x800",
+    "360x800",
+    "390x844",
+    "412x915",
+    "768x1024",
+    "1024x768",
+    "1280x800",
+    "1440x900",
+    "1920x1080"
+  ],
+  "compressOutcome": null,
+  "shots": [
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "320x800",
+      "device": "mobile",
+      "file": "18-not-found/320x800.png",
+      "w": 320,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 209,
+      "sha256": "5023661dbf595008",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "360x800",
+      "device": "mobile",
+      "file": "18-not-found/360x800.png",
+      "w": 360,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 209,
+      "sha256": "e248572cc3bb065d",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "390x844",
+      "device": "mobile",
+      "file": "18-not-found/390x844.png",
+      "w": 390,
+      "h": 844,
+      "scrollH": 844,
+      "chars": 209,
+      "sha256": "7fc36513868ada6e",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "412x915",
+      "device": "mobile",
+      "file": "18-not-found/412x915.png",
+      "w": 412,
+      "h": 915,
+      "scrollH": 915,
+      "chars": 209,
+      "sha256": "ea8d2f7b234c6c4a",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "768x1024",
+      "device": "tablet",
+      "file": "18-not-found/768x1024.png",
+      "w": 768,
+      "h": 1024,
+      "scrollH": 1024,
+      "chars": 209,
+      "sha256": "0ec24a728824b6f5",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "1024x768",
+      "device": "tablet",
+      "file": "18-not-found/1024x768.png",
+      "w": 1024,
+      "h": 768,
+      "scrollH": 768,
+      "chars": 209,
+      "sha256": "a03ee60794bfc8c0",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "1280x800",
+      "device": "desktop",
+      "file": "18-not-found/1280x800.png",
+      "w": 1280,
+      "h": 800,
+      "scrollH": 800,
+      "chars": 209,
+      "sha256": "f17df6f09232ffe5",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "1440x900",
+      "device": "desktop",
+      "file": "18-not-found/1440x900.png",
+      "w": 1440,
+      "h": 900,
+      "scrollH": 900,
+      "chars": 209,
+      "sha256": "451f9507abb5ff38",
+      "masks": []
+    },
+    {
+      "surface": "18-not-found",
+      "title": "404",
+      "group": "states",
+      "viewport": "1920x1080",
+      "device": "desktop",
+      "file": "18-not-found/1920x1080.png",
+      "w": 1920,
+      "h": 1080,
+      "scrollH": 1080,
+      "chars": 209,
+      "sha256": "4aacbfb2660ae48c",
+      "masks": []
+    }
+  ],
+  "sheets": [
+    {
+      "sheet": "mobile",
+      "title": "Mobile — 320 / 360 / 390 / 412",
+      "captures": 4,
+      "png": "docs/evidence/final-prelaunch/visual/contact-mobile.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-mobile.html"
+    },
+    {
+      "sheet": "tablet",
+      "title": "Tablet — 768 / 1024",
+      "captures": 2,
+      "png": "docs/evidence/final-prelaunch/visual/contact-tablet.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-tablet.html"
+    },
+    {
+      "sheet": "desktop",
+      "title": "Desktop — 1280 / 1440 / 1920",
+      "captures": 3,
+      "png": "docs/evidence/final-prelaunch/visual/contact-desktop.png",
+      "html": "docs/evidence/final-prelaunch/visual/contact-desktop.html"
+    }
+  ],
+  "results": [
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 320x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 320x800"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 360x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 360x800"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 390x844",
+      "verdict": "PASS",
+      "detail": "baseline recorded 390x844"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 412x915",
+      "verdict": "PASS",
+      "detail": "baseline recorded 412x915"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 768x1024",
+      "verdict": "PASS",
+      "detail": "baseline recorded 768x1024"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 1024x768",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1024x768"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 1280x800",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1280x800"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 1440x900",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1440x900"
+    },
+    {
+      "surface": "18-not-found",
+      "id": "18-not-found 1920x1080",
+      "verdict": "PASS",
+      "detail": "baseline recorded 1920x1080"
+    }
+  ]
+}

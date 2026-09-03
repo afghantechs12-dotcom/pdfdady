@@ -1,0 +1,30 @@
+
+manifest: docs/screenshots/final-prelaunch/visual-manifest.json (156 captures)
+sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (69)
+sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (35)
+sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (52)
+sheet: docs/evidence/final-prelaunch/visual/contact-workflow-states.png (39)
+sheet: docs/evidence/final-prelaunch/visual/contact-editor-states.png (36)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 147/156 exercised
+
+PRODUCT FAILURE (9) — never counted as a pass:
+  18-not-found 320x800: 255962/256000 px differ (99.9852%), worst box 320x800 at 0,0
+  18-not-found 360x800: 287982/288000 px differ (99.9938%), worst box 360x800 at 0,0
+  18-not-found 390x844: 329135/329160 px differ (99.9924%), worst box 390x844 at 0,0
+  18-not-found 412x915: 376956/376980 px differ (99.9936%), worst box 412x915 at 0,0
+  18-not-found 768x1024: 786432/786432 px differ (100.0000%), worst box 768x1024 at 0,0
+  18-not-found 1024x768: 786432/786432 px differ (100.0000%), worst box 1024x768 at 0,0
+  18-not-found 1280x800: 1024000/1024000 px differ (100.0000%), worst box 1280x800 at 0,0
+  18-not-found 1440x900: 1296000/1296000 px differ (100.0000%), worst box 1440x900 at 0,0
+  18-not-found 1920x1080: 2073600/2073600 px differ (100.0000%), worst box 1920x1080 at 0,0
+
+NOT EXERCISED (1) — never counted as a pass:
+  19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.
+
+[exited with code 0]
