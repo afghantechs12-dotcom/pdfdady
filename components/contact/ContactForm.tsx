@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send, CheckCircle2 } from "lucide-react";
+import { Send, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { contactSchema } from "@/lib/validation/fileSchemas";
 
@@ -25,20 +25,27 @@ export function ContactForm() {
       return;
     }
     setErrors({});
-    // No backend in v1 — we acknowledge locally only.
+    /*
+     * There is no backend, so the panel below must not imply one. It used to say
+     * "we've noted your message" under a green tick: a visitor sent to /contact by
+     * the Pricing page's unavailable plans (`data/pricing.ts` points every one of
+     * them here) would then wait for a reply nobody could send. Validation still
+     * runs — an invalid address is still worth telling someone about before they
+     * retype it into their mail client.
+     */
     setSubmitted(true);
   };
 
   if (submitted) {
     return (
       <div className="rounded-card border border-softborder bg-white p-8 text-center shadow-card">
-        <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-success">
-          <CheckCircle2 size={30} />
+        <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-primary">
+          <Mail size={30} />
         </span>
-        <h2 className="mt-5 text-lg font-bold text-navy">Thanks for reaching out</h2>
+        <h2 className="mt-5 text-lg font-bold text-navy">This form isn&apos;t connected yet</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-navy-soft">
-          Live support isn&apos;t connected yet, but we&apos;ve noted your
-          message. In the meantime, email us at{" "}
+          Nothing was sent, and nobody has your message — there is no inbox
+          behind this form yet. Email us instead at{" "}
           <a
             href="mailto:hello@pdfdadi.com"
             className="font-medium text-primary"

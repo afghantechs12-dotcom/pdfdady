@@ -164,3 +164,55 @@ describe("T10 — team features are advertised on the plan that has them", () =>
     expect(members).not.toContain("Invitation sent");
   });
 });
+
+/**
+ * R26 — the enquiry path Pricing sends people down has to be honest too.
+ *
+ * `unavailable plans do not masquerade as purchasable` (above) asserts every plan
+ * without checkout points at `/contact`. That makes the contact form part of the
+ * commercial surface: it is where someone who wants Business is told to go. The
+ * form has no backend — it validates, then renders an acknowledgement — and the
+ * acknowledgement used to read "we've noted your message" under a green tick,
+ * which is not true of a submit handler whose only effect is `setSubmitted(true)`.
+ *
+ * The assertion is conditional on purpose: the day a real transport lands, the
+ * delivery claim becomes true and this test must not stand in its way. What it
+ * refuses is the combination — no transport AND a claim of delivery.
+ */
+describe("R26 — /contact does not acknowledge messages it cannot deliver", () => {
+  /*
+   * Comments are stripped and whitespace is collapsed before matching, and both
+   * steps were forced by watching this test fail to do its job. Version one matched
+   * the comment inside the component that QUOTES the old claim — a gate a comment
+   * can flip is reading the wrong text. Version two then passed with the old copy
+   * restored, because JSX wrapped it as "noted your\n message" and the pattern
+   * never crossed the newline: a source scan that is not whitespace-insensitive
+   * proves whatever the formatter felt like doing.
+   */
+  const form = readFileSync(
+    path.join(process.cwd(), "components/contact/ContactForm.tsx"),
+    "utf8",
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !/^\s*\/\//.test(line))
+    .join(" ")
+    .replace(/\s+/g, " ");
+  const hasTransport = /fetch\(|useFormState|"use server"|action=\{/.test(form);
+
+  it("claims nothing about delivery while nothing is delivered", () => {
+    if (hasTransport) return; // a backend exists; the claims below are then checkable behaviour
+    expect(form, "an unconnected form must not say the message was received")
+      .not.toMatch(/noted your message|we(?:'|&apos;)ve (?:got|received)|message (?:sent|received)/i);
+    expect(form, "and it must say so, rather than only omitting the claim")
+      .toMatch(/isn(?:'|&apos;)t connected|nothing was sent/i);
+  });
+
+  it("offers a real channel instead of a dead form", () => {
+    expect(form).toMatch(/href="mailto:[^"]+@[^"]+"/);
+  });
+
+  it("still validates before it tells anyone to retype the address elsewhere", () => {
+    expect(form).toContain("contactSchema.safeParse");
+  });
+});
