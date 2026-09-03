@@ -69,8 +69,8 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | D Fresh environment | `clean-worktree-5a4adca-npm-ci-build-probe.log` (at `5a4adca`) | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD |
 | E Tool runtime matrix | `tool-matrix.log/json` — 29/29, 2 env, 3 not exercised | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | rerun at final HEAD (ocr fix landed after) |
 | F Core workflows | Phase 5 probe logs; `saveToWorkspaceRoute.test.ts` | PARTIAL | yes | final-HEAD probe run |
-| G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 erasure/export still `MANUAL REVIEW REQUIRED` |
-| K Retention | `1d36b30`, `2cb2467`; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, `saveIntentIdentity.test.ts` D24 | PARTIAL | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep); J3 account deletion / data export still unresolved |
+| G–J security | `audit-static.{log,json}` — PASS 66/66, 0 product failures, 85 assertions, clean tree | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | harness is STATIC (its `--url` live-check claim was a probe defect, fixed in `71f9bf5`); F5 cross-tenant runtime matrix still owed by the workspace probe; J3 answered in `erasure-export-j3.md` (`9ac95a4`) as `LAUNCH DECISION REQUIRED`, no longer `MANUAL REVIEW REQUIRED` |
+| K Retention | `1d36b30`, `2cb2467`; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, `saveIntentIdentity.test.ts` D24; `erasure-export-j3.md` | COMPLETE — FINAL EVIDENCE VALID | no | intent pruning RESOLVED (30-day horizon in the recurring sweep); erasure/export recorded as an open operator decision with its schema cost, not as a defect |
 | L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
 | M Reliability | harness group L/M; `readyRoute.test.ts` (7); `readiness-r23.log` (live, `ab490fe`) | PARTIAL | yes | run harness; readiness proved red on a host whose `soffice` is really absent while liveness stays 200 |
 | N Performance | `perf-load-wf.json` (full), `perf-load.log` (truncated earlier run) | PARTIAL | no | document; log lags the JSON |
@@ -273,6 +273,22 @@ Observed and NOT fixed: `Dockerfile` has CRLF line endings (the only deploy-crit
 file that does; `restart-origin.sh` is clean). BuildKit tolerates them and the
 container path is NOT EXERCISED here, so this is recorded as P2 hygiene rather than
 changed blind in an artifact no build on this host can verify.
+
+J3 is answered (`9ac95a4`): there is **no** delete-account route, no export route
+and no admin route that removes a user - and the reason it is not a small feature is
+in the schema. `model User` has no relations at all, while a user id appears in **23
+columns across 22 models**, every one a plain `String` with no foreign key and so no
+cascade. Deleting a `users` row today succeeds and orphans all 23. Recorded as
+`LAUNCH DECISION REQUIRED` with the framing (EU/UK subjects make it an obligation; a
+closed audience can defend a written manual procedure, which also does not exist yet)
+and deliberately not decided here.
+
+R30 plan, to run once the perf probe releases the origin (it needs the live server):
+one `npm ci && npm run build` in a clean worktree at final HEAD serves Group D's
+rerun too; keep the current `.next/standalone` aside first, so the rollback leg can
+boot the PREVIOUS artifact - the same steps an operator takes with an image digest,
+minus the daemon this host does not have - and finish by restoring the pre-deploy
+database snapshot and showing it still serves.
 
 Next: finish the perf remainder and write N; then the reruns at final HEAD (D fresh
 environment, E tool matrix, F core workflows, G-J harness + offline leg, Gate B's
