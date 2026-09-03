@@ -1,0 +1,397 @@
+{
+  "base": "https://172.20.10.2:3001",
+  "runs": 3,
+  "rows": [
+    {
+      "part": "page",
+      "name": "Homepage",
+      "metrics": {
+        "lcp": "100 (80–104)",
+        "fcp": "100 (80–104)",
+        "ttfb": "12 (11–19)",
+        "cls": "0.005",
+        "inp": "16 (16–16)",
+        "hydrate": "84 (74–108)",
+        "kb": "399 (399–399)",
+        "js": "162 (162–162)",
+        "requests": 39,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Tools directory",
+      "metrics": {
+        "lcp": "60 (44–64)",
+        "fcp": "60 (44–64)",
+        "ttfb": "14 (8–14)",
+        "cls": "0.005",
+        "inp": "16 (16–16)",
+        "hydrate": "82 (67–83)",
+        "kb": "322 (322–322)",
+        "js": "199 (199–199)",
+        "requests": 40,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Merge (tool page)",
+      "metrics": {
+        "lcp": "52 (52–52)",
+        "fcp": "52 (52–52)",
+        "ttfb": "14 (12–16)",
+        "cls": "0.005",
+        "inp": "16 (16–16)",
+        "hydrate": "64 (64–66)",
+        "kb": "287 (286–287)",
+        "js": "188 (188–188)",
+        "requests": 30,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Pricing",
+      "metrics": {
+        "lcp": "48 (44–60)",
+        "fcp": "48 (44–60)",
+        "ttfb": "12 (10–12)",
+        "cls": "0.005",
+        "inp": "24 (24–24)",
+        "hydrate": "56 (55–57)",
+        "kb": "287 (287–287)",
+        "js": "162 (162–162)",
+        "requests": 58,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Editor (standalone)",
+      "metrics": {
+        "lcp": "72 (68–84)",
+        "fcp": "72 (68–84)",
+        "ttfb": "13 (12–16)",
+        "cls": "0.001",
+        "inp": "16 (16–16)",
+        "hydrate": "77 (61–78)",
+        "kb": "398 (398–398)",
+        "js": "312 (312–312)",
+        "requests": 23,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Workspace",
+      "metrics": {
+        "lcp": "104 (100–108)",
+        "fcp": "52 (52–60)",
+        "ttfb": "16 (16–17)",
+        "cls": "0.017",
+        "inp": "24 (16–24)",
+        "hydrate": "71 (68–74)",
+        "kb": "296 (296–296)",
+        "js": "197 (197–197)",
+        "requests": 39,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "page",
+      "name": "Workspace Editor",
+      "metrics": {
+        "lcp": "412 (392–416)",
+        "fcp": "44 (32–44)",
+        "ttfb": "10 (7–14)",
+        "cls": "0.212",
+        "inp": "16 (16–16)",
+        "hydrate": "60 (48–64)",
+        "kb": "921 (921–921)",
+        "js": "459 (459–459)",
+        "requests": 43,
+        "js_errors": 0
+      },
+      "note": "3 runs, cold cache"
+    },
+    {
+      "part": "workflow",
+      "name": "tiny (2 KB)",
+      "metrics": {
+        "local_merge": "517 (511–523)",
+        "local_download": "5 (3–7)",
+        "upload": "11 (9–12)",
+        "job_submit": "13 (10–15)",
+        "server_processing": "2998 (2997–2999)",
+        "result_download": "16 (10–21)",
+        "workspace_save": "10 (10–10)",
+        "editor_load": "242 (235–249)",
+        "publish": "6 (6–6)",
+        "reopen": "239 (231–246)"
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "workflow",
+      "name": "ordinary (5 KB)",
+      "metrics": {
+        "local_merge": "520 (517–522)",
+        "local_download": "8 (7–8)",
+        "upload": "11 (10–11)",
+        "job_submit": "11 (11–11)",
+        "server_processing": "2242 (1488–2995)",
+        "result_download": "12 (10–14)",
+        "workspace_save": "12 (11–13)",
+        "editor_load": "357 (354–359)",
+        "publish": "6 (5–6)",
+        "reopen": "371 (363–379)"
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "workflow",
+      "name": "large (22778 KB)",
+      "metrics": {
+        "local_merge": "517 (516–517)",
+        "local_download": "8 (7–9)",
+        "upload": "48 (42–53)",
+        "job_submit": "39 (39–39)",
+        "server_processing": "2973 (2969–2977)",
+        "result_download": "12 (8–15)",
+        "workspace_save": "12 (9–15)",
+        "editor_load": "n/a — refused after 238ms — \"This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200.\"",
+        "publish": "43 (42–43)",
+        "reopen": "n/a — refused after 249ms — \"This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200.\""
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "workflow",
+      "name": "many-page (104 KB)",
+      "metrics": {
+        "local_merge": "518 (513–522)",
+        "local_download": "8 (7–8)",
+        "upload": "15 (14–15)",
+        "job_submit": "18 (11–24)",
+        "server_processing": "1889 (776–3001)",
+        "result_download": "10 (8–12)",
+        "workspace_save": "11 (9–12)",
+        "editor_load": "n/a — refused after 128ms — \"This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200.\"",
+        "publish": "6 (5–6)",
+        "reopen": "n/a — refused after 146ms — \"This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200.\""
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "workflow",
+      "name": "encrypted (6 KB)",
+      "metrics": {
+        "local_merge": "17 (14–19)",
+        "local_download": "n/a",
+        "upload": "11 (8–13)",
+        "job_submit": "11 (8–14)",
+        "server_processing": "2807 (2616–2998)",
+        "result_download": "11 (9–12)",
+        "workspace_save": "11 (10–12)",
+        "editor_load": "n/a — refused after 231ms — \"We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits.\"",
+        "publish": "7 (7–7)",
+        "reopen": "n/a — refused after 243ms — \"We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits.\""
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "workflow",
+      "name": "malformed (3 KB)",
+      "metrics": {
+        "local_merge": "516 (514–517)",
+        "local_download": "n/a",
+        "upload": "10 (6–13)",
+        "job_submit": "12 (8–15)",
+        "server_processing": "2997 (2994–2999)",
+        "result_download": "10 (7–12)",
+        "workspace_save": "11 (7–15)",
+        "editor_load": "n/a — refused after 132ms — \"We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits.\"",
+        "publish": "6 (6–6)",
+        "reopen": "n/a — refused after 131ms — \"We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits.\""
+      },
+      "note": "2 runs; compress-pdf is the server tool"
+    },
+    {
+      "part": "load",
+      "name": "anonymous server jobs ×2",
+      "metrics": {
+        "accepted": "2/2",
+        "statuses": "2×202",
+        "latency": "9 (8–10)",
+        "wall": "10ms",
+        "retry_after": "—"
+      },
+      "note": "cold window; POST /api/jobs"
+    },
+    {
+      "part": "load",
+      "name": "anonymous server jobs ×4",
+      "metrics": {
+        "accepted": "4/4",
+        "statuses": "4×202",
+        "latency": "23 (16–36)",
+        "wall": "37ms",
+        "retry_after": "—"
+      },
+      "note": "cold window; POST /api/jobs"
+    },
+    {
+      "part": "load",
+      "name": "anonymous server jobs ×8",
+      "metrics": {
+        "accepted": "8/8",
+        "statuses": "8×202",
+        "latency": "43 (25–53)",
+        "wall": "54ms",
+        "retry_after": "—"
+      },
+      "note": "cold window; POST /api/jobs"
+    },
+    {
+      "part": "load",
+      "name": "anonymous server jobs ×16",
+      "metrics": {
+        "accepted": "16/16",
+        "statuses": "16×202",
+        "latency": "64 (34–87)",
+        "wall": "91ms",
+        "retry_after": "—"
+      },
+      "note": "cold window; POST /api/jobs"
+    },
+    {
+      "part": "load",
+      "name": "one-IP burst ×25 (limiter under test)",
+      "metrics": {
+        "accepted": "20/25",
+        "statuses": "20×202 5×429",
+        "latency": "81 (47–129)",
+        "wall": "130ms",
+        "retry_after": "10"
+      },
+      "note": "20 per 60s per IP is the declared ceiling; a 429 here is the correct answer"
+    },
+    {
+      "part": "load",
+      "name": "workspace uploads ×2",
+      "metrics": {
+        "accepted": "2/2",
+        "statuses": "2×201",
+        "latency": "10 (9–10)",
+        "wall": "10ms",
+        "retry_after": "—"
+      },
+      "note": "authenticated; POST documents/upload"
+    },
+    {
+      "part": "load",
+      "name": "workspace uploads ×4",
+      "metrics": {
+        "accepted": "4/4",
+        "statuses": "4×201",
+        "latency": "32 (21–35)",
+        "wall": "35ms",
+        "retry_after": "—"
+      },
+      "note": "authenticated; POST documents/upload"
+    },
+    {
+      "part": "load",
+      "name": "workspace uploads ×8",
+      "metrics": {
+        "accepted": "8/8",
+        "statuses": "8×201",
+        "latency": "36 (27–53)",
+        "wall": "53ms",
+        "retry_after": "—"
+      },
+      "note": "authenticated; POST documents/upload"
+    },
+    {
+      "part": "load",
+      "name": "document opens ×4",
+      "metrics": {
+        "accepted": "4/4",
+        "statuses": "4×200",
+        "latency": "5 (5–5)",
+        "wall": "6ms",
+        "retry_after": "—"
+      },
+      "note": "GET one document, same reader"
+    },
+    {
+      "part": "load",
+      "name": "document opens ×8",
+      "metrics": {
+        "accepted": "8/8",
+        "statuses": "8×200",
+        "latency": "7 (7–7)",
+        "wall": "8ms",
+        "retry_after": "—"
+      },
+      "note": "GET one document, same reader"
+    },
+    {
+      "part": "load",
+      "name": "document opens ×16",
+      "metrics": {
+        "accepted": "16/16",
+        "statuses": "16×200",
+        "latency": "13 (11–13)",
+        "wall": "13ms",
+        "retry_after": "—"
+      },
+      "note": "GET one document, same reader"
+    },
+    {
+      "part": "load",
+      "name": "publishes ×4 (distinct documents)",
+      "metrics": {
+        "accepted": "4/4",
+        "statuses": "4×201",
+        "latency": "15 (8–50)",
+        "wall": "50ms",
+        "retry_after": "—",
+        "documents": "4 distinct of 14 uploaded"
+      },
+      "note": "each its own document and its own revision"
+    },
+    {
+      "part": "load",
+      "name": "revision conflict ×4 (one document, one revision)",
+      "metrics": {
+        "accepted": "1/4",
+        "statuses": "1×201 3×409",
+        "latency": "9 (9–9)",
+        "wall": "18ms",
+        "retry_after": "—",
+        "cas": "held — one winner, the rest refused"
+      },
+      "note": "the compare-and-swap under contention"
+    },
+    {
+      "part": "load",
+      "name": "anonymous browser workflows ×3 (concurrent)",
+      "metrics": {
+        "accepted": "3/3",
+        "statuses": "3×200",
+        "latency": "7156 (7156–7157)",
+        "wall": "7241ms",
+        "retry_after": "—"
+      },
+      "note": "separate Chrome instances; merge is entirely in the tab, so the server sees only page loads"
+    }
+  ]
+}

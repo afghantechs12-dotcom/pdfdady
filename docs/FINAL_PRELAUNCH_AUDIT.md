@@ -279,6 +279,167 @@ rather than `cp`: copying a live SQLite file can capture a torn page.
 The recovery path is therefore: keep the `backup()` output, and restoring it is the
 whole procedure. No step of it was inferred.
 
+## §18 — Performance and load
+
+One command produced every number below, in one uninterrupted run with nothing else
+on the host:
+
+```
+node scripts/perf-load-probe.mjs --url https://172.20.10.2:3001 \
+  --api-url http://127.0.0.1:3002 --csrf-origin https://172.20.10.2:3001 \
+  --json /tmp/perf-all-final.json
+```
+
+Full output: [perf-load.log](evidence/final-prelaunch/perf-load.log) (333 lines),
+machine-readable rows in [perf-load.json](evidence/final-prelaunch/perf-load.json).
+Seven routes × 3 cold-cache runs, six input shapes × 2 end-to-end runs, and eleven
+concurrency fan-outs against the API directly.
+
+**Read the resolutions before the numbers.** Editor paint is polled at 100 ms; the
+in-page merge and the job status are polled at 500 ms. So `local_merge = 517` and
+`server_processing = 2998` mean "finished at or before that poll", not "spent that
+long working" — the first is a ceiling, the second is bounded to a 500 ms window.
+Every figure here carries that granularity and nothing else, which is why the
+probe's own clock is discussed below rather than hidden.
+
+### Pages
+
+| Route | LCP (median, range) | CLS | Transferred | JS | Requests | JS errors |
+|---|---|---|---|---|---|---|
+| Homepage | 100 ms (80–104) | 0.005 | 399 KB | 162 KB | 39 | 0 |
+| Tools directory | 60 ms (44–64) | 0.005 | 322 KB | 199 KB | 40 | 0 |
+| Merge (tool page) | 52 ms (52–52) | 0.005 | 287 KB | 188 KB | 30 | 0 |
+| Pricing | 48 ms (44–60) | 0.005 | 287 KB | 162 KB | 58 | 0 |
+| Editor (standalone) | 72 ms (68–84) | 0.001 | 398 KB | 312 KB | 23 | 0 |
+| Workspace | 104 ms (100–108) | 0.017 | 296 KB | 197 KB | 39 | 0 |
+| **Workspace Editor** | **412 ms** (392–416) | **0.212** | **921 KB** | **459 KB** | 43 | 0 |
+
+No route logged a single JavaScript error in any run. Six of the seven paint inside
+110 ms and hold CLS an order of magnitude under the 0.1 "good" threshold.
+
+**The Workspace Editor is the one route that fails a Core Web Vitals threshold:
+CLS 0.212, twice the allowed 0.1.** It is not measurement noise — the same 0.212
+appears in every run of this probe and in the earlier run it replaced, so the shift
+is structural rather than incidental. Its FCP is 44 ms and its LCP 412 ms, which is
+the shape of a header that paints immediately and a document surface that arrives
+much later and pushes it: the layout is not reserving the space the page image will
+take. The same route also ships the largest payload on the site by a factor of 2.3
+(921 KB transferred, 459 KB of JavaScript). Classified **P2**: it is a visible
+quality defect on the authenticated workbench, not a functional failure, and the fix
+is a reserved-height container rather than anything architectural.
+
+**These LCP and TTFB figures are floors, not predictions.** The browser and the
+server share one machine, there is no CDN, no bandwidth shaping and no device
+throttling, so latency-bound numbers can only get worse in production. The two
+figures that do transfer are CLS and payload weight, because they are layout and
+bytes rather than bandwidth — and those are exactly where the one failure sits.
+
+### The end-to-end workflow, six input shapes
+
+Milliseconds, median of two runs. `n/a` means an earlier stage refused, and the
+refusal is quoted rather than summarised.
+
+| Shape | In-page merge | Local download | Upload | Job submit | Server processing | Result download | Workspace save | Editor load | Publish | Reopen |
+|---|---|---|---|---|---|---|---|---|---|---|
+| tiny (2 KB) | ≤517 | 5 | 11 | 13 | 2998 | 16 | 10 | 242 | 6 | 239 |
+| ordinary (5 KB) | ≤520 | 8 | 11 | 11 | 2242 (1488–2995) | 12 | 12 | 357 | 6 | 371 |
+| large (22.8 MB) | ≤517 | 8 | 48 | 39 | 2973 | 12 | 12 | refused 238 ms | 43 | refused 249 ms |
+| many-page (104 KB) | ≤518 | 8 | 15 | 18 | 1889 (776–3001) | 10 | 11 | refused 128 ms | 6 | refused 146 ms |
+| encrypted (6 KB) | 17 (refused) | n/a | 11 | 11 | 2807 | 11 | 11 | refused 231 ms | 7 | refused 243 ms |
+| malformed (3 KB) | ≤516 (refused) | n/a | 10 | 12 | 2997 | 10 | 11 | refused 132 ms | 6 | refused 131 ms |
+
+Every stage a user waits on synchronously is fast, including the one that carries
+22.8 MB: upload 48 ms, submit 39 ms, result download 12 ms, Workspace save 12 ms.
+Publishing a revision costs 6 ms on small documents and 43 ms on the 22.8 MB one.
+
+**Server processing is uncorrelated with input size.** A 2 KB document and a 22.8 MB
+document both complete in the same 2.5–3.0 s window, across a 10,000× range of
+bytes, while a 104 KB document completed once in 776 ms and once at the 3.0 s edge.
+The dominant term is therefore a fixed per-job cost, not the compression work, and
+the spread is scheduling variance in the in-process worker. It is not failed attempts
+being retried: the origin log for this window contains zero retry or attempt lines.
+Attributing the constant to a specific component would need a profile this audit did
+not run, so it is recorded as an observation with a bound — **every server job on
+this host costs about three seconds regardless of what it is given** — and not as a
+diagnosis. For launch it is acceptable: the API returns 202 immediately and the
+connection never waits on processing ([app/api/jobs/route.ts:43-46](../app/api/jobs/route.ts#L43)).
+
+**The four editor refusals are the product being right, quickly.** The 340-page and
+300-page documents are turned away by the editor's page cap with the count and the
+limit both named ("It has 340 pages, and the Editor supports up to 200"), and the
+encrypted and truncated files by the open failure. All four answers land in
+128–238 ms — the editor decides before the page ever looks busy. The 300-page copy
+is the P2 fixed earlier in this audit at `297c776`; it now says the document is too
+long rather than possibly damaged.
+
+### Concurrency and measured capacity
+
+Fan-out against the API with an explicit `Origin`, every level fully accepted unless
+the table says otherwise:
+
+| Family | Fully accepted | Where it sheds | Median latency at the top level |
+|---|---|---|---|
+| Anonymous server jobs | 16 concurrent | not reached | 64 ms (34–87), 16×202 |
+| One-IP burst | — | **25: 20×202, 5×429, `Retry-After: 10`** | 81 ms (47–129) |
+| Workspace uploads | 8 concurrent | not reached | 36 ms (27–53), 8×201 |
+| Document opens | 16 concurrent | not reached | 13 ms (11–13), 16×200 |
+| Publishes (distinct documents) | 4 concurrent | not reached | 15 ms (8–50), 4×201 |
+| Revision conflict (one document, one revision) | — | **4: 1×201, 3×409** | 9 ms |
+| Anonymous browser workflows | 3 concurrent | not reached | 7156 ms wall 7241 ms |
+
+Two of these rows are the interesting ones, and neither is a capacity limit.
+
+The **one-IP burst** is the rate limiter working: 25 simultaneous submissions from
+one address are answered 20 accepted, 5 refused with `429` and a `Retry-After: 10`
+the client can obey. The shed is deliberate and it is polite.
+
+The **revision conflict** row is the compare-and-set on a document version. Four
+writers race the same revision of the same document; exactly one wins with `201` and
+the other three get `409`. Losing three of four writes is the correct answer to that
+question — the alternative is silent overwriting — and it is reported as a
+correctness result rather than as a shed, which is a change this audit had to make to
+the probe (below).
+
+Concurrent browser workflows are the slow row at 7.2 s wall for three at once, and
+that is three real Chrome tabs each doing an in-page merge on one contended laptop;
+it bounds this host, not the product.
+
+### Three probe defects, all fixed before this run
+
+Every number above is post-fix, and they differ from the earlier truncated log on
+purpose. The defects are recorded because each one produced a plausible, wrong,
+publishable figure:
+
+1. **The load probe's fourteen uploads were one document.** The fan-out re-sent one
+   identical buffer, and `WorkspaceAwareUploadService` dedupes on
+   `(workspaceId, sha256)` — so fourteen uploads returned the same file, "publishes
+   ×4 (distinct documents)" was really a second CAS race on one row, and the capacity
+   table printed a shed that did not exist. Each upload now carries a uuid comment.
+   Uploads answer **201** at 15/20/39 ms instead of a **200** dedupe hit at 5 ms, and
+   the row states `documents=4 distinct of 14 uploaded`. The origin log for this run
+   independently confirms it: fourteen distinct `documentId`s in fourteen
+   "Upload ingested into initial version" lines.
+2. **The capacity generator grouped the CAS race under "publishes"**, turning a
+   correctness result into an apparent throughput ceiling of one. It is now its own
+   family.
+3. **The refusal clock was the probe's own poll budget.** The error panel was read
+   only after the 300 × 100 ms poll gave up, so every editor refusal was dated at the
+   deadline: the 340-page document was reported as "refused after 30830 ms" when the
+   product had answered in 238 ms. The panel read now happens inside the poll.
+
+All three belong to the same family as the `editor_load = 9016 ms` and "no page was
+painted" defects found earlier in this audit: a harness measuring its own constants
+and presenting them as product latency.
+
+### What was not measured
+
+No CDN, no network shaping, no device throttling, single host, single instance. No
+sustained soak — the fan-outs are bursts, not minutes of load, so nothing here speaks
+to memory growth or file-descriptor drift over hours. The queue is the in-process
+one; `REDIS_URL` is unset, so the multi-instance path is **NOT EXERCISED**. And every
+figure comes from one host under one contention profile: these are the product's
+proportions, not a capacity plan for production hardware.
+
 ## §25 — Deployment artifact
 
 `next build` with `output: "standalone"` produces `.next/standalone/server.js` plus a
