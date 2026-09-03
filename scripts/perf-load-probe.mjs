@@ -763,7 +763,7 @@ async function partLoad(b, d, ctx, shapes) {
     const winners = got.settled.filter((r) => r.status >= 200 && r.status < 300).length;
     record(
       "load",
-      "publishes ×4 (one document, one revision)",
+      "revision conflict ×4 (one document, one revision)",
       { ...tally(got), cas: winners === 1 ? "held — one winner, the rest refused" : `BROKEN — ${winners} winners` },
       "the compare-and-swap under contention",
     );
