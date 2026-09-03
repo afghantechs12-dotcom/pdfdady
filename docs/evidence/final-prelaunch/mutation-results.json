@@ -468,5 +468,51 @@
       "GET /api/health/ready > refuses to report ready when one toolchain binary is missing"
     ],
     "exit": 1
+  },
+  {
+    "id": "S1",
+    "title": "The Workspace file manager drops its noindex (metadata kept, robots removed)",
+    "file": "app/workspaces/[workspaceId]/page.tsx",
+    "gate": [
+      "app/seoIndexingTruth.test.ts"
+    ],
+    "failed": 1,
+    "passed": 4,
+    "red": true,
+    "failing": [
+      "R24 \u2014 no private route is indexable > advertises a route in the sitemap or marks it noindex, with nothing in between"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "S2",
+    "title": "Sitemap gate weakened from `capability.available` to `capability` existing",
+    "file": "app/sitemap.ts",
+    "gate": [
+      "app/seoIndexingTruth.test.ts"
+    ],
+    "failed": 2,
+    "passed": 3,
+    "red": true,
+    "failing": [
+      "R25 \u2014 the sitemap tells the truth about what it advertises > lists only tools this build can actually run, at the capability's own route",
+      "R25 \u2014 the sitemap tells the truth about what it advertises > drops an unavailable slug even when the tool registry offers one"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "S3",
+    "title": "robots.txt disallows /tools while the sitemap submits 20+ paths under it",
+    "file": "app/robots.ts",
+    "gate": [
+      "app/seoIndexingTruth.test.ts"
+    ],
+    "failed": 1,
+    "passed": 4,
+    "red": true,
+    "failing": [
+      "R24 \u2014 no private route is indexable > never submits a URL that robots.txt forbids crawling"
+    ],
+    "exit": 1
   }
 ]
