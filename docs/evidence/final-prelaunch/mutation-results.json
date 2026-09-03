@@ -514,5 +514,51 @@
       "R24 \u2014 no private route is indexable > never submits a URL that robots.txt forbids crawling"
     ],
     "exit": 1
+  },
+  {
+    "id": "T1",
+    "title": "removeProcessingWorkDir loses its boundary check and deletes what it is handed",
+    "file": "lib/server/tempFiles.ts",
+    "gate": [
+      "lib/server/tempFileLifecycle.test.ts"
+    ],
+    "failed": 2,
+    "passed": 9,
+    "red": true,
+    "failing": [
+      "the processing work directory and its boundary > refuses a path outside the root instead of deleting it",
+      "the processing work directory and its boundary > refuses the shared root itself, which would wipe every concurrent job"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "T2",
+    "title": "cleanupJob leaves the job directory, and the user's file, on disk",
+    "file": "lib/server/cleanup.ts",
+    "gate": [
+      "lib/server/tempFileLifecycle.test.ts"
+    ],
+    "failed": 1,
+    "passed": 10,
+    "red": true,
+    "failing": [
+      "cleanupJob \u2014 the finally-block contract > removes the directory and every user file inside it"
+    ],
+    "exit": 1
+  },
+  {
+    "id": "T3",
+    "title": "safeJoin loses the escape refusal, so `..` resolves to the parent directory",
+    "file": "lib/server/tempFiles.ts",
+    "gate": [
+      "lib/server/tempFileLifecycle.test.ts"
+    ],
+    "failed": 1,
+    "passed": 10,
+    "red": true,
+    "failing": [
+      "safeJoin \u2014 an untrusted filename becoming a path > refuses outright the two names the character filter cannot save"
+    ],
+    "exit": 1
   }
 ]
