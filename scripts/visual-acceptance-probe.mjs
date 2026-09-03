@@ -79,6 +79,15 @@ const SHOT_DIR = RECORD_BASELINE ? BASELINE_DIR : join(OUT, "current");
 const WITH_AUTH = has("--auth");
 const ONLY = (arg("--only", "") || "").split(",").filter(Boolean);
 const PASSWORD = "GateB-Probe-Password!";
+/*
+ * `--cookie name=value`, for a surface that can only be reached on a server this
+ * probe cannot register against. `19-app-error` runs against a deployment whose
+ * database cannot be opened, so signing up is impossible — but the boundary it
+ * documents is what a SIGNED-IN user meets, and the session lookup that throws is
+ * the one the cookie triggers. The token does not have to resolve; it has to be
+ * looked up.
+ */
+const COOKIE = arg("--cookie", "");
 const FIXTURE = "docs/qa/p1/multipage-fixture.pdf";
 
 /** The brief's nine audit viewports. */
@@ -405,37 +414,80 @@ const SURFACES = [
     },
   },
   {
-    id: "14-conflict-dialog", title: "Conflict dialog", group: "editor",
-    needsAuth: true, minChars: 60,
+    id: "14-conflict-dialog", title: "Save conflict", group: "editor",
+    needsAuth: true, minChars: 60, settle: 900,
+    masks: ['[role="status"]'],
     /*
-     * Attempted, not staged. A save re-reads the revision immediately before it
-     * writes (`revisionForCommit`), which is what makes a first save survive its own
-     * import job — and it also means an out-of-band commit does not reliably lose
-     * the compare-and-swap. The attempt below advances the document out of band and
-     * then saves; if the dialog does not appear, this is reported NOT EXERCISED with
-     * that reason rather than mocked into existence.
+     * The real 409, driven by really losing the race.
+     *
+     * A save reads the revision immediately before it writes (`revisionForCommit`),
+     * so a conflict cannot be staged by advancing the document first — the save
+     * would simply read the new number. What loses a compare-and-swap is another
+     * writer landing INSIDE that window, so the editor's own upload is cloned in
+     * flight: the clone is sent first and commits at the revision the editor read,
+     * and the original then arrives one revision behind. Both requests are the
+     * product's, the server's CAS decides the outcome, and the banner is the
+     * product's own copy.
+     *
+     * What this surface used to do, and why it could never have passed: it sent an
+     * out-of-band `PATCH` to the document metadata route and then looked for a
+     * `[role="dialog"]`. That route has only GET and PUT (the PATCH answered 405),
+     * a metadata revision is a different domain from the document revision this CAS
+     * uses, and the conflict is a `role="alert"` banner rather than a dialog. It
+     * reported NOT EXERCISED and blamed an unwinnable race — its own blind spot,
+     * described as a property of the product.
      */
+    allowedConsoleError: /Publish version failed/,
     reach: async (c) => {
       if (!c.documentHref || !c.workspaceId) return "no Workspace document was ingested";
       await c.b.goto(BASE, c.documentHref, 5000);
       if (!(await c.until(`!!document.querySelector('[role="toolbar"]') || null`, { tries: 24, every: 700 })))
         return "the editor chrome never mounted";
-      const bumped = await c.b.evaluate(`(async () => {
-        const m = location.pathname.match(/workspaces\\/([^/]+)\\/documents\\/([^/?#]+)/);
-        if (!m) return "no ids in the url";
-        const org = new URL(location.href).searchParams.get('organizationId') || ${JSON.stringify("")};
-        const res = await fetch('/api/workspaces/' + m[1] + '/documents/' + m[2] +
-          '/metadata' + (org ? '?organizationId=' + encodeURIComponent(org) : ''),
-          { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Gate B out-of-band ' + Date.now() }) });
-        return res.status;
+      /*
+       * The race, armed once and only for the version upload. The arming result is
+       * CHECKED: an interposer that failed to parse leaves the page saving normally,
+       * and the surface would then report "no conflict appeared" about a hook that
+       * was never installed — the exact shape of the journey-I' probe defect this
+       * audit already found once.
+       */
+      const armed = await c.b.evaluate(`(() => {
+        window.__probeRace = { armed: 1, fired: 0, clone: null, original: null };
+        const real = window.fetch;
+        window.fetch = function (input, init) {
+          const url = String(typeof input === "string" ? input : (input && input.url) || "");
+          const method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
+          if (window.__probeRace.fired || method !== "POST" || !/\\/versions\\/upload(\\?|$)/.test(url)) {
+            return real.call(this, input, init);
+          }
+          window.__probeRace.fired = 1;
+          const req = new Request(input, init);
+          const clone = req.clone();
+          return (async () => {
+            const first = await real.call(this, clone);
+            window.__probeRace.clone = first.status;
+            const second = await real.call(this, req);
+            window.__probeRace.original = second.status;
+            return second;
+          })();
+        };
+        return window.__probeRace.armed;
       })()`);
-      const dialog = await c.until(`(() => {
-        const d = [...document.querySelectorAll('[role="dialog"]')]
-          .find((n) => /conflict|newer version|not include your/i.test(n.innerText));
-        return d ? true : null;
-      })()`, { tries: 12, every: 800 });
-      return dialog ? "ok" : `no conflict dialog appeared (out-of-band metadata PATCH answered ${bumped}); the save path re-reads the revision immediately before writing, so a conflict needs a real race this harness cannot create`;
+      if (armed !== 1) return `the upload interposer did not install: ${JSON.stringify(armed)}`;
+      const ready = await c.until(
+        `(() => { const b = document.querySelector('[aria-label="Publish version"]'); return b && !b.disabled ? "yes" : null; })()`,
+        { tries: 30, every: 700 },
+      );
+      if (!ready) return "Publish version never became enabled for this document";
+      await c.b.evaluate(`document.querySelector('[aria-label="Publish version"]').click()`);
+      const banner = await c.until(`(() => {
+        const a = [...document.querySelectorAll('[role="alert"]')]
+          .find((n) => /changed in your Workspace since your last save/i.test(n.innerText));
+        return a ? true : null;
+      })()`, { tries: 40, every: 800 });
+      const race = await c.b.evaluate(`window.__probeRace`);
+      return banner
+        ? "ok"
+        : `no conflict banner appeared: the interposed clone answered ${race?.clone ?? "nothing"} and the editor's own upload answered ${race?.original ?? "nothing"} (fired=${race?.fired ?? "?"})`;
     },
   },
   { id: "15-pricing", title: "Pricing", group: "marketing", minChars: 400,
@@ -454,7 +506,14 @@ const SURFACES = [
      * captured in a SEPARATE run against a server started with an unopenable
      * `DATABASE_URL` — see the write-up. Against a healthy server it correctly
      * refuses to pretend, because the healthy answer is a Workspace page.
+     *
+     * The exemption is the whole subject of the surface: a render that threw is what
+     * puts this boundary on screen, and React reports that throw to the console. A
+     * harness that counted it would call every error state a product failure. The
+     * pattern is the production-safe message React emits with the digest and no
+     * detail — narrow on purpose, so a SECOND, unrelated error is still a failure.
      */
+    allowedConsoleError: /An error occurred in the Server Components render/,
     reach: async (c) => {
       await c.b.goto(BASE, "/workspaces", 3000);
       const shown = await c.b.evaluate(
@@ -574,6 +633,14 @@ async function main() {
       })()`,
     });
 
+    if (COOKIE) {
+      const eq = COOKIE.indexOf("=");
+      await b.send("Network.setCookie", {
+        name: COOKIE.slice(0, eq), value: COOKIE.slice(eq + 1),
+        url: BASE, path: "/", secure: SECURE_FRONT, httpOnly: true,
+      });
+    }
+
     const ctx = makeCtx(b);
     if (WITH_AUTH) {
       ctx.email = await signUpFresh(ctx, BASE, { password: PASSWORD, name: "Gate B Reviewer", prefix: "gateb" });
@@ -613,7 +680,13 @@ async function main() {
         continue;
       }
       await sweep(b, surface);
-      const js = b.errors().js;
+      /*
+       * A surface whose SUBJECT is a failure logs the diagnostic that failure
+       * writes. `allowedConsoleError` exempts that one string and nothing else, so
+       * a driven error state stays a passing reference instead of being reported as
+       * a defect of the product it is documenting.
+       */
+      const js = b.errors().js.filter((e) => !surface.allowedConsoleError?.test(e));
       if (js.length) record(surface.id, `${surface.id} console`, "PRODUCT FAILURE", `${js.length} JS error(s): ${js[0]}`);
     }
 

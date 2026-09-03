@@ -129,6 +129,27 @@ const nextConfig = {
   // pins VIPS_CONCURRENCY for the same reason.
   experimental: {
     cpus: 4,
+    /*
+     * The largest request body `proxy.ts` may be handed intact.
+     *
+     * Next clones every request body so the proxy can read it, and the default
+     * clone limit is 10 MB: above that the clone — and therefore the body the
+     * route handler receives — is SILENTLY TRUNCATED, with only a
+     * `console.warn` on the server. A truncated multipart body has lost its
+     * closing boundary, so `request.formData()` throws and the upload routes
+     * answer "Malformed multipart body." (400) and `/api/jobs` answers 500,
+     * both about a file that was perfectly valid. Measured before this line
+     * existed: 10481664 bytes went through, 10485760 did not.
+     *
+     * So this must stay ABOVE every ceiling the product advertises, or the
+     * advertised ceiling is not the one enforced: `maxUploadBytes` is 100 MiB
+     * (src/domain/entities/DocumentIngestion.ts) and `/api/jobs` allows 110 MiB
+     * (TOOLS_MAX_BODY_BYTES). Those routes then refuse an oversized upload
+     * themselves, with a 413 that says so. Pinned by
+     * `proxyBodyLimit.test.ts`; a deployment that raises
+     * TOOLS_MAX_BODY_BYTES past this number reintroduces the truncation.
+     */
+    proxyClientMaxBodySize: "120mb",
   },
   // Produces a minimal self-contained server bundle for Docker/production.
   output: "standalone",

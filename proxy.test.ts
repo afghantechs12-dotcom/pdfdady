@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { config, proxy } from "./proxy";
@@ -479,5 +481,72 @@ describe("the nonce never reaches a log line", () => {
     expect(JSON.stringify(reports)).not.toContain(nonce);
     expect(JSON.stringify(reports)).not.toContain("strict-dynamic");
     expect(JSON.stringify(reports)).not.toContain("nonce-");
+  });
+});
+
+/**
+ * The cost of matching `/api/*`, and the one line that pays it.
+ *
+ * A `proxy.ts` that matches a route makes Next CLONE that request's body so the
+ * handler can still read it afterwards, and the clone is capped: past the cap the
+ * body the route handler receives is silently truncated, with nothing but a
+ * `console.warn` on the server to say so. Measured on this repo before
+ * `proxyClientMaxBodySize` was set: 10481664 bytes reached the upload route,
+ * 10485760 did not — a 100 MB product ceiling that actually failed at 10 MiB, and
+ * failed as a parse error rather than as a refusal.
+ *
+ * The invariant is a comparison, not a constant: the clone limit has to exceed every
+ * ceiling the routes themselves advertise, so that an oversized upload is refused by
+ * the route's own 413 instead of arriving mangled. Both ceilings are read from where
+ * they are declared, so raising one and forgetting this line turns red here.
+ */
+describe("proxy — the body-clone limit clears every advertised upload ceiling", () => {
+  /** `"120mb"` → bytes. Next accepts the same suffixes `bytes` does. */
+  const toBytes = (size: string | number): number => {
+    if (typeof size === "number") return size;
+    const m = /^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)?$/i.exec(size.trim());
+    if (!m) throw new Error(`unparseable size: ${size}`);
+    const unit = (m[2] ?? "b").toLowerCase();
+    return Number(m[1]) * { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3 }[unit]!;
+  };
+
+  it("parses 120mb the way bytes does, so the assertions below compare numbers", () => {
+    expect(toBytes("10mb")).toBe(10 * 1024 * 1024);
+    expect(toBytes(1234)).toBe(1234);
+    expect(() => toBytes("lots")).toThrow();
+  });
+
+  it("is configured above the 100 MiB Workspace ingestion ceiling and the 110 MiB jobs ceiling", async () => {
+    const config = (await import("@/next.config.mjs")).default as {
+      experimental?: { proxyClientMaxBodySize?: string | number };
+    };
+    const limit = config.experimental?.proxyClientMaxBodySize;
+    expect(limit, "next.config.mjs must set experimental.proxyClientMaxBodySize").toBeDefined();
+
+    const { DOCUMENT_INGESTION_LIMITS } = await import("@/src/domain/entities/DocumentIngestion");
+
+    // The jobs/tools ceiling is a module-local default, so it is read from source.
+    // `TOOLS_MAX_BODY_BYTES` can raise it at deploy time past the clone limit; that
+    // is a deployment footgun this test cannot see, and next.config.mjs names it.
+    const jobsSource = readFileSync(join(__dirname, "app/api/jobs/route.ts"), "utf8");
+    const declared = /:\s*(\d+)\s*\*\s*1024\s*\*\s*1024;/.exec(jobsSource);
+    expect(declared, "app/api/jobs/route.ts no longer declares an N * 1024 * 1024 default").not.toBeNull();
+    const jobsCeiling = Number(declared![1]) * 1024 * 1024;
+
+    expect(jobsCeiling).toBeGreaterThanOrEqual(DOCUMENT_INGESTION_LIMITS.maxUploadBytes);
+    expect(toBytes(limit!)).toBeGreaterThan(jobsCeiling);
+  });
+
+  it("matches the upload routes whose bodies are the large ones", () => {
+    // If these ever stopped being matched the truncation would not apply to them —
+    // but they are matched, which is why the limit above is load-bearing.
+    for (const path of [
+      "/api/jobs",
+      "/api/tools/merge-pdf",
+      "/api/workspaces/cku1abc/documents/upload",
+      "/api/workspaces/cku1abc/documents/cku2def/versions/upload",
+    ]) {
+      expect(MATCHER.test(path), `${path} should be matched`).toBe(true);
+    }
   });
 });
