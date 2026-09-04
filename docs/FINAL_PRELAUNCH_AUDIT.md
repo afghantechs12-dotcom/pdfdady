@@ -1730,3 +1730,75 @@ One harness note, recorded because it appears in the boot logs: the boot script 
 `/api/ready`, which is a **404** — the route is `/api/health/ready`. That is the
 script's path typo, not a missing route, and no readiness evidence in this report was
 ever taken from it.
+
+## §33 — P0
+
+**Three P0 defects were found. All three are fixed on this branch, and each one
+independently prevented a launch.**
+
+| # | Defect | Why it was P0 | Fixed |
+|---|---|---|---|
+| P0-1 | `data/admin/store.json` shipped a real scrypt password hash for the admin account | the admin credential of every deployment was a committed artifact: a self-hoster could not set their own, and the hash was in the repository and in Git history | `97b8110` |
+| P0-2 | the container deployment path could not build, boot, or keep its data | `COPY` of a path the build does not produce; the entrypoint served without migrating; the database and stored documents lived inside the container layer, so a restart discarded every uploaded document | `28e377b` |
+| P0-3 | the production startup gate refused to start unless `DATABASE_URL` named a database the shipped Prisma provider cannot open | the documented production configuration could not boot at all | `b6e3961` |
+
+Each is pinned by a test that fails without the fix: `shippedStoreSecrets.test.ts`
+globs *filenames* under `data/admin` so a `.bak` sibling cannot hide (mutation A2 —
+and the tree's `.bak` is gitignored, so `git status` could never have been the check),
+`deploymentArtifact.test.ts` (8 tests, mutations C1–C5), and `env.test.ts` (25 tests,
+mutations D1–D4).
+
+**No P0 is open.** Nothing in the final verification, in any of the four runtime probes,
+or in the static harness's 85 rows is a P0.
+
+## §34 — P1
+
+**Six P1 defects were found. All six are fixed.**
+
+| # | Defect | Effect on a real user | Fixed |
+|---|---|---|---|
+| P1-1 | `Save to Workspace` answered 404 for every job that was not `processing`-typed | the button was offered on eleven tools and could not succeed on any of them in the shipped configuration | `7facfae` |
+| P1-2 | `ocr-pdf` passed `--psm`, a flag `ocrmypdf` does not accept | OCR never ran; the user was told their file may be damaged | `46baf5e` |
+| P1-3 | every advertised upload ceiling was unreachable past **10.004 MiB** | a valid 22 MiB PDF was refused with *"Malformed multipart body."* — the product blamed the user's file for its own body-clone limit. 100 MiB and 110 MiB were advertised | `a14e7c1` |
+| P1-4 | `workspace_save_intents` grew forever | one row per save — `userId`, `workspaceId`, payload checksum — with no delete anywhere, no cascade reaching it, and no policy. Unbounded personal data in a production table | `1d36b30` |
+| P1-5 | expired `sessions` were never deleted | a row per login, removed only by explicit logout, **in an authentication table**. `get` already refuses an expired token, which is exactly why the growth went unnoticed | `371f4ef` |
+| P1-6 | `SERVER_SETUP.md` described a build that had not shipped for a year | an operator following the documented steps does not get a working deployment | `0d13da2` |
+
+P1-4 and P1-5 are the brief's K item, **resolved rather than classified**: both now ride
+the retention sweep that already recurs every 15 minutes, with a 30-day horizon, the
+Prisma adapter proved against real SQLite rather than only its in-memory twin, and
+`pruneExpired` made **required** on `ISessionProvider` — which surfaced five `tsc` errors
+across four doubles, and that was the point. The sweep was then watched doing it in a
+deployed artifact: 15 minutes after boot, unprompted, it purged a forced-expired row
+along with 324 others and rescheduled itself (`audit-retention-runtime.log`).
+
+**No P1 is open.**
+
+## §35 — P2 and below
+
+**Fixed during the audit:**
+
+| Defect | Class | Fixed |
+|---|---|---|
+| no root `app/not-found.tsx` — every unknown public URL got Next's framework 404: no brand, no navigation, near-black under `prefers-color-scheme: dark`. The visual gate had recorded that page as the *reference* for surface `18-not-found` and passed it nine times | P2 | `b29f79f` |
+| the Workspace file manager was the one private page a crawler could index — it exported no `metadata` and has no layout above it to supply one, while all three siblings declared `robots:{index:false}` | P2 | `450657d` |
+| a valid 300-page document was refused with *"may be damaged"* instead of the page ceiling it actually hit | P2 | `297c776` |
+| the cross-tenant page refusal produced **no audit line at all** — the organization guard runs before the only place that logs. Correct answer, invisible | P2 | `9389da3` |
+| 27 pages branded their own titles under the root layout's `title.template` → *"Page not found — PDFDadi — PDFDadi"* | P3 | `b29f79f` |
+| `sanitizeBaseName` turned an upload named `..pdf` into a download named `...pdf` | P3 | `d84ed4a` |
+| `/contact` showed a green tick and *"we've noted your message"* with no transport behind it — no fetch, no server action, no mail provider | P3 (copy-only fix; a mail transport is feature work this audit may not add) | `f55ffca` |
+
+**Open P2 — none of these blocks a launch, and none is inflated into one:**
+
+| # | Open finding | Why it is P2 and not higher |
+|---|---|---|
+| P2-1 | nine high npm advisories (`next`, `prisma`, `pdfjs-dist`, `postcss`, `nanoid`, `brace-expansion`, `deepmerge-ts`, `@prisma/config`) | traced individually in §12. The standalone artifact contains only `sharp` and the client `pdfjs-dist`; the pdf.js advisory needs `enableScripting` **and** no `script-src`, and both are absent. Not fixed here because the brief forbids mass dependency upgrades — this is a scheduled-maintenance item |
+| P2-2 | Workspace Editor **CLS 0.212**, twice the 0.1 threshold, on the largest payload (921 KB / 459 KB JS) | a visible quality defect on the authenticated workbench, not a functional failure; the fix is a reserved-height container |
+| P2-3 | no error-monitoring backend (`ConsoleErrorReporter`) | a production incident produces no alert. One adapter; loses no data |
+| P2-4 | metrics exist but never leave the process | no time series for an incident. One adapter |
+| P2-5 | `Dockerfile` has CRLF line endings — the only deploy-critical file that does | BuildKit tolerates them, and the container path is NOT EXERCISED on this host; changing it blind in an artifact no build here can verify would be worse than recording it |
+| P2-6 | server processing takes ≈3 s largely independent of input size | an observation from §18, not a diagnosis. No retries appear in the log; it is recorded so it is not mistaken for a per-megabyte cost |
+
+**None of the open P2 items predates or postdates its way out of this list.** Two of them
+(P2-1, P2-5) were already true at the baseline; per the brief they are not downgraded for
+that reason, and equally they are not promoted to blockers because this audit noticed them.
