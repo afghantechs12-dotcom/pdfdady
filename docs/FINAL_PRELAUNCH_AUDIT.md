@@ -1860,8 +1860,10 @@ Gate B 156/156 captures compared clean. **Zero product failures in all four runt
 probes.** A clean-machine reproduction (`npm ci` from the lockfile into a fresh worktree,
 blank database, migrations, build, boot, probe) reached the same result. Deploy and
 rollback were rehearsed for real on the standalone path: both artifacts booted and both
-completed a real job. Fifteen mutations were applied one at a time, each turned a gate
-red, each was reverted through Git, and the gate came back green.
+completed a real job. The brief's fifteen mutations (A-O) were applied one at a time, each turned a gate
+red, each was reverted through Git, and the gate came back green. The audit ran
+more than the brief asked: 35 machine-readable rows in its own lettering
+(`mutation-results.json`) plus Gate B's screenshot mutation.
 
 Three P0 findings and six P1 findings were opened by this audit and **all nine are
 fixed**, each with the commit recorded in §33 and §34. No P0 and no P1 is open. Six P2
