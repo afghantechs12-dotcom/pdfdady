@@ -7,10 +7,10 @@ import { DOCUMENT_INGESTION_LIMITS } from "@/src/domain/entities/DocumentIngesti
 import {
   getWorkspaceActor,
   mapWorkspaceError,
-  requireSameOrigin,
   workspaceError,
   workspaceServices,
 } from "@/src/application/services/workspaceHttp";
+import { workspaceUploadGate } from "@/lib/server/workspaceUploadGate";
 import { toVersionResponse, versionService } from "@/src/application/services/versionHttp";
 
 export const runtime = "nodejs";
@@ -78,6 +78,10 @@ function looksLikeScene(text: string): boolean {
  *
  * WHAT IS DELIBERATE HERE:
  *
+ *  - AUTHENTICATION BEFORE PARSING. The gate resolves the session from the cookie
+ *    and answers 401 before a body byte is read. Organization and role
+ *    authorization still happen after the parse, because the organization arrives
+ *    as a form field — see {@link workspaceUploadGate} for why that cannot move.
  *  - AUTHORIZATION BEFORE STORAGE. `validateDestination` performs
  *    `workspaces.get(actor, workspaceId, write)`, so an actor without write
  *    access is refused BEFORE a byte is written. Without that, the route would be
@@ -97,29 +101,17 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; documentId: string }> },
 ) {
-  const csrf = requireSameOrigin(request);
-  if (csrf) return csrf;
+  // The shared upload gate: CSRF, the ceiling, the media type, the session and the
+  // rate limit, none of which reads the body. The declared length is a claim, so
+  // the same ceiling caps the stream; the parts are re-checked individually below.
+  const gate = await workspaceUploadGate(request, {
+    maxBytes: DOCUMENT_INGESTION_LIMITS.maxUploadBytes,
+    tooLargeMessage: "Upload too large.",
+  });
+  if ("response" in gate) return gate.response;
+  const form = gate.form;
 
   const { workspaceId, documentId } = await params;
-
-  // Rejected before the body is buffered. The service re-checks the real length,
-  // since content-length is client-supplied.
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > DOCUMENT_INGESTION_LIMITS.maxUploadBytes) {
-    return workspaceError(request, "PAYLOAD_TOO_LARGE", "Upload too large.", 413);
-  }
-
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("multipart/form-data")) {
-    return workspaceError(request, "INVALID_INPUT", "Expected a multipart/form-data upload.", 415);
-  }
-
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return workspaceError(request, "INVALID_INPUT", "Malformed multipart body.", 400);
-  }
 
   const file = form.get("file");
   if (!(file instanceof File)) {
@@ -149,6 +141,7 @@ export async function POST(
     typeof rawOrganizationId === "string" && rawOrganizationId.trim()
       ? rawOrganizationId.trim()
       : undefined,
+    gate.sessionUser,
   );
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;

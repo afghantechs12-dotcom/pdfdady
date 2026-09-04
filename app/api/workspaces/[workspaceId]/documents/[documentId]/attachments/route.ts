@@ -3,9 +3,9 @@ import { z } from "zod";
 import {
   getWorkspaceActor,
   mapWorkspaceError,
-  requireSameOrigin,
   workspaceError,
 } from "@/src/application/services/workspaceHttp";
+import { workspaceUploadGate } from "@/lib/server/workspaceUploadGate";
 import { metadataService, toAttachmentResponse } from "@/src/application/services/metadataHttp";
 import {
   METADATA_LIMITS as L,
@@ -57,30 +57,26 @@ export async function GET(
  *
  * Multipart rather than base64-in-JSON: a base64 body inflates the bytes by a
  * third, has to be fully buffered to be parsed, and gives the request no
- * declared length to check before reading it. The declared content length is
- * refused above the limit before any bytes are read, and the actual byte count
- * is checked again afterwards — a declared length is a claim, not a fact.
+ * declared length to check before reading it.
+ *
+ * Everything ahead of the parse — CSRF, the ceiling, the media type, the session,
+ * the rate limit — is {@link workspaceUploadGate}, which is shared with the two
+ * document upload routes and is the only thing that reads this body. The declared
+ * length is a claim, so the gate caps the stream at the same ceiling and the real
+ * byte count is checked again below.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string; documentId: string }> },
 ) {
-  const csrf = requireSameOrigin(request);
-  if (csrf) return csrf;
+  const gate = await workspaceUploadGate(request, {
+    // A little headroom over the payload cap for the multipart envelope itself.
+    maxBytes: L.maxAttachmentBytes + 64 * 1024,
+    tooLargeMessage: "This attachment is too large.",
+  });
+  if ("response" in gate) return gate.response;
+  const form = gate.form;
   const { workspaceId, documentId } = await params;
-
-  const declared = Number(request.headers.get("content-length") ?? "0");
-  // A little headroom over the payload cap for the multipart envelope itself.
-  if (Number.isFinite(declared) && declared > L.maxAttachmentBytes + 64 * 1024) {
-    return workspaceError(request, "PAYLOAD_TOO_LARGE", "This attachment is too large.", 413);
-  }
-
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return workspaceError(request, "INVALID_INPUT", "A multipart upload is required.", 422);
-  }
 
   const parsed = uploadFieldsSchema.safeParse({
     organizationId: form.get("organizationId") ?? undefined,
@@ -99,7 +95,11 @@ export async function POST(
     return workspaceError(request, "PAYLOAD_TOO_LARGE", "This attachment is too large.", 413);
   }
 
-  const actorResult = await getWorkspaceActor(request, parsed.data.organizationId);
+  const actorResult = await getWorkspaceActor(
+    request,
+    parsed.data.organizationId,
+    gate.sessionUser,
+  );
   if ("response" in actorResult) return actorResult.response;
 
   try {

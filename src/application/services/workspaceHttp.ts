@@ -28,12 +28,51 @@ export function mapWorkspaceError(request: Request, error: unknown) {
   return workspaceError(request, "INTERNAL_ERROR", "Workspace operation failed.", 500);
 }
 
-export async function getWorkspaceActor(request: NextRequest, organizationId?: string): Promise<{ actor: ActorContext } | { response: Response }> {
+/** The bit of the session user every caller here actually needs. */
+export interface SessionUser {
+  id: string;
+}
+
+/**
+ * The signed-in user, or the 401 to return.
+ *
+ * Resolved from the session cookie ALONE — no path parameter, no body, no header
+ * a client can shape. That is what makes it callable BEFORE a multipart body is
+ * read, which is the whole reason it exists: an upload route that authenticates
+ * after parsing has already spent the memory it was trying to protect.
+ *
+ * The response is byte-for-byte the one `getWorkspaceActor` returns for the same
+ * situation, so moving authentication earlier changes WHEN a caller is refused,
+ * never WHAT it learns.
+ */
+export async function getSessionUser(request: NextRequest): Promise<{ user: SessionUser } | { response: Response }> {
   const token = request.cookies.get(USER_SESSION_COOKIE)?.value;
   if (!token) return { response: workspaceError(request, "UNAUTHORIZED", "Authentication is required.", 401) };
   const auth = appContainer.resolve<AuthService>(Tokens.AuthService);
   const user = await auth.getMe(token);
   if (!user) return { response: workspaceError(request, "UNAUTHORIZED", "Authentication is required.", 401) };
+  return { user: { id: user.id } };
+}
+
+/**
+ * The full actor: session user + the organization named by the caller + their role
+ * in it.
+ *
+ * `sessionUser` is an optional hand-off from {@link getSessionUser}, for the routes
+ * that had to authenticate before reading the body. It only ever skips the cookie
+ * lookup this function would repeat — the caller cannot use it to name a different
+ * user than its own cookie resolved to, because the only thing that produces one
+ * is that cookie.
+ */
+export async function getWorkspaceActor(request: NextRequest, organizationId?: string, sessionUser?: SessionUser): Promise<{ actor: ActorContext } | { response: Response }> {
+  let user: SessionUser;
+  if (sessionUser) {
+    user = sessionUser;
+  } else {
+    const resolved = await getSessionUser(request);
+    if ("response" in resolved) return resolved;
+    user = resolved.user;
+  }
   const organizations = appContainer.resolve<IOrganizationProvider>(Tokens.OrganizationProvider);
   const roles = appContainer.resolve<IRoleProvider>(Tokens.RoleProvider);
   const orgs = await organizations.listForUser(user.id);

@@ -6,10 +6,10 @@ import { DOCUMENT_INGESTION_LIMITS } from "@/src/domain/entities/DocumentIngesti
 import {
   getWorkspaceActor,
   mapWorkspaceError,
-  requireSameOrigin,
   workspaceError,
   workspaceServices,
 } from "@/src/application/services/workspaceHttp";
+import { workspaceUploadGate } from "@/lib/server/workspaceUploadGate";
 import { ensureWorkerReady } from "@/src/infrastructure/jobs/workerBootstrap";
 import type { SaveIntentRequest } from "@/src/domain/entities/WorkspaceSaveIntent";
 
@@ -49,41 +49,24 @@ function saveIntent(form: FormData): SaveIntentRequest | null {
  * Accepts `multipart/form-data` with a `file` part plus optional `name`,
  * `folderId`, `projectId`, and `organizationId` fields. Authorization,
  * validation, storage, and ingestion all happen in the upload service — this
- * route only parses the request, enforces CSRF and the body bound, and maps
- * errors to the shared workspace error shape.
+ * route only applies the shared upload gate (CSRF, ceiling, media type, session,
+ * rate limit, bounded parse) and maps errors to the shared workspace error shape.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceId: string }> },
 ) {
-  const csrf = requireSameOrigin(request);
-  if (csrf) return csrf;
+  // CSRF, the ceiling, the media type, the session and the rate limit, in that
+  // order and none of them touching the body. The service re-checks the real byte
+  // length below, since a declared length is client-supplied.
+  const gate = await workspaceUploadGate(request, {
+    maxBytes: DOCUMENT_INGESTION_LIMITS.maxUploadBytes,
+    tooLargeMessage: "Upload too large.",
+  });
+  if ("response" in gate) return gate.response;
+  const form = gate.form;
 
   const { workspaceId } = await params;
-
-  // Reject an oversized body before buffering it. The service re-checks the
-  // real byte length, since content-length is client-supplied.
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > DOCUMENT_INGESTION_LIMITS.maxUploadBytes) {
-    return workspaceError(request, "PAYLOAD_TOO_LARGE", "Upload too large.", 413);
-  }
-
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("multipart/form-data")) {
-    return workspaceError(
-      request,
-      "INVALID_INPUT",
-      "Expected a multipart/form-data upload.",
-      415,
-    );
-  }
-
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return workspaceError(request, "INVALID_INPUT", "Malformed multipart body.", 400);
-  }
 
   const file = form.get("file");
   if (!(file instanceof File)) {
@@ -93,7 +76,11 @@ export async function POST(
     return workspaceError(request, "PAYLOAD_TOO_LARGE", "Upload too large.", 413);
   }
 
-  const actorResult = await getWorkspaceActor(request, optionalField(form, "organizationId") ?? undefined);
+  const actorResult = await getWorkspaceActor(
+    request,
+    optionalField(form, "organizationId") ?? undefined,
+    gate.sessionUser,
+  );
   if ("response" in actorResult) return actorResult.response;
 
   try {

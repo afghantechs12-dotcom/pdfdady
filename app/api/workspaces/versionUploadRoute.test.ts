@@ -49,6 +49,10 @@ vi.mock("@/src/application/di/tokens", () => ({ Tokens: { WorkspaceAwareUploadSe
 
 vi.mock("@/src/application/services/workspaceHttp", () => ({
   requireSameOrigin: () => null,
+  // The shared upload gate authenticates BEFORE the body is read, so a harness
+  // that stubs only `getWorkspaceActor` stubs half the authentication and every
+  // test here 401s. Both, or neither.
+  getSessionUser: async () => ({ user: { id: state.actor.userId } }),
   getWorkspaceActor: async () => ({ actor: state.actor }),
   workspaceError: (_req: unknown, code: string, message: string, status: number) =>
     NextResponse.json({ error: { code, message } }, { status }),

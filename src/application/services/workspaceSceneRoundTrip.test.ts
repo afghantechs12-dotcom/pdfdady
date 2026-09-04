@@ -144,6 +144,10 @@ vi.mock("@/src/application/services/workspaceHttp", async (importOriginal) => {
     // reads, and this suite asserts on the 404 the fallback path depends on.
     ...original,
     requireSameOrigin: () => null,
+    // Authentication now precedes the multipart parse, so the save path resolves a
+    // session before it resolves an actor. Stubbing only the actor would 401 every
+    // save in this suite.
+    getSessionUser: async () => ({ user: { id: "user-1" } }),
     getWorkspaceActor: async () => ({
       actor: {
         userId: "user-1",
