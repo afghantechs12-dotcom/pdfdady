@@ -1620,7 +1620,8 @@ earlier phases.
 Every gate below ran **after** the last change to shipped code, on one artifact built
 from it. The artifact is `BUILD_ID _DzYjfCuvno7KJhZM8SWY`, built at commit `9389da3`;
 every commit after that one touches `docs/**` only —
-`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths**. The commands are
+`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths** — re-checked at each
+later HEAD, including the last one; every commit after the build is `docs/**` only. The commands are
 recorded verbatim in `docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`.
 
 | Gate | Command | Exit | Result |
