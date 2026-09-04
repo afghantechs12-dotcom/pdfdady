@@ -110,10 +110,11 @@ full table is `docs/evidence/final-prelaunch/LAUNCH-PROFILE.md`; the shape is:
 | Retention | 1 h tool outputs, 15 min sweep, 30-day save intents, 30-day sessions (§13) |
 | Support | one `mailto:` (§24) |
 
-Seven items are **`LAUNCH DECISION REQUIRED`** — free-only vs paid; whether free
-stays free; launching without password recovery; domain/DNS/TLS; markets and
-currency; where stdout is collected and for how long; backup schedule and off-host
-destination. None is a code defect, none blocks a build, and this audit does not
+Eight items in the profile are **`LAUNCH DECISION REQUIRED`** — free-only vs paid;
+whether free stays free; launching without password recovery; domain/DNS/TLS; markets
+and currency; where stdout is collected and for how long; backup schedule and off-host
+destination; and whether the one support inbox is monitored. §37 consolidates these
+with the five the later sections add. None is a code defect, none blocks a build, and this audit does not
 invent an answer for any of them.
 
 ## §2 — Baseline reproduced
@@ -1802,3 +1803,45 @@ along with 324 others and rescheduled itself (`audit-retention-runtime.log`).
 **None of the open P2 items predates or postdates its way out of this list.** Two of them
 (P2-1, P2-5) were already true at the baseline; per the brief they are not downgraded for
 that reason, and equally they are not promoted to blockers because this audit noticed them.
+
+## §36 — Environmental and not exercised
+
+Nothing in this section is a pass. Every row is something this host could not do, or
+something a machine cannot decide, stated so it cannot be mistaken for a green check.
+
+### The host could not do it (ENVIRONMENTAL)
+
+| # | Blocker | What it cost |
+|---|---|---|
+| E-1 | **`soffice` is absent** (`which soffice` → nothing) | `pdf-to-word` and `html-to-pdf` cannot run here at all; journey I's `415 UNSUPPORTED_OUTPUT` branch is unreachable because every tool that produces a non-PDF output is `soffice`-backed; and `/api/health/ready` answers **503 `toolchain:false`** — which is the truthful answer, and is what mutation O attacked. The *refusal* path was exercised: both tools report a server-side unavailability that blames no file and leaks no path or command |
+| E-2 | **no Docker daemon** | harness C7 (the image builds) and C8 (the image migrates a fresh volume and serves) could not run; the container deploy and rollback path is unexercised. The standalone equivalent ran instead — `r30-deploy-rollback.log`, 8/8, both artifacts booted and both completed a real job |
+| E-3 | **Playwright's Firefox build is absent** from `~/Library/Caches/ms-playwright` (chromium only) | R29's Firefox leg |
+| E-4 | **no production credentials, no production environment** | nothing in this audit ran against production, and no report line claims otherwise |
+
+### A machine cannot decide it, or nothing drove it (NOT EXERCISED)
+
+| # | Not exercised | Why |
+|---|---|---|
+| X-1 | **human visual acceptance** (harness R3) | 156 captures compare clean at final HEAD and mutation N proves the gate can see a real regression, but **no human has approved how any of it looks**. Verdict `VISUAL ACCEPTANCE PENDING` |
+| X-2 | `19-app-error` — the error boundary surface | needs a genuinely failing dependency; this server answered `/workspaces` normally. Captured once against a broken `DATABASE_URL` in its own run, which is recorded and not counted |
+| X-3 | 111 rendered-layout assertions across 9 viewports (harness R2) | the static harness cannot render; the visual and responsive probes cover the same surfaces by pixel instead |
+| X-4 | `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` | no `.docx`, `.pptx` or `.xlsx` fixture exists in the repository. Their dependency was still checked (`soffice` = absent) |
+| X-5 | two workspace-probe observability rows | server logs are not replayed into the browser console outside `next dev`. The same property was measured directly from the server's log instead: 6 access-denied lines, 0 containing an email, password, cookie or token |
+| X-6 | keyboard row M5b — the OS file dialog | no CDP client can drive it. The other 26 keyboard gates pass, signed out and signed in |
+| X-7 | **WebKit and a screen reader** | `safaridriver` refuses without `safaridriver --enable`; no screen reader was driven. Chromium is the one engine measured |
+| X-8 | log aggregation, alerting, an on-call route (harness M3) | none exists to exercise — see P2-3 and P2-4 |
+| X-9 | sustained load, cold-start latency, memory ceiling under concurrency (harness N3) | the perf probe measures page and workflow latency and a fan-out capacity table; a sustained soak was not run |
+| X-10 | zero-downtime deployment | the rehearsal stops the server, swaps the artifact and starts it again — an outage window of seconds, which is what the runbook describes. No load balancer was observed draining on the 503 |
+| X-11 | image digest pinning, `migrate deploy` inside a container | follows from E-2 |
+
+### A human must confirm it (MANUAL REVIEW REQUIRED — 12 harness rows)
+
+`A3` and `A4` — no secret **value** is committed in the tree or reachable in local Git
+history: the scan finds the shapes, only a human can confirm none is a live credential.
+`E5` admin session semantics · `E6` the setup route on an initialized deployment ·
+`G6` hostile document fixtures (zip bomb, encrypted, malformed xref, embedded JS —
+these are absent from the repository and were not synthesized) · `I4` the Node major the
+image ships · `J3` no account deletion and no export exist anywhere in the tree ·
+`K3` destructive-migration intent · `L3` readiness omits storage writability ·
+`N2` static-render opt-outs · `Q4` whether first-party measurement needs a consent
+banner in the launch jurisdictions (a legal question) · `R3` the visual acceptance above.
