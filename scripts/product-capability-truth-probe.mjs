@@ -81,6 +81,7 @@ async function main() {
       "--no-default-browser-check",
       "--disable-gpu",
       "--hide-scrollbars",
+      ...(ORIGIN.startsWith("https:") ? ["--ignore-certificate-errors"] : []),
       "--window-size=1440,1100",
       "about:blank",
     ],

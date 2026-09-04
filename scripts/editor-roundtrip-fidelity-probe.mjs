@@ -147,6 +147,7 @@ async function main() {
       "--no-default-browser-check",
       "--disable-gpu",
       "--hide-scrollbars",
+      ...(BASE.startsWith("https:") ? ["--ignore-certificate-errors"] : []),
       "about:blank",
     ],
     { stdio: "ignore" },

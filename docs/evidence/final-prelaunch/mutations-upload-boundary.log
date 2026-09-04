@@ -1,0 +1,94 @@
+TEN MUTATIONS — each applied alone, reverted, and Git-verified
+Run 2026-09-04T09:50Z · HEAD 434adc1
+
+── mutation A — parse the body before resolving the session (the finding, restored)
+   file      lib/server/workspaceUploadGate.ts
+   intended  S2 — anonymous upload: 401 before the body is read > 'attachments' reads zero bytes of an 8 MiB anonymous body
+   result    Tests  27 failed | 41 passed (68) · intended test RED: yes · 27 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation B — refusals stop carrying Cache-Control: no-store
+   file      lib/server/workspaceUploadGate.ts
+   intended  S18 — response matrix (attachments) > 'foreign origin' -> 403
+   result    Tests  25 failed | 43 passed (68) · intended test RED: yes · 25 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation C — the 401 is returned before the limiter has counted the attempt
+   file      lib/server/workspaceUploadGate.ts
+   intended  S5 — rate limited: 429 before the body is read > refuses anonymous traffic on the global bucket before it is authenticated
+   result    Tests  6 failed | 62 passed (68) · intended test RED: yes · 6 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation D — the media-type stage is dropped, so a JSON body reaches the parser
+   file      lib/server/workspaceUploadGate.ts
+   intended  S8 — wrong media type: 415 before the body is read > 'attachments' refuses application/json unread
+   result    Tests  6 failed | 62 passed (68) · intended test RED: yes · 6 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation E — readMultipart stops counting, so the ceiling is header-only again
+   file      lib/server/multipart.ts
+   intended  S10 — chunked oversize: 413 with bounded memory > refuses without buffering the whole body
+   result    Tests  8 failed | 70 passed (78) · intended test RED: yes · 8 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation F — parseOrThrow drops the cause walk, so a streamed 413 arrives as a 400
+   file      lib/server/multipart.ts
+   intended  S10 — chunked oversize: 413 with bounded memory > refuses without buffering the whole body
+   result    Tests  9 failed | 69 passed (78) · intended test RED: yes · 9 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation G — a malformed body maps back to the pre-audit 422 INVALID_INPUT
+   file      lib/server/multipart.ts
+   intended  S6 — malformed multipart is 400 MALFORMED_MULTIPART everywhere > 'attachments' answers 400 for a raw quote in the filename
+   result    Tests  14 failed | 64 passed (78) · intended test RED: yes · 14 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation H — X-Forwarded-For is trusted with no proxy secret configured
+   file      lib/server/uploadRateLimit.ts
+   intended  S14 — forwarding-header spoof resistance > cannot spend a per-client budget it has no right to name
+   result    Tests  2 failed | 75 passed (77) · intended test RED: yes · 2 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation I — the limiter fails OPEN when configuration cannot be read
+   file      lib/server/uploadRateLimit.ts
+   intended  fails CLOSED when the configuration cannot be read
+   result    Tests  1 failed | 8 passed (9) · intended test RED: yes · 1 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── mutation J — a trusted client bucket replaces the global ceiling instead of preceding it
+   file      lib/server/uploadRateLimit.ts
+   intended  charges the global ceiling even when a trusted per-client bucket applies
+   result    Tests  1 failed | 8 passed (9) · intended test RED: yes · 1 test(s) red in total
+   revert    git status --porcelain empty: yes
+
+── after the tenth revert, the whole suite again
+    Test Files  380 passed (380)
+         Tests  7374 passed (7374)
+      Start at  11:50:39
+      Duration  8.35s (transform 7.94s, setup 0ms, collect 29.22s, tests 40.62s, environment 44ms, prepare 13.39s)
+
+All ten intended tests went red: True
+All ten reverts left a clean tree: True
+
+════════════════════════════════════════════════════════════════════════
+ADDENDUM — mutation K, added after the live artifact run found the gate
+could not refuse before the body and the proxy matcher turned out to be why
+(commit f6f0fa8). The ten above stand as recorded.
+════════════════════════════════════════════════════════════════════════
+
+── mutation K — the five multipart endpoints go back into the proxy matcher
+   file      proxy.ts (matcher restored to its pre-f6f0fa8 value)
+   intended  proxy — matcher scope > skips the five multipart upload endpoints,
+             so they can refuse before the body
+   also red  proxy — the body-clone limit clears every advertised upload ceiling
+             > no longer needs to, because the routes with the large bodies are
+             unmatched
+   result    Tests  2 failed | 26 passed (28) · intended test RED: yes
+   revert    git status --porcelain empty: yes
+
+Both reds are the pair that has to fail together: the exclusion and the reason the
+clone limit is no longer what enforces these ceilings are one fact, and a mutation
+that undoes it cannot leave either of them green.
+
+All eleven intended tests went red: True
+All eleven reverts left a clean tree: True

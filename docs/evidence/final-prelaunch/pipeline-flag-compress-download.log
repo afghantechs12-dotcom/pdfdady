@@ -1,0 +1,78 @@
+COMPRESS-PDF UNDER `PROCESSING_PIPELINE=on`: THE PROBE'S DOWNLOAD, AND THE PRODUCT'S
+Audit host, 2026-09-04. Artifact BUILD_ID VWgZdjW1LEZvaUo6nwJJi, built at f6f0fa8.
+Origin https://172.20.10.2:3051 (TLS front) -> 127.0.0.1:3052. Same artifact for both
+runs below; the ONLY difference is one environment variable.
+
+Why this file exists. The upload-boundary closeout reran the tool matrix twice. On the
+shipped default it reproduced the documented row. With `PROCESSING_PIPELINE=on` — a flag
+no deployment file sets — the compress-pdf row failed. A failing row is not allowed to be
+waved away, so it was measured rather than argued.
+
+── the two runs, verbatim ──────────────────────────────────────────────
+$ node scripts/tool-runtime-matrix-probe.mjs --url … --only compress-pdf     # PIPELINE=on
+  [FAIL] compress-pdf        the page announced a result but pressing Download produced no file
+  TOOL RUNTIME MATRIX — PASS 0/1 exercised      PRODUCT FAILURE 1
+
+$ node scripts/tool-runtime-matrix-probe.mjs --url … --only compress-pdf     # flag absent
+  [PASS] compress-pdf        8218 bytes, starts "%PDF", named multipage-fixture-compressed.pdf (via gs)
+  TOOL RUNTIME MATRIX — PASS 1/1 exercised
+
+The full-matrix figures either side of the same line: 29/29 exercised, 0 product failures
+on the default; 28/29 with one PRODUCT FAILURE with the flag on.
+
+── the mechanism, read before it was measured ─────────────────────────
+The probe presses the product's own Download control and reads the Blob the handler
+passed to `downloadBlob`: it overrides `URL.createObjectURL` and
+`HTMLAnchorElement.prototype.click`, and only records a click whose href is a
+blob URL it minted (scripts/tool-runtime-matrix-probe.mjs:178-208).
+
+The pipeline path does not produce a Blob, deliberately:
+
+  hooks/useProcessingJob.ts:263     window.location.assign(`/api/jobs/${jobId}/result`);
+  components/tools/runners/PipelineToolRunner.tsx:25-27
+    "Download is a redirect. The result is fetched by navigating to
+     /api/jobs/:id/result, which 302s to a short-lived signed URL, so the output
+     never passes through this component's memory."
+
+A navigation is not an anchor click, and no Blob is ever minted, so
+`window.__probeDownloads` stays empty however well the product works. The probe is
+measuring a delivery mechanism this path does not use.
+
+── so the delivery was measured at the layer that owns it ─────────────
+Anonymous, cookie jar carried so job ownership resolves, fixture
+docs/qa/p1/multipage-fixture.pdf (4888 bytes):
+
+$ POST /api/jobs?slug=compress-pdf                     HTTP 202  status queued
+$ GET  /api/jobs/<id>   (poll)                          running processing
+                                                        completed done  outputBytes 8219
+                                                        outputFileName multipage-fixture-compressed.pdf
+                                                        resultAvailable=True
+$ GET  /api/jobs/<id>/result        (the exact URL the browser navigates to)
+  HTTP 302
+  cache-control: no-store
+  content-disposition: attachment; filename="multipage-fixture-compressed.pdf"
+  location: https://172.20.10.2:3051/api/storage/file?key=<key>&verb=get&expires=…&sig=<redacted>
+$ GET  <that signed URL>                                HTTP 200  8219 bytes
+  cache-control: private, max-age=0, no-store
+  first bytes: %PDF-1.5
+
+The pipeline path serves the same output the default path serves, through a signed
+short-lived URL, with an attachment disposition and no-store — which is what the panel's
+comment says it does.
+
+── classification ────────────────────────────────────────────────────
+NOT EXERCISED, not a pass and not a product failure: the compress-pdf Download row of
+the tool matrix cannot observe the `PROCESSING_PIPELINE=on` path, because that path
+delivers by navigation and the probe only sees Blobs. P3, harness-side. The remedy is a
+probe that also records `window.location.assign` / `Page.navigatedWithinDocument` for a
+download URL; it is NOT a product change, and product code is frozen at f6f0fa8 for this
+closeout, so nothing was edited to make a row go green.
+
+Two smaller facts, recorded so neither reads as a regression later:
+  · gs output is 8218 or 8219 bytes run to run on the same input — Ghostscript writes a
+    varying byte, so a one-byte difference between two rows is not a fidelity change.
+  · `PROCESSING_PIPELINE=on` is not the shipped default and no deployment file sets it,
+    so the row that governs launch is the passing one.
+
+No cookie, token or signature value appears above; the signed URL's `sig` and `key` are
+redacted, and the session/anon cookie was held in a curl jar and never printed.

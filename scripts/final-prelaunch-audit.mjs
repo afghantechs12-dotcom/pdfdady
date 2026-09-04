@@ -734,10 +734,24 @@ function groupF() {
   });
 
   check("F3", "every mutating Workspace route enforces same-origin", () => {
+    /*
+     * TRANSITIVE for the same reason F4 below is. The three upload routes stopped
+     * naming `requireSameOrigin` when their pre-parse ordering moved into one shared
+     * gate, and a flat name test then called all three unguarded while a live probe
+     * measured a 403 from them in 1ms. So `workspaceUploadGate` is accepted — but
+     * only while the gate itself still calls `requireSameOrigin`, which is what keeps
+     * this check's teeth: a gate that stopped enforcing it fails every route that
+     * leans on it, rather than silently passing three.
+     */
+    const gate = read("lib/server/workspaceUploadGate.ts");
+    const accept = /requireSameOrigin/.test(gate)
+      ? /requireSameOrigin|workspaceUploadGate/
+      : /requireSameOrigin/;
     const bad = workspaceRoutes.filter(
-      (r) => /export async function (POST|PUT|PATCH|DELETE)/.test(r.src) && !/requireSameOrigin/.test(r.src),
+      (r) => /export async function (POST|PUT|PATCH|DELETE)/.test(r.src) && !accept.test(r.src),
     );
-    return bad.length ? `no CSRF gate in ${bad.map((b) => b.rel).join(", ")}` : null;
+    if (bad.length) return `no CSRF gate in ${bad.map((b) => b.rel).join(", ")}`;
+    return { verdict: "PASS", detail: "directly, or through workspaceUploadGate which calls it at stage 1" };
   });
 
   check("F4", "the job routes authorize per job, not per session", () => {
@@ -1024,14 +1038,33 @@ function groupI() {
       } catch {
         return { verdict: "ENVIRONMENTAL", detail: "npm audit output was not JSON (offline or proxied registry?)" };
       }
-      const v = report.metadata?.vulnerabilities ?? {};
-      const blocking = (v.critical ?? 0) + (v.high ?? 0);
-      if (blocking === 0) return null;
-      const names = Object.entries(report.vulnerabilities ?? {})
+      /*
+       * `?? 0` on a missing count is how a security gate goes green for the wrong
+       * reason. Observed twice in three consecutive invocations: npm returned valid
+       * JSON with no `metadata.vulnerabilities` at all, the two `?? 0`s summed to
+       * zero, and this check reported PASS on a tree that has nine high advisories.
+       * An absent count is an absent measurement — ENVIRONMENTAL, not zero — and a
+       * zero has to agree with the entry list before it is believed.
+       */
+      const named = Object.entries(report.vulnerabilities ?? {})
         .filter(([, d]) => d.severity === "critical" || d.severity === "high")
-        .map(([n, d]) => `${n} (${d.severity})`)
-        .slice(0, 8);
-      return `${blocking} high/critical advisories: ${names.join(", ")}`;
+        .map(([n, d]) => `${n} (${d.severity})`);
+      const v = report.metadata?.vulnerabilities;
+      if (!v || typeof v.high !== "number" || typeof v.critical !== "number") {
+        return {
+          verdict: "ENVIRONMENTAL",
+          detail: `npm audit reported no vulnerability counts (registry error or rate limit); ${named.length} high/critical entries were listed, so this run measured nothing`,
+        };
+      }
+      const blocking = v.critical + v.high;
+      if (blocking === 0 && named.length === 0) return null;
+      if (blocking === 0) {
+        return {
+          verdict: "ENVIRONMENTAL",
+          detail: `npm audit's counts say 0 high/critical but it listed ${named.length}: ${named.slice(0, 8).join(", ")} — the report disagrees with itself`,
+        };
+      }
+      return `${blocking} high/critical advisories: ${named.slice(0, 8).join(", ")}`;
     });
   }
 

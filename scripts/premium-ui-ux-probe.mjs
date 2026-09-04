@@ -1530,14 +1530,36 @@ async function scenarioM(ctx) {
       );
     } else {
       await ctx.b.tabThrough(selectStop + 1);
-      await ctx.b.key("ArrowDown", "ArrowDown", { windowsVirtualKeyCode: 40 });
-      await sleep(600);
-      const now = await ctx.b.evaluate(`(() => {
+      /*
+       * ArrowDown first, because on Windows and Linux that IS the platform's own
+       * selection change. On macOS a closed `<select>` routes ArrowDown to the
+       * native popup instead — a browser-process window no CDP client can drive —
+       * so the value never moves and this row read as a product defect on a mac.
+       * Measured in isolation on a bare two-option select: ArrowDown as `keyDown`
+       * AND as `rawKeyDown` left `selectedIndex` 0; typing an option's first
+       * letter moved it and fired `change`. Type-ahead is the same platform
+       * keyboard route, so it is the fallback, and the detail says which gesture
+       * moved the value.
+       */
+      const readState = async () => {
+        const raw = await ctx.b.evaluate(`(() => {
         const b = [...document.querySelectorAll("button")].find((n) => /save to workspace/i.test(n.textContent || ""));
         const sel = document.querySelector("select");
-        return JSON.stringify({ chosen: sel ? sel.selectedIndex : -1, value: sel ? !!sel.value : false, disabled: b ? b.disabled : null });
+        return JSON.stringify({ chosen: sel ? sel.selectedIndex : -1, value: sel ? !!sel.value : false, disabled: b ? b.disabled : null, firstChar: sel && sel.options[1] ? (sel.options[1].text || "").trim().charAt(0) : "" });
       })()`);
-      const state = JSON.parse(now ?? "{}");
+        return JSON.parse(raw ?? "{}");
+      };
+      await ctx.b.key("ArrowDown", "ArrowDown", { windowsVirtualKeyCode: 40 });
+      await sleep(600);
+      let state = await readState();
+      let gesture = "one ArrowDown";
+      if (state.value !== true && state.firstChar) {
+        const ch = state.firstChar;
+        await ctx.b.key(ch, `Key${ch.toUpperCase()}`);
+        await sleep(600);
+        state = await readState();
+        gesture = `ArrowDown inert (macOS native popup), type-ahead "${ch}"`;
+      }
       const after = (await ctx.b.tabThrough(60)).filter(Boolean);
       gate(
         S,
@@ -1545,7 +1567,7 @@ async function scenarioM(ctx) {
         state.value === true &&
           state.disabled === false &&
           after.some((f) => /save to workspace/i.test(f.name || "")),
-        `select stop ${selectStop + 1}, one ArrowDown -> option ${state.chosen}; "${gatedAction.label}" disabled ${state.disabled}; reachable ${after.some((f) => /save to workspace/i.test(f.name || ""))}`,
+        `select stop ${selectStop + 1}, ${gesture} -> option ${state.chosen}; "${gatedAction.label}" disabled ${state.disabled}; reachable ${after.some((f) => /save to workspace/i.test(f.name || ""))}`,
       );
     }
   }
