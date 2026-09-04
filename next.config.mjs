@@ -145,9 +145,15 @@ const nextConfig = {
      * advertised ceiling is not the one enforced: `maxUploadBytes` is 100 MiB
      * (src/domain/entities/DocumentIngestion.ts) and `/api/jobs` allows 110 MiB
      * (TOOLS_MAX_BODY_BYTES). Those routes then refuse an oversized upload
-     * themselves, with a 413 that says so. Pinned by
-     * `proxyBodyLimit.test.ts`; a deployment that raises
-     * TOOLS_MAX_BODY_BYTES past this number reintroduces the truncation.
+     * themselves, with a 413 that says so.
+     *
+     * Since the five multipart endpoints were excluded from the proxy
+     * matcher (proxy.ts carries the measurement) none of them is cloned any
+     * more, so this number is no longer what enforces their ceilings, and the
+     * TOOLS_MAX_BODY_BYTES footgun goes with it. Kept, and still pinned by the
+     * body-clone block in `proxy.test.ts`, as the fallback if one of those
+     * paths is ever matched again — and as the live limit for every other
+     * matched route that takes a body.
      */
     proxyClientMaxBodySize: "120mb",
   },

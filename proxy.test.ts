@@ -337,6 +337,43 @@ describe("proxy — matcher scope", () => {
     }
   });
 
+  it("skips the five multipart upload endpoints, so they can refuse before the body", () => {
+    // Measured, not assumed: while these were matched, the artifact delivered a 401,
+    // a 403 or a 413 only after the last byte of a dripped body had arrived — and so
+    // did `/api/nope`, which has no route and runs no application code. A path with a
+    // dot in its last segment answered on the headers instead. The wait is this
+    // matcher, so the pre-parse gate in lib/server/workspaceUploadGate.ts cannot keep
+    // its promise on a matched path. The full measurement is in proxy.ts.
+    for (const path of [
+      "/api/jobs",
+      "/api/tools/merge-pdf",
+      "/api/workspaces/cku1abc/documents/upload",
+      "/api/workspaces/cku1abc/documents/cku2def/versions/upload",
+      "/api/workspaces/cku1abc/documents/cku2def/attachments",
+    ]) {
+      expect(MATCHER.test(path), `${path} should be excluded`).toBe(false);
+    }
+  });
+
+  it("excludes only those five, not their neighbours", () => {
+    // The `$` anchors are the whole reason this is safe to do: one missing anchor
+    // takes every job, tool and document sub-route out of the nonce with it.
+    for (const path of [
+      "/api/jobs/cku3ghi",
+      "/api/jobs/cku3ghi/download",
+      "/api/jobs/cku3ghi/save-to-workspace",
+      "/api/tools/merge-pdf/anything",
+      "/api/workspaces",
+      "/api/workspaces/cku1abc",
+      "/api/workspaces/cku1abc/documents",
+      "/api/workspaces/cku1abc/documents/cku2def",
+      "/api/workspaces/cku1abc/documents/cku2def/versions",
+      "/api/workspaces/cku1abc/documents/cku2def/attachments/att1",
+    ]) {
+      expect(MATCHER.test(path), `${path} should still be matched`).toBe(true);
+    }
+  });
+
   it("still covers every route that renders scripts, including the API", () => {
     for (const path of [
       "/",
@@ -499,6 +536,15 @@ describe("the nonce never reaches a log line", () => {
  * ceiling the routes themselves advertise, so that an oversized upload is refused by
  * the route's own 413 instead of arriving mangled. Both ceilings are read from where
  * they are declared, so raising one and forgetting this line turns red here.
+ *
+ * ## Superseded as the primary defence, kept as the fallback
+ *
+ * The five multipart endpoints are now EXCLUDED from the matcher (see proxy.ts for the
+ * measurement that forced it), so their bodies are not cloned at all: nothing to
+ * truncate, nothing buffered, and the route answers on the request headers instead of
+ * after the last byte. The comparison below stays because it is what holds if one of
+ * them is ever matched again — the two tests in this block are a pair, and the second
+ * is the one that says which defence is live.
  */
 describe("proxy — the body-clone limit clears every advertised upload ceiling", () => {
   /** `"120mb"` → bytes. Next accepts the same suffixes `bytes` does. */
@@ -537,16 +583,20 @@ describe("proxy — the body-clone limit clears every advertised upload ceiling"
     expect(toBytes(limit!)).toBeGreaterThan(jobsCeiling);
   });
 
-  it("matches the upload routes whose bodies are the large ones", () => {
-    // If these ever stopped being matched the truncation would not apply to them —
-    // but they are matched, which is why the limit above is load-bearing.
+  it("no longer needs to, because the routes with the large bodies are unmatched", () => {
+    // This used to assert the opposite, and the assertion was true: these paths WERE
+    // matched, so the clone limit above was the only thing standing between a 100 MiB
+    // upload and a silently truncated body. Excluding them retires that risk rather
+    // than raising a number — an unmatched body is never cloned. The limit above is
+    // now the fallback for a future edit that re-matches one of them.
     for (const path of [
       "/api/jobs",
       "/api/tools/merge-pdf",
       "/api/workspaces/cku1abc/documents/upload",
       "/api/workspaces/cku1abc/documents/cku2def/versions/upload",
+      "/api/workspaces/cku1abc/documents/cku2def/attachments",
     ]) {
-      expect(MATCHER.test(path), `${path} should be matched`).toBe(true);
+      expect(MATCHER.test(path), `${path} should be excluded`).toBe(false);
     }
   });
 });

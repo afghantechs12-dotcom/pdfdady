@@ -193,11 +193,42 @@ export async function proxy(req: NextRequest) {
  * page route in this app has a dot in its path (tool and blog slugs are kebab-case,
  * workspace and document ids are cuids), so the extension rule costs no coverage.
  *
- * Everything else is in, including `/api/*`. An API response cannot use a nonce
- * either, but minting one is 16 bytes from `crypto.getRandomValues` and a base64
+ * Everything else is in, including most of `/api/*`. An API response cannot use a
+ * nonce either, but minting one is 16 bytes from `crypto.getRandomValues` and a base64
  * encode; the alternative is two policy shapes on the wire, and "which shape did this
  * response get" is a question worth not having.
+ *
+ * ## The five upload endpoints, excluded — measured, not assumed
+ *
+ * The exception is the five multipart POST endpoints. Being matched here costs them the
+ * ability to refuse a request before its body is on the wire, which is the whole point
+ * of the pre-parse gate in `lib/server/workspaceUploadGate.ts`.
+ *
+ * Measured on the production artifact with a body dripped at 64 KiB every 40 ms, so the
+ * "bytes sent when the response headers arrived" figure means something:
+ *
+ *   bare node http, 401 without reading the body    401     5 ms   0.06/4.00 MiB
+ *   /api/nope.txt      (matcher EXCLUDES it)        404     3 ms   0.06/4.00 MiB
+ *   /api/nope          (matcher includes it)        404  2616 ms   4.00/4.00 MiB
+ *   an upload route, anonymous                      401  2609 ms   4.00/4.00 MiB
+ *   an upload route, foreign origin                 403  2602 ms   4.00/4.00 MiB
+ *
+ * `/api/nope` has no route and runs no application code, and it waits for the last byte
+ * exactly as the gated upload route does; the same path with a dot in its last segment
+ * answers on the headers. So the wait is this matcher, not Node (row 1) and not the
+ * gate — a 403 from stage 1, which touches nothing, is delayed identically to a 404 for
+ * a route that does not exist. A single refused 200 MiB upload also grew server RSS by
+ * ~30-85 MiB on a matched path and ~1 MiB on an excluded one.
+ *
+ * The five are POST-only JSON handlers that render no scripts, so no nonce is consumed
+ * and none is lost. Their response still carries a CSP and all five security headers:
+ * `next.config.mjs` applies `headers()` to `/:path*`, and the nonce-less shape is the
+ * right one for a JSON response anyway. The `$` anchors keep everything downstream in —
+ * `/api/jobs/<id>/download`, `/api/workspaces/<ws>/documents/<doc>` and the rest are all
+ * still matched.
  */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|.*\\.[^/]*$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|api/(?:jobs|tools/[^/]+|workspaces/[^/]+/documents/(?:upload|[^/]+/(?:versions/upload|attachments)))$|.*\\.[^/]*$).*)",
+  ],
 };
