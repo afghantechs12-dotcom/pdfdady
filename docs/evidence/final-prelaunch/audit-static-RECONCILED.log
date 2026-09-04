@@ -2,10 +2,10 @@
 ────────────────────────────────────────────────────────────────────────
 A. Repository and build integrity
 ────────────────────────────────────────────────────────────────────────
-  ✗ A1 the working tree is clean, so what is measured is what is committed — 4 uncommitted path(s):  M SERVER_SETUP.md,  M docs/FINAL_PRELAUNCH_AUDIT.md,  M docs/FINAL_PRELAUNCH_PROGRESS.md
+  ✓ A1 the working tree is clean, so what is measured is what is committed
   ✓ A2 the lockfile is present and matches package.json's name
   ? A3 no secret value is committed anywhere in the current tree — 2 match(es) in sha256-pinned synthetic fixtures, read and confirmed not live: src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe live secret key; src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe webhook secret. Any edit to that file makes these red again.
-  ? A4 no secret value is reachable anywhere in local Git history — 1709 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
+  ? A4 no secret value is reachable anywhere in local Git history — 1713 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
   ✓ A5 no database file or user upload is committed
   ✓ A6 the build ignores what the deploy must not carry
   ✓ A7 the repository has no configured remote, so nothing has been published
@@ -157,13 +157,9 @@ R. Accessibility and responsive layout
   ? R3 visual acceptance of the rendered screenshots by a human — Entry Gate B requires human approval of the contact sheets. Self-generated screenshots are not approval.
 
 ────────────────────────────────────────────────────────────────────────
-PASS 66/67 exercised
-  PRODUCT FAILURE        1
+PASS 67/67 exercised
+  PRODUCT FAILURE        0
   ENVIRONMENTAL          2   (not a pass)
   NOT EXERCISED          4   (not a pass)
   MANUAL REVIEW REQUIRED 12   (not a pass)
   85 assertions recorded in total
-
-Product failures:
-  A1 the working tree is clean, so what is measured is what is committed
-      4 uncommitted path(s):  M SERVER_SETUP.md,  M docs/FINAL_PRELAUNCH_AUDIT.md,  M docs/FINAL_PRELAUNCH_PROGRESS.md
