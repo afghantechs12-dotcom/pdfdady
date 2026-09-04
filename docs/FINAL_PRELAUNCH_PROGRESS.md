@@ -371,3 +371,33 @@ implementing the sweep are byte-identical there and at final HEAD.
 The fix touched the two submit paths and two 500 sites and moved nothing else — which
 is the point of re-running all thirteen rather than the four that looked related.
 Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**.
+
+## Session 4, last group — the root-cause check on the R13 fix, and the two things it found
+
+The `388e8af` fix guarded two `formData()` call sites. Before calling it done: does it
+have an unguarded sibling? Five call sites exist in shipped code; **all five are
+guarded**, so the fix is root-cause complete. But listing them showed what runs *before*
+the parse on three of them, and that ordering was measured against the running artifact
+rather than read.
+
+| Check | Result |
+|---|---|
+| every `request.formData()` in shipped code guards the parse | 5/5 — `versions/upload:119`, `attachments:80`, `documents/upload:83`, `toolJobSubmit:131`, `processingJobSubmit:92` |
+| anonymous (no cookie) 13-byte well-formed body → attachments | `422 Invalid attachment fields.` — field validation, so past the parse |
+| anonymous 8 MiB well-formed body → attachments | `422 Invalid attachment fields.` — 8 MiB buffered and parsed for a caller with no session |
+| anonymous 26 MiB, declared **and sent** | `413 PAYLOAD_TOO_LARGE` in **0.03 s** — refused on content-length, before the body is read |
+| the same unparseable body, two routes | `422 "A multipart upload is required."` vs `400 "Malformed multipart body."` |
+| rate limit on any Workspace upload route | none. Six shipped routes have one, including the **public** tool route; these **private** ones do not, and `proxy.ts` has none either |
+
+Recorded, not fixed: **P2-7** (anonymous parse before auth; bounded per request at 25 MiB,
+unbounded in request count) and one **P3** (the 422-vs-400 status and its wrong message).
+Shipped code cannot move now without invalidating the artifact all thirteen gates were
+measured against, and the rate-limit values are a policy choice — so §37's decision table
+grew a fourteenth row instead. Evidence:
+`docs/evidence/final-prelaunch/anonymous-parse-workspace-uploads.log`.
+
+Counts updated in §35 and §37: open P2 six → **seven**, plus one open P3; launch decisions
+thirteen → **fourteen**. Citation check re-run after the new file landed: **57 cited / 0
+missing** in the report, **41 / 0** in this file.
+
+Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**

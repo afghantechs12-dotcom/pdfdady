@@ -1,0 +1,84 @@
+ANONYMOUS MULTIPART PARSE ON THE PRIVATE WORKSPACE UPLOAD ROUTES
+Audit host, 2026-09-04. Artifact BUILD_ID 1nfPtJYCTsqaZBbSstXKc, built at 388e8af.
+Origin https://172.20.10.2:3051 (TLS front) -> 127.0.0.1:3052.
+
+Why this file exists. Checking that the R13 malformed-body fix had no unguarded
+sibling meant listing every `request.formData()` call site in shipped code. All five
+are guarded. Two other things showed up while looking, and both were then MEASURED
+rather than read.
+
+── the five call sites, all guarded ───────────────────────────────────
+$ grep -rn '\.formData()' app/ lib/ src/ components/ --include='*.ts' --include='*.tsx' | grep -v '\.test\.'
+  app/api/workspaces/[workspaceId]/documents/[documentId]/versions/upload/route.ts:119
+  app/api/workspaces/[workspaceId]/documents/[documentId]/attachments/route.ts:80
+  app/api/workspaces/[workspaceId]/documents/upload/route.ts:83
+  lib/server/toolJobSubmit.ts:131          <- guarded at 388e8af
+  lib/server/processingJobSubmit.ts:92     <- guarded at 388e8af
+The three Workspace routes already answered 400/422 for an unparseable body before
+this audit; that is the guard the 388e8af fix copied onto the tool paths.
+
+── finding 1: the same input, two different answers ───────────────────
+One hand-built body, filename carrying a raw `"`, posted to two routes:
+
+  attachments      -> HTTP 422  {"code":"INVALID_INPUT","message":"A multipart upload is required."}
+  documents/upload -> HTTP 400  {"code":"INVALID_INPUT","message":"Malformed multipart body."}
+
+422 is the wrong code for a body that cannot be parsed, and the message misdescribes
+the cause: a multipart upload WAS supplied, it just could not be read. Cosmetic, and
+recorded as P3 rather than changed, because changing shipped code here would
+invalidate the frozen artifact every gate in §30 was measured against.
+
+── finding 2: the parse happens before authentication ─────────────────
+On all three Workspace upload routes the only gate ahead of `request.formData()` is
+`requireSameOrigin`. `workspaceId` and `documentId` come from the URL path, so
+authorization COULD precede the parse. Measured with no session cookie at all:
+
+$ POST /api/workspaces/ws_probe/documents/doc_probe/attachments   (Origin set, NO cookie)
+  well-formed 13-byte body              HTTP 422  {"code":"INVALID_INPUT","message":"Invalid attachment fields."}
+  well-formed 8 MiB body                HTTP 422  {"code":"INVALID_INPUT","message":"Invalid attachment fields."}
+
+"Invalid attachment fields" is FIELD validation, which is downstream of the parse —
+so an unauthenticated caller had 8 MiB buffered and parsed on its behalf.
+
+── the bound is real, and it is cheap ─────────────────────────────────
+$ POST same route, declared AND sent 26.0 MiB, anonymous
+  HTTP 413 in 0.03s  {"code":"PAYLOAD_TOO_LARGE","message":"This attachment is too large."}
+
+0.03s means the declared content-length is refused before the body is read, not after.
+The ceiling is L.maxAttachmentBytes + 64 KiB, and maxAttachmentBytes is 25 MiB
+(src/domain/entities/DocumentMetadata.ts:55). So the work an anonymous caller can
+demand is bounded per request at ~25 MiB.
+
+── what is NOT bounded: the number of requests ────────────────────────
+$ for f in $(grep -rln 'rateLimit' app/api/ | grep -v '\.test\.'); do ...; done
+  app/api/tools/[slug]/route.ts        RateLimiter   <- the PUBLIC tool route
+  app/api/jobs/route.ts                RateLimiter
+  app/api/admin/setup/route.ts         RateLimiter
+  app/api/admin/login/route.ts         RateLimiter
+  app/api/csp-report/route.ts          RateLimiter
+  app/api/analytics/events/route.ts    RateLimiter
+  app/api/billing/checkout/route.ts    clientIp only, no limiter
+  app/api/billing/portal/route.ts      clientIp only, no limiter
+$ grep -rln 'rateLimit' app/api/workspaces/
+  (none)
+$ grep -n 'rateLimit\|rate-limit' proxy.ts
+  (none — there is no limiter at the middleware layer either)
+Six shipped routes construct a limiter. None of the three Workspace upload routes
+does, and nothing upstream of them does. The PUBLIC tool route is limited; these
+PRIVATE ones are not — which is the inversion worth writing down.
+
+── classification ────────────────────────────────────────────────────
+P2, open, not a launch blocker and not inflated into one:
+  · no access control is bypassed — authorization still precedes every read and
+    every write, and the documented "AUTHORIZATION BEFORE STORAGE" invariant in
+    versions/upload/route.ts:81 holds;
+  · nothing is disclosed — the anonymous caller learns only that its fields are
+    invalid, the same answer for a workspace that does not exist;
+  · R16 is unaffected: the ceilings this audit was asked to check are enforced, and
+    this run is additional live evidence that one of them is.
+What it is: bounded parse work per request, unbounded in request count, on endpoints
+that are meant to be private. The mitigation is a rate-limit policy, which is an
+infrastructure decision this audit is not authorized to make -> §37 LAUNCH DECISION
+REQUIRED.
+
+No cookie, token or session value appears above; the probe sent none.

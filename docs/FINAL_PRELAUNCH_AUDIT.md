@@ -48,6 +48,18 @@ figure was measured in a configuration that does not ship.
 156 − 149 = 7 and 156 − 152 = 4 (rows 4–7), so the table accounts for every non-pass
 in both runs.
 
+**One row in that table fails twice in this report, for two unrelated reasons, and
+§7 describes the second one.** Row 3 (`N3`) is classified **PRODUCT** here and went
+green at run 4 on the P1 legacy-save fix — that classification stands. Later, in the
+from-scratch worktree runs, `N3` failed *again* with `status 409`, and that second
+failure was the probe's: the content route answers `409 CONTENT_UNAVAILABLE` with
+`preparation: "processing"` while ingestion finishes, and the probe read the status
+without the body. Fixed in the probe at `eb8f7fa`. Two consequences worth stating
+rather than smoothing over: run 4's `N3 PASS` was recorded *before* that race was
+understood, so it was a pass the racy probe happened to give; and the deterministic
+evidence for `N3` is the post-`eb8f7fa` runs — `fresh-env-final.log` (155/156 on both
+legs) and the final-HEAD rerun in `probes-at-388e8af.log`.
+
 **Rows 1–3 — one product defect, P1, fixed.** `POST /api/jobs/:id/save-to-workspace`
 answered `404 "Job not found."` to every job whose row was not a `processing` job,
 while `ServerToolRunner` — the result surface for all 14 server tools in the default
@@ -1473,7 +1485,7 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 | R13 | hostile filenames stay inert | `finalPrelaunchRegression` *R9/R11/R29/R30/R19b*; `tempFileLifecycle` (7 of 11); **runtime** `hostile-filename-r13.log` — five hostile names POSTed for real on both pipeline configurations | test + live |
 | R14 | processing arguments cannot become shell syntax | `runCommandInjection.test.ts` — mutation I *created a file* when the shell was let in | test |
 | R15 | a MIME/content mismatch is rejected | `finalPrelaunchRegression` *R19 a claimed extension is checked against the actual leading bytes* | test |
-| R16 | request and file ceilings are enforced | `proxy.test.ts` (26) + `finalPrelaunchRegression` *R20*; **runtime** `upload-ceiling.log` — 22 and 60 MiB parse, 101 MiB → 413 | test + live |
+| R16 | request and file ceilings are enforced | `proxy.test.ts` (26) + `finalPrelaunchRegression` *R20*; **runtime** `upload-ceiling.log` — 22 and 60 MiB parse, 101 MiB → 413; and `anonymous-parse-workspace-uploads.log` — the Workspace attachment ceiling refuses 26 MiB with `413` in **0.03 s**, i.e. on the declared content-length, before the body is read | test + live |
 | R17 | temp files are cleaned | `tempFileLifecycle.test.ts` (11) — mutations T1–T3 | test |
 | R18 | logs exclude private content | `workspacePageData.test.ts`; measured — 6 access-denied lines from a browser walk, 0 with an email, password, cookie or token | test + live |
 | R19 | save-intent retention is decided | **resolved, not deferred** — 30-day sweep (`1d36b30`), `saveIntentIdentity.test.ts`, `workerBootstrap.test.ts`, and the sweep observed firing 15 min after boot | test + live |
@@ -1865,10 +1877,25 @@ along with 324 others and rescheduled itself (`retention-sweep-selfscheduled.log
 | P2-4 | metrics exist but never leave the process | no time series for an incident. One adapter |
 | P2-5 | `Dockerfile` has CRLF line endings — the only deploy-critical file that does | BuildKit tolerates them, and the container path is NOT EXERCISED on this host; changing it blind in an artifact no build here can verify would be worse than recording it |
 | P2-6 | server processing takes ≈3 s largely independent of input size | an observation from §18, not a diagnosis. No retries appear in the log; it is recorded so it is not mistaken for a per-megabyte cost |
+| P2-7 | the three Workspace upload routes `await request.formData()` with only `requireSameOrigin` ahead of it, so an **anonymous** caller's multipart body is buffered and parsed before any authentication. Measured live, no session cookie: a 13-byte and an **8 MiB** well-formed body both reached *field* validation (`422 "Invalid attachment fields."`), which is downstream of the parse | bounded per request and unbounded only in request count. The ceiling holds and holds cheaply — 26 MiB declared and sent returned `413 PAYLOAD_TOO_LARGE` in **0.03 s**, i.e. refused on content-length before the body was read, at `maxAttachmentBytes` = 25 MiB. Nothing is bypassed: authorization still precedes every read and every write, and `versions/upload/route.ts:81`'s documented *AUTHORIZATION BEFORE STORAGE* invariant is intact. Nothing is disclosed: an invalid-fields answer is what a non-existent workspace returns too. The missing piece is a **rate limit** — six shipped routes construct one, including the *public* tool route, and none of these *private* ones does — and its values are a policy decision, so it is §37's fourteenth open decision rather than a change made here |
 
-**None of the open P2 items predates or postdates its way out of this list.** Two of them
-(P2-1, P2-5) were already true at the baseline; per the brief they are not downgraded for
-that reason, and equally they are not promoted to blockers because this audit noticed them.
+**None of the open P2 items predates or postdates its way out of this list.** Three of them
+(P2-1, P2-5, P2-7) were already true at the baseline; per the brief they are not downgraded
+for that reason, and equally they are not promoted to blockers because this audit noticed them.
+
+**One open P3, from the same pass as P2-7.** The identical unparseable body answers `422
+"A multipart upload is required."` from the attachments route and `400 "Malformed multipart
+body."` from its two siblings. 422 is the wrong status for a body that cannot be parsed, and
+the message misdescribes the cause — a multipart upload *was* supplied, it just could not be
+read. Left unchanged for the same reason as P2-7: shipped code cannot move without
+invalidating the artifact all thirteen gates in §30 were measured against. Evidence for both:
+`docs/evidence/final-prelaunch/anonymous-parse-workspace-uploads.log`.
+
+**How both were found.** Not by reading. The R13 fix at `388e8af` guarded two `formData()`
+call sites, so the root-cause question — *does this fix have an unguarded sibling?* —
+required listing all five in shipped code. All five are guarded. But the same listing showed
+what runs *before* the parse on three of them, and that ordering was then exercised against
+the running artifact with no cookie attached rather than asserted from the source.
 
 ## §36 — Environmental and not exercised
 
@@ -1933,9 +1960,11 @@ more than the brief asked: **38** machine-readable rows in its own lettering
 attack a fix this audit wrote itself (§29, row U).
 
 Three P0 findings and six P1 findings were opened by this audit and **all nine are
-fixed**, each with the commit recorded in §33 and §34. No P0 and no P1 is open. Six P2
-items remain open and are listed in §35; none of them is a launch blocker, and none is
-inflated into one here.
+fixed**, each with the commit recorded in §33 and §34. No P0 and no P1 is open. Seven P2
+items and one P3 remain open and are listed in §35; none of them is a launch blocker, and
+none is inflated into one here. The seventh was opened by the audit's own last check —
+asking whether the `388e8af` fix had an unguarded sibling, and then posting to the routes
+it named instead of reading them.
 
 ### Why that is not the same as launch-ready
 
@@ -1954,7 +1983,7 @@ what they are rather than as passes:
 4. **Nothing ran against production** — no production credentials, no production
    environment, no real domain or certificate, one browser engine, no soak.
 
-### Thirteen decisions this audit will not make for you
+### Fourteen decisions this audit will not make for you
 
 Each is a business or operations choice, not a defect. The code supports either answer;
 none is invented here.
@@ -1974,14 +2003,16 @@ none is invented here.
 | 11 | Image and artifact retention for rollback | how far back a rollback must be able to reach |
 | 12 | Who authorizes a restore that loses data | R22 restores to a point in time; the loss window needs an owner |
 | 13 | SQLite now, or PostgreSQL before launch | SQLite is correct for one host and is the ceiling on the next one |
+| 14 | Rate limits on the Workspace upload routes — and whether a limiter in one process is the right layer at all | the *public* tool route is limited; the three *private* upload routes are not, and each will parse an anonymous 25 MiB body (P2-7). The values (requests per IP per window, and whether the limit belongs in the app or in front of it) are a capacity and cost choice, not a defect |
 
-Items 1–8 are carried from `LAUNCH-PROFILE.md`; 9–13 were opened by later sections.
-Twelve further rows need a human eye rather than a decision, and are listed in §36.
+Items 1–8 are carried from `LAUNCH-PROFILE.md`; 9–13 were opened by later sections, and 14
+by the last check this audit ran (§35, P2-7). Twelve further rows need a human eye rather
+than a decision, and are listed in §36.
 
 ### Verdict
 
 The product is complete, internally consistent, tenancy-safe on every path probed, and
 reproducible from a clean checkout. What is missing is not code: it is human visual
-acceptance, a container build, a real production environment and thirteen decisions.
+acceptance, a container build, a real production environment and fourteen decisions.
 
 **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**
