@@ -1685,3 +1685,48 @@ harness still reports it as a failure and still exits non-zero.
 static harness cannot reach, is the one this audit spent the most effort on: it now
 passes end to end in a real browser, and the refusal it exercises is auditable in every
 shape (§9).
+
+## §30 — Final verification
+
+Every gate below ran **after** the last change to shipped code, on one artifact built
+from it. The artifact is `BUILD_ID _DzYjfCuvno7KJhZM8SWY`, built at commit `9389da3`;
+every commit after that one touches `docs/**` only —
+`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths**. The commands are
+recorded verbatim in `docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`.
+
+| Gate | Command | Exit | Result |
+|---|---|---|---|
+| Build | `npm run build` | **0** | `BUILD_ID _DzYjfCuvno7KJhZM8SWY`; standalone server emitted; `.next/static` and `public` copied into it before boot |
+| Types | `npx tsc --noEmit` | **0** | 0 lines of output |
+| Lint | `npx eslint .` | **0** | 13 problems — **0 errors**, 13 warnings (unused vars not prefixed `_`) |
+| Schema | `npx prisma validate` | **0** | *The schema at prisma/schema.prisma is valid* |
+| Migrations | `npx prisma migrate status` | **0** | *Database schema is up to date!* |
+| Unit/integration suite | `npx vitest run` | **0** | **377 files, 7283 tests, 7283 passed, 0 failed** |
+| Static harness A–R | `node scripts/final-prelaunch-audit.mjs --json …` | **1** | 66/67 exercised; the non-zero exit is I3 alone (§28) |
+| Core journeys | `node scripts/workflow-completeness-probe.mjs --url …` | **0** | **155/156**; 1 ENVIRONMENTAL |
+| Workspace / F5 / R11 | `node scripts/phase1-workspace-reliability-probe.mjs …` | **0** | **29/29**; 2 NOT EXERCISED |
+| Tool matrix | `node scripts/tool-runtime-matrix-probe.mjs --url … --json …` | **0** | **29/29 exercised**, 0 product failures; 2 ENVIRONMENTAL, 3 NOT EXERCISED |
+| Job ownership / R12 | `node scripts/legacy-job-ownership-probe.mjs --url …` | **0** | **25/25**, 0 failed |
+| Export fidelity | `npm run test:export-fidelity` | **0** | **35/35 fixtures within threshold** — worst `image-low-resolution` 10.716% against a 12.0% limit |
+| Visual compare (Gate B) | `node scripts/visual-acceptance-probe.mjs --url … --auth` | **0** | **156/156 exercised**, 1 NOT EXERCISED (`19-app-error` needs a genuinely failing dependency); verdict stays **`VISUAL ACCEPTANCE PENDING`** |
+| Liveness | `GET /api/health` | — | **200** |
+| Readiness | `GET /api/health/ready` | — | **503** `{"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true}` — truthful: `soffice` is absent from this host |
+
+**The 503 is the correct answer here and is not counted as a pass.** It is the
+liveness/readiness split working: the process is alive, the toolchain is not complete,
+and the body names which subsystem is false without naming the binary.
+
+Two notes on how these numbers were produced, because both changed a result earlier in
+this audit:
+
+- Every browser probe uses `https://172.20.10.2:3051` — the TLS front — and that value
+  is also `NEXT_PUBLIC_SITE_URL`. Point a probe at `127.0.0.1` instead and the
+  CSRF/origin gate refuses every mutation, which reads as a wall of product failures.
+- Node's `fetch` rejects the front's self-signed certificate and CDP-driven Chrome
+  needs `--ignore-certificate-errors`. Two separate fixes for one certificate; missing
+  either one produced "no server answering" while `curl` worked.
+
+One harness note, recorded because it appears in the boot logs: the boot script asks
+`/api/ready`, which is a **404** — the route is `/api/health/ready`. That is the
+script's path typo, not a missing route, and no readiness evidence in this report was
+ever taken from it.

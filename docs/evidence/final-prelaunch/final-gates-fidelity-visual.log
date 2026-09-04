@@ -1,0 +1,42 @@
+===== FIDELITY + GATE B AT FINAL HEAD 2026-09-04T01:06:35Z =====
+--- HEAD 21bb4dab2a0d4bfdc373c8f14c65037f38abd1b7  BUILD_ID _DzYjfCuvno7KJhZM8SWY
+
+=== export fidelity (rasterized preview-vs-export) ===
+exit=0
+  PASS  text-metrics                 diff   1.815%  ink 3.9%/3.9%  (limit 8.0%)
+  PASS  text-colour                  diff   0.456%  ink 2.2%/2.2%  (limit 8.0%)
+  PASS  mixed-content                diff   0.358%  ink 56.8%/56.8%  (limit 4.0%)
+  PASS  signature-aspect             diff   0.133%  ink 9.0%/9.0%  (limit 1.0%)
+  PASS  image-low-resolution         diff  10.716%  ink 44.6%/44.6%  (limit 12.0%)
+  PASS  multi-page-mixed-sizes#p1    diff   0.217%  ink 16.1%/16.1%  (limit 1.0%)
+  PASS  multi-page-mixed-sizes#p2    diff   0.217%  ink 31.5%/31.5%  (limit 1.0%)
+  PASS  multi-page-mixed-sizes#p3    diff   0.224%  ink 16.6%/16.6%  (limit 1.0%)
+  PASS  page-portrait-a4             diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+  PASS  page-landscape-a4            diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+  PASS  page-unusual-size            diff   0.410%  ink 30.4%/30.4%  (limit 0.6%)
+
+  35/35 fixtures within threshold
+
+
+=== Gate B: visual compare against the recorded baselines ===
+exit=0
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+manifest: docs/screenshots/final-prelaunch/visual-manifest.json (156 captures)
+sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (69)
+sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (35)
+sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (52)
+sheet: docs/evidence/final-prelaunch/visual/contact-workflow-states.png (39)
+sheet: docs/evidence/final-prelaunch/visual/contact-editor-states.png (36)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 156/156 exercised
+
+NOT EXERCISED (1) — never counted as a pass:
+  19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.
+
+===== DONE 2026-09-04T01:11:37Z =====
