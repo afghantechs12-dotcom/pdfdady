@@ -1553,3 +1553,75 @@ that is what the probe runs at HEAD do; and `P7` is the shape that matters most 
 this repository: it type-checks clean (`tsc --noEmit` exit 0) and only the behavioural
 wiring test sees it, which is the same failure mode the memory notes record from
 earlier phases.
+
+## §31 — Files changed
+
+Against the baseline this branch was cut from (`651c8fa`, `phase-6-premium-ui`):
+**170 files, +19582 / −724**, of which product source under `app/`, `components/`,
+`lib/`, `src/`, `prisma/`, `next.config.mjs`, `Dockerfile` and `docker-compose.yml`
+is the part that ships.
+
+**Behaviour changed (the fixes):**
+
+| File | What changed |
+|---|---|
+| `data/admin/store.json` | the shipped admin password hash removed (P0) |
+| `src/infrastructure/config/env.ts`, `startupGate.ts` | the production gate stops demanding a database the shipped Prisma provider cannot open (P0) |
+| `Dockerfile`, `docker-compose.yml` | the container path can build, boot and keep its data across a restart (P0) |
+| `app/api/jobs/[id]/save-to-workspace/route.ts` | `Save to Workspace` works on a legacy server-tool result (P1) |
+| `lib/server/toolProcessing.ts` | `ocr-pdf` passes `--tesseract-pagesegmode`, the flag `ocrmypdf` actually has (P1) |
+| `next.config.mjs` | `experimental.proxyClientMaxBodySize: "120mb"` — the advertised 100/110 MiB ceilings were unreachable past 10.004 MiB (P1) |
+| `src/infrastructure/jobs/PdfToolWorkerHandler.ts`, `workerBootstrap.ts` | the recurring sweep now prunes `workspace_save_intents` past 30 days and expired `sessions` |
+| `src/application/ports/auth/SessionProvider.ts`, `LocalSessionProvider.ts` | `pruneExpired` added and made **required** on the port |
+| `app/api/health/ready/route.ts` | readiness aggregates the toolchain with `every`, and never names the missing binary |
+| `app/workspaces/[workspaceId]/page.tsx` | `robots: {index:false, follow:false}` — it was the one private page a crawler could index |
+| `app/sitemap.ts`, `app/robots.ts` | the availability gate, now with its comment corrected to say it is load-bearing |
+| `src/application/services/workspacePageData.ts` | one structured, ids-only line per refused Workspace page |
+| `lib/server/toolJobSubmit.ts` | `sanitizeBaseName` no longer turns `..pdf` into `...pdf` (P3) |
+| `app/not-found.tsx` (new), `app/workspaces/not-found.tsx` | every unknown URL gets the product's 404 rather than Next's framework page |
+| 19 `app/admin/*/page.tsx`, `app/login`, `app/register`, `app/editor` | `title.absolute` — 27 titles were branded twice |
+| `components/contact/ContactForm.tsx` | stops thanking a visitor for a message it discards (P3) |
+| `components/editor/documentLoadState.ts`, `lib/editor/loadPdf.ts`, `loadWorkspaceDocument.ts`, `EditorWorkspace.tsx` | a valid large document is no longer called "possibly damaged"; the page ceiling says what it is |
+| `components/workspaces/*`, `components/app/*` | the premium-UI surfaces the visual gate captures |
+
+**Tests and infrastructure:** 11 new `.test.ts` files, 14 extended (§27),
+`test/stubs/server-only.ts` (a Next-supplied package absent from `node_modules`, which
+is why nothing had ever called `sitemap()` or `robots()`), and `vitest.config.ts`.
+
+**Audit-only, not shipped:** `scripts/final-prelaunch-audit.mjs` and eight probe
+scripts; `docs/FINAL_PRELAUNCH_AUDIT.md`, `docs/FINAL_PRELAUNCH_PROGRESS.md` and
+`docs/evidence/final-prelaunch/**`. Screenshot baselines stay under gitignored
+`docs/screenshots/final-prelaunch/` (41 MB), so Gate B's compare is reproducible on
+this host only.
+
+**Deliberately not changed:** no dependency was upgraded; `audit_logs` remains
+unpruned by design; `Dockerfile`'s CRLF line endings are recorded as P2 hygiene rather
+than edited blind in an artifact no build on this host can verify.
+
+## §32 — Commits and working tree
+
+Branch `final-prelaunch-audit`, **65 commits** ahead of `651c8fa`. **No remote is
+configured, nothing was pushed, and `main` is untouched.** Working tree at the end of
+the audit: clean — `git status --porcelain` empty, no merge, rebase or cherry-pick in
+progress, one worktree.
+
+Roughly: 21 commits change product behaviour, 17 add or strengthen tests, 12 record
+mutation and probe evidence, 9 are probe/harness fixes, and 6 are progress
+checkpoints. The audit's own defects are committed under their own names rather than
+folded into the fixes, because five of them produced a plausible, publishable, wrong
+failure:
+
+| Commit | The probe's own defect |
+|---|---|
+| `79e292e` | journey I′ called its own blind spot a product failure |
+| `71f9bf5` | the harness's `--url` advertised live checks the code never made |
+| `13dd074` | 14 uploads of one buffer were **one** document, so a capacity threshold was invented |
+| `6b2a201` | every editor refusal was dated at the poll deadline — "refused after 30830ms" for a two-second answer |
+| `bfed32f` | the deployment smoke polled a job as a different caller than submitted it, and read R12's correct 404 as a deploy blocker |
+| `7c3c2a2` | the keyboard probe's four failures were all `tabThrough`'s off-by-one |
+| `223399b` | three of the visual harness's green rows were green by luck |
+| `9389da3` | two probe rows read the browser console for server logs, which only `next dev` replays |
+
+The interrupted first session's work was recovered and committed intact (`438e800`),
+not rewritten: its harness, probes, fixtures and evidence are in history as they were
+found.
