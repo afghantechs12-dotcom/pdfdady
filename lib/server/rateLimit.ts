@@ -55,6 +55,25 @@ export class RateLimiter {
     return entry.count > this.max;
   }
 
+  /**
+   * Seconds until `key`'s current window ends — the truthful `Retry-After`.
+   *
+   * A fixed window forgets a key when its window elapses, so this is exactly how
+   * long a limited caller must wait, not a constant guess. Never 0: a client told
+   * to retry after 0 seconds retries immediately into the same refusal. Unknown
+   * keys report the full window, which is the longest a caller could have to wait.
+   *
+   * The `+ 1` is not padding. `hit` starts a new window only once `now -
+   * windowStart` is STRICTLY greater than `windowMs`, so the boundary instant
+   * still belongs to the old window; without it a client that obeys this header
+   * to the millisecond is refused again, which makes the header a lie.
+   */
+  retryAfterSeconds(key: string, now: number = Date.now()): number {
+    const entry = this.entries.get(key);
+    const remaining = entry ? entry.windowStart + this.windowMs + 1 - now : this.windowMs;
+    return Math.max(1, Math.ceil(remaining / 1000));
+  }
+
   /** Peeks whether `key` is currently limited without consuming a hit. */
   isLimited(key: string, now: number = Date.now()): boolean {
     const entry = this.entries.get(key);

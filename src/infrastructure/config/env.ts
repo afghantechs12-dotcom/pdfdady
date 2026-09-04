@@ -35,9 +35,48 @@ export interface AppConfig {
   toolsMaxConcurrency: number;
   toolsRateLimitPerMin: number;
   toolsMaxBodyBytes: number;
+  upload: UploadGuardConfig;
   storage: StorageConfig;
   queue: QueueConfig;
   billing: BillingConfig;
+}
+
+/**
+ * Pre-parse abuse control on the multipart upload routes.
+ *
+ * Every value is a REQUEST-COUNT budget, not a byte budget: the byte ceiling is
+ * per request and enforced by the bounded reader, and these bound how many such
+ * requests one caller may make. The two are independent on purpose — a byte cap
+ * with no request cap is what let an unauthenticated caller ask for 25 MiB of
+ * parsing as often as it liked.
+ *
+ * WHY THESE DEFAULTS:
+ *
+ *  - `userPerMin` 120. A Workspace upload is a human action or one file of a
+ *    multi-file pick, and the picker uploads SEQUENTIALLY (NewMenu.onFilesPicked
+ *    awaits each), so 120/min is above any legitimate session — a 50-file drop
+ *    finishes inside it — while still bounding a stolen session's churn. Keyed by
+ *    user id, which the caller cannot forge.
+ *  - `anonPerMin` 20. Nothing legitimate reaches a private upload route without a
+ *    session, so this bounds the cost of REFUSING traffic (a session lookup),
+ *    not of serving it. Same figure as the public tool route, so one number is
+ *    the "per-client upload budget" everywhere it can be honestly keyed.
+ *  - `globalPerMin` 240. The unspoofable ceiling. Without a trusted proxy the
+ *    per-client key is client-controlled, so a caller can rotate it; this is the
+ *    bucket rotation cannot escape. 12x `anonPerMin` so it is far above the
+ *    aggregate a single instance serves legitimately (four processing slots and
+ *    one SQLite writer bound throughput long before 240 uploads/min).
+ *  - `trustedProxySecret` null. There is no reverse proxy in this repo's
+ *    deployment, so `X-Forwarded-For` is NOT read at all by default. Set this to
+ *    the shared secret your proxy sends in `x-pdfdadi-proxy-secret` to make the
+ *    forwarded chain trustworthy; a request that does not present the secret is
+ *    keyed as untrusted no matter what forwarding headers it carries.
+ */
+export interface UploadGuardConfig {
+  userPerMin: number;
+  anonPerMin: number;
+  globalPerMin: number;
+  trustedProxySecret: string | null;
 }
 
 export type QueueProvider = "memory" | "redis";
@@ -103,6 +142,17 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(110 * 1024 * 1024),
+  // Pre-parse upload abuse control. Invalid values fail the whole config parse
+  // (ConfigurationError listing every problem) rather than silently falling back
+  // to a default — an abuse control that quietly disables itself is worse than
+  // none, because nothing announces that it is gone.
+  UPLOAD_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(120),
+  UPLOAD_ANON_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(20),
+  UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN: z.coerce.number().int().positive().default(240),
+  // A short secret would be guessable, and guessing it buys the ability to name
+  // your own rate-limit key — so a too-short value is a configuration error, not
+  // a warning.
+  TRUSTED_PROXY_SECRET: z.string().min(16).optional(),
   // Object storage (M2.2). All optional — when R2 creds are absent the app uses
   // the local filesystem adapter, so everything builds/runs with no cloud creds.
   R2_ACCOUNT_ID: z.string().optional(),
@@ -415,6 +465,12 @@ export function getConfig(): AppConfig {
     toolsMaxConcurrency: e.TOOLS_MAX_CONCURRENCY,
     toolsRateLimitPerMin: e.TOOLS_RATE_LIMIT_PER_MIN,
     toolsMaxBodyBytes: e.TOOLS_MAX_BODY_BYTES,
+    upload: {
+      userPerMin: e.UPLOAD_RATE_LIMIT_PER_MIN,
+      anonPerMin: e.UPLOAD_ANON_RATE_LIMIT_PER_MIN,
+      globalPerMin: e.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN,
+      trustedProxySecret: e.TRUSTED_PROXY_SECRET?.trim() || null,
+    },
     storage: buildStorageConfig(e),
     queue: buildQueueConfig(e),
     billing: buildBillingConfig(e),
