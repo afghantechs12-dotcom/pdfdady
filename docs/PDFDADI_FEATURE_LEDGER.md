@@ -1791,7 +1791,9 @@ Where 3.2 changed a fact, the bullet says so.
   then reads the server log and asserts the logged line has the origin and path,
   the directive name, and **no** `token=`, no `doc=payroll`, no document query
   string, and no cookie, sample or policy text.
-- **Browser probe — `scripts/csp-probe.mjs`, 74/74 in 3.1, 114/114 enforced.** It is
+- **Browser probe — `scripts/csp-probe.mjs`, 74/74 in 3.1, 114/114 enforced.** (Checks
+  have been added since; the same script reports **118/118** at the reconciliation tip.
+  The counts in this section are the runs as they happened and are left as written.) It is
   one script across both stages, reading `CSP_HEADER` from the policy module rather
   than naming a header, so the flip cannot leave a second switch behind and the
   report-only walk and the enforced walk are literally the same walk. CDP over a raw WebSocket, no
@@ -4767,3 +4769,77 @@ and honoured. 32/32.
 `UPLOAD_*_PER_MIN` overrides. The limiter is process-local, like every other limiter here, so
 behind N instances the request ceiling is N × the number — the per-request **byte** ceiling is
 unaffected.
+
+## Final code-readiness reconciliation
+
+- **Purpose:** Close four readiness contradictions that a green suite had not closed —
+  nine high dependency advisories, one full-suite failure whose identity was never
+  retained, process-local upload limiting with no enforced instance topology, and five
+  upload paths excluded from Next's proxy matcher without proof that every other matcher
+  responsibility survived. No product feature was added. Product-side changes are exactly:
+  one runtime source file (`src/infrastructure/config/env.ts`, the topology gate), two
+  production dependency upgrades (`next 16.2.12 → 16.3.4`, `pdfjs-dist 6.1.200 → 6.3.289`)
+  plus one narrow `overrides` entry, and deployment configuration
+  (`docker-compose.yml`, `.env.example`). Everything else is tests, harness scripts and
+  evidence.
+- **Advisories:** 0 vulnerabilities on the production graph and the full graph, down from
+  9 distinct production advisories (11 full-graph). **They were fixed, not reclassified,
+  and 9 of the 11 were production-reachable** — `next` (which carried the nested `postcss`
+  and `sharp` fixes), `pdfjs-dist`, `brace-expansion` (which reaches production through
+  `archiver`, not just eslint), `nanoid`, `autoprefixer` for the two dev-only
+  `browserslist` entries, and one narrow `overrides: { "deepmerge-ts": "^8.0.2" }` where
+  `@prisma/config` pins 7.1.5 and npm's own proposed fix was a semver-major *downgrade*.
+  Prisma compatibility with the override was proved (`validate`, `generate`,
+  `migrate status` all exit 0), not assumed. Where a fix existed, reachability was never
+  used as an argument. Three tests keep it that way: the inventory is derived from the
+  audit JSON rather than written beside it, production-reachability is re-derived from real
+  lockfile edges and dev flags, and each installed version is asserted outside the window
+  that was actually violated.
+- **The unattributed failure:** reproduced at seed 20260904, owned, fixed. Cause was
+  test-side, not the product — a shared not-found spy left set by whichever test ran
+  first, a wall-clock fallback racing an abort, and one file crossing vitest's inherited
+  5000 ms default. `testTimeout` is now declared explicitly. Three retained runs at the
+  tip are GREEN at **384 files / 7432 tests**, including the previously red seed and a
+  single-worker run.
+- **Instance topology, now enforced rather than described:** `DEPLOYMENT_TOPOLOGY` is
+  required in production and `single-instance` is its only accepted value. The boot gate
+  reports it alongside every other problem, states the multiplied budget using the
+  operator's own configured limits, and stays out of development and `next build`.
+  `docker-compose.yml` declares it and pins `container_name`, so
+  `docker compose up --scale pdfdadi=2` fails. It is **not** mutual exclusion, and
+  `SERVER_SETUP.md` says so. No Redis or other service was added.
+- **Matcher parity:** tested against the regexp the cold production build actually
+  compiled — `functions-config-manifest.json`, because Next 16's `middleware-manifest.json`
+  is present, parsable and empty. All five upload paths excluded; every other API route on
+  disk still matched, including ones added after the test. Boundaries: trailing slash,
+  query string, percent-encoding (matched raw, excluded decoded), nested ids, similar
+  prefixes, and the two dimensions the matcher does not have — method and case. Every
+  responsibility in the inventory is disposed of per route (headers from
+  `next.config.mjs`; nonce inapplicable to a handler that renders no script; CSRF, auth,
+  limiting, tracing and `no-store` inside the gate); the list itself is pinned so a new
+  responsibility cannot skip the file. Nothing was lost, so nothing moved.
+- **Authentication cost at the gate, measured:** 5002 sessions, median of 21 — no cookie
+  **0 queries**, malformed 1 / 0.168 ms, random invalid 1 / 0.090 ms, expired 1 /
+  0.140 ms, valid 2 / 0.211 ms; the plan searches the unique token index and never scans
+  `sessions`. No preliminary control was added, and that is the measured conclusion: the
+  two candidates are a spoofable key or one global bucket, i.e. an easy denial of service.
+- **Tests added:** `finalReconciliation.test.ts` 18 (R1–R5), `deploymentTopology.test.ts`
+  12 (R6/R8), `proxyMatcherParity.test.ts` 19 (R9–R11), `authLookupCost.test.ts` 6
+  (R12/R13). Mutations: **10/10** red then reverted.
+- **Regression surface held:** 78 S1–S18 assertions green, live `upload-abuse-probe`
+  **32/32**, and every live gate re-run at one cold artifact
+  (`BUILD_ID J9-02HdnjsxfHyAkc7Xg-`): csp 118/118, proxy-parity 37/37, job-ownership
+  25/25, export-fidelity 35/35, workflow-completeness 155/156, tsc/eslint/prisma clean.
+- **Known limitations:** Matched paths still retain up to `proxyClientMaxBodySize`
+  (120 MB) of an anonymous body before dispatch — every page URL and every unrouted path,
+  with no limiter in front; 28 concurrent 100 MiB posts took one process 301 → 1795 MB
+  RSS. Pre-existing Next behaviour, strictly reduced by the exclusion, quantified in
+  `docs/evidence/final-prelaunch/proxy-body-clone-cost.log`. Not fixed in code: the only
+  in-app lever re-arms the silent truncation `next.config.mjs:130-159` guards against, so
+  the mitigation is a reverse-proxy `client_max_body_size` with
+  `proxy_request_buffering off` on the five excluded paths, now in `SERVER_SETUP.md`. The
+  topology gate is a declaration, not mutual exclusion.
+- **No migration and no schema change.** One variable becomes required in production:
+  `DEPLOYMENT_TOPOLOGY=single-instance`.
+- **Next related step:** human visual acceptance (Entry Gate B) and production acceptance
+  in a real environment. Neither is code, and neither was performed here.

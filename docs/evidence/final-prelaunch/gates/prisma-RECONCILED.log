@@ -1,0 +1,37 @@
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+The schema at prisma/schema.prisma is valid 🚀
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./prisma/dev.db"
+
+23 migrations found in prisma/migrations
+
+Database schema is up to date!
+
+──── appended 2026-09-04T23:54:06Z: prisma generate on the overridden tree ────
+$ npx prisma generate
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 83ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+exit=0
+$ node -p "require('fs').readFileSync('node_modules/deepmerge-ts/package.json','utf8').match(/\"version\": \"[^\"]+/)[0]"
+"version": "8.0.2
+exit=0  # the overridden version as actually installed; @prisma/config pins 7.1.5, the override is ^8.0.2
+(An earlier line here tried require('deepmerge-ts/package.json'), which its exports map does not expose.
+ That was a bad probe command, not a product fault, and was removed rather than left to be misread.)

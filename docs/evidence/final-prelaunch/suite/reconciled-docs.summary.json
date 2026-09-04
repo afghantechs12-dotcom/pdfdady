@@ -1,0 +1,113 @@
+{
+  "label": "reconciled-docs",
+  "exitCode": 0,
+  "green": true,
+  "verdict": "GREEN",
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/reconciled-docs.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/reconciled-docs.junit.xml",
+  "startedAt": "2026-09-04T23:49:49.311Z",
+  "durationMs": 9907,
+  "run": {
+    "seed": null,
+    "shuffled": false,
+    "maxWorkers": "vitest default",
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      22.36328125,
+      8.1572265625,
+      6.07568359375
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7432,
+    "passed": 7432,
+    "failed": 0,
+    "pending": 0,
+    "totalSuites": 1940,
+    "totalFiles": 384
+  },
+  "reportError": null,
+  "failures": [],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 3568.835584
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 2943.2590420000006
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R5 — ordering, seeds and parallelism cannot silently reintroduce cross-test interference runs the three files that failed, in the shuffled order that failed them",
+      "durationMs": 2443.483917
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 874.0187080000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling aborts the processor's signal at the processor's own timeoutMs",
+      "durationMs": 605.507583
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/layout/mobileNavA11y.test.ts",
+      "fullName": "U4 — mobile navigation is keyboard accessible mounts no drawer at all until it is opened",
+      "durationMs": 451.69620899999995
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 437.69208399999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth renders every plan from the store, and nothing from a second source",
+      "durationMs": 382.687583
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/pilotPipeline.integration.test.ts",
+      "fullName": "pilot pipeline: success path carries a real PDF from submission to a signed download",
+      "durationMs": 366.0812910000002
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/proxyMatcherParity.test.ts",
+      "fullName": "R11 — the policies that do not come from the matcher the unstripped inbound CSP request headers are read by nothing",
+      "durationMs": 358.4865
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/tools/destinationSelectorA11y.test.ts",
+      "fullName": "U13 — destination selector remains accessible shows no selector before the destinations are known",
+      "durationMs": 341.491333
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed says ENVIRONMENTAL, not RED, when vitest never ran at all",
+      "durationMs": 325.97749999999996
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/workspaces/storedOutputFidelity.test.ts",
+      "fullName": "C14 — a local Merge result becomes the Workspace document stores the merged PDF: its bytes, its pages, and neither input",
+      "durationMs": 308.032917
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/resultSaveIdempotency.test.ts",
+      "fullName": "C9/C10 — two concurrent saves of one result create one document holds for a burst, not just for two",
+      "durationMs": 301.391208
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/PdfToolWorkerHandler.test.ts",
+      "fullName": "PdfToolBatchHandler zips the per-input outputs into one stored archive",
+      "durationMs": 277.5652920000001
+    }
+  ]
+}

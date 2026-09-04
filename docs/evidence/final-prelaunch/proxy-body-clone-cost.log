@@ -89,3 +89,9 @@ Also measured, and correct product behaviour rather than a finding:
 POST /api/tools/merge-pdf answers 404 {"error":"This tool does not support server
 processing."} because merge is client-side. The server-tool control is
 /api/tools/compress-pdf, which answers 400 on a bogus body.
+
+The two probe scripts beside this log are kept as `.mjs.txt`, not `.mjs`. As
+`.mjs` they were inside eslint's default file set and took the lint gate from
+0 errors to 20 (`no-undef` on Buffer/process/console — evidence scripts are not
+covered by the `scripts/` globals override). Retained evidence that breaks a
+gate is not evidence; rename to `.mjs` to run them.

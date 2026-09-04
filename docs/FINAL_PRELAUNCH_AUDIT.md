@@ -2235,9 +2235,16 @@ header set. Mutation K restores the old matcher and turns the exclusion test red
 
 ### 12 — Deployment requirements
 
-Nothing new is *required*. Optional, and only for multi-instance or behind-a-proxy
-deployments: `TRUSTED_PROXY_SECRET` (≥16 chars, and the proxy must send it in
-`x-pdfdadi-proxy-secret`) plus the three `UPLOAD_*_PER_MIN` overrides. Three operational
+**Superseded by §39.5 — one variable is now required.** This paragraph read "Nothing
+new is *required*" when it was written, and that was true of the upload work itself. It
+stopped being true when the reconciliation closed the topology contradiction: production
+now refuses to boot without **`DEPLOYMENT_TOPOLOGY=single-instance`**, which is also the
+only accepted value. The reason is directly below it in item 6 — the limiter is
+process-local, so the configured ceiling only describes the deployment when there is one
+process. Optional, and only for behind-a-proxy deployments: `TRUSTED_PROXY_SECRET`
+(≥16 chars, and the proxy must send it in `x-pdfdadi-proxy-secret`) plus the three
+`UPLOAD_*_PER_MIN` overrides; `client_max_body_size` guidance is in `SERVER_SETUP.md`
+("Security & privacy model"). Three operational
 facts about the standalone artifact were confirmed the hard way this session and belong with
 the deploy steps: `server.js` **chdirs into `.next/standalone`**, so `.next/static` must be
 copied in before boot, `STORAGE_LOCAL_ROOT` resolves to `.next/standalone/.storage/local`,
@@ -2249,8 +2256,336 @@ boot with a relative SQLite `DATABASE_URL`.
 1. The limiter is **process-local** (item 6).
 2. Paths still matched by the middleware matcher still buffer their bodies before their
    handler runs. That is pre-existing behaviour for non-upload routes, unchanged here, and now
-   recorded with measurements in `proxy.ts`.
+   recorded with measurements in `proxy.ts`. **Quantified during the reconciliation**
+   (`docs/evidence/final-prelaunch/proxy-body-clone-cost.log`, §39.4): a matched path reads
+   a 64 MiB anonymous body in full while an excluded upload path stops after ~1.25 MiB, and
+   the retention scales with concurrency — 28 concurrent 100 MiB posts took one process from
+   301 MB to 1795 MB RSS and it stayed there. It applies to every page URL and every
+   unrouted path, none of which has a rate limiter in front. Still not caused by the
+   exclusion and still not fixed in-app: the only in-app lever re-arms the truncation
+   footgun that `next.config.mjs` documents, so the mitigation is a reverse-proxy body cap
+   (§39.5) and the residual is an operator action, recorded in §39.10.
 3. `Expect: 100-continue` is answered by the Node runtime, so route code cannot refuse *at*
    the expectation — only immediately after (L12).
 4. An authenticated caller can still spend its own 100 MiB ceiling 120 times a minute. That
    is a capacity choice, and it is what the overrides are for.
+
+---
+
+## §39 — Final code-readiness reconciliation (postdates §38)
+
+Branch `final-readiness-reconciliation`, cut from the upload-abuse tip `f324053`. Nothing
+above this line was rewritten: §37 is still the audit's verdict, §38 is still the
+upload-abuse closeout's, and the accepted upload work — one multipart reader,
+authenticate-before-parse, pre-parse limiting, streamed size enforcement, consistent
+`400 MALFORMED_MULTIPART`, proxy-secret-gated forwarding headers — was re-verified rather
+than redesigned. Two statements above are corrected in place and say so where they stand
+(§38 item 12, §38 item 13.2).
+
+Four readiness contradictions were the subject. Each is closed below with the evidence
+that closes it, or reported as a decision that is not Claude's to take.
+
+### 39.1 — Contradiction 1: nine high dependency advisories (CLOSED)
+
+`npm audit` at this tip, both graphs, exit 0:
+
+| Scan | Vulnerabilities | Dependencies | Artifact |
+|---|---|---|---|
+| `--omit=dev` (production graph) | **0** at info/low/moderate/high/critical | 158 prod | `audit-RECONCILED-prod.json` |
+| full graph | **0** at every severity | 158 prod, 279 dev, 486 total | `audit-RECONCILED-full.json` |
+
+**They were fixed, not reclassified, and none of them was dev-only.** The baseline recorded
+**9 distinct production advisories** across 9 flagged packages and 11 in the full graph; R2
+re-derived reachability from the lockfile's own dev flags and real dependency edges, and
+found **9 of 11 production-reachable** (the 2 that are not are both `browserslist`, dev-only
+by the lockfile and absent from the production audit — classified from that evidence, not
+from the word "transitive"). Remediation, all by supported upgrade except one narrow
+override:
+
+| Advisory | Package | Sev | Remediation |
+|---|---|---|---|
+| 1117015 / 1108096 / 1116417 / 1117016 | `postcss` (×4) | high / mod | **`next 16.2.12 → 16.3.4`** raises the *nested production* copy to 8.5.23, the first fixed version. The devDependency went 8.5.18 → 8.5.28 separately; the dev copy was already at the fixed floor, the production one was not |
+| 1117077 | `sharp` | high | Same Next upgrade — 16.3.4 moves its optional `sharp` to ^0.35.4. **This is the ninth flagged package, absent from the earlier report's list of eight** |
+| 1105909 | `brace-expansion` | high | `npm update brace-expansion`. The earlier audit called it eslint-only; it also reaches **production** through `archiver`, which is how ZIP export builds its file list |
+| 1116962 | `pdfjs-dist` | high | **`pdfjs-dist 6.1.200 → 6.3.289`**. The most reachable advisory in the set — this product's core input is a user-supplied PDF, so no reachability argument was available and none was attempted |
+| 1117061 | `nanoid` | high | `npm update nanoid` |
+| 1117040 | `deepmerge-ts` | high | **No supported parent upgrade exists**: `@prisma/config@6.19.3` pins it at exactly 7.1.5, there is no prisma 6.20.x, and npm's own proposed fix was a semver-**major downgrade** to prisma@6.12.0. Used `overrides: { "deepmerge-ts": "^8.0.2" }` — the brief's "narrow dependency override compatible with the existing lockfile" — then *proved* compatibility rather than assuming it: `prisma validate`, `prisma generate` and `prisma migrate status` all exit 0 on the overridden tree |
+| 1153171 / 1153172 | `browserslist` (×2) | high | `autoprefixer 10.4.20 → 10.5.5`. Dev-only, from the lockfile's dev flags |
+
+Two of those are **production** dependencies (`next`, `pdfjs-dist`), which is exactly the
+case the brief singles out — "for changes to Next, Prisma or PDF.js, run their relevant
+functional and migration/build gates". Run, and all at the rebuilt artifact: cold
+`next build`, `prisma validate` / `generate` / `migrate status` / `migrate deploy`
+(23 migrations), the full suite, `export-fidelity` 35/35, `csp-probe` 118/118 (which
+exercises the pdf.js worker under the enforced policy), the tool-runtime matrix, and the
+four Next-upgrade probes. The 158 production packages being identical to baseline means
+nothing was **added to or removed from** the production graph — two packages in it moved
+version, which is the point.
+
+No `audit fix --force` was run, no advisory was suppressed for predating the branch, no
+advisory was marked resolved merely because a test passed, and the harness was not edited to
+ignore a finding. Where a fix existed, reachability was never used as an argument at all —
+`postcss` runs at build time on this project's own CSS and never on attacker input, and the
+inventory says so, but the fix was taken anyway rather than relied upon. R1 derives the
+inventory from the machine-readable audit JSON so it cannot drift from prose (and pins
+`distinctProductionAdvisories: 9` against `flaggedProductionPackages: 9` — conflating those
+two is how "nine high" was reported for eight packages), R2 walks real lockfile edges, and
+R3 asserts each installed version now sits outside the window that was actually violated,
+proving the window it checks is the violated one.
+The static harness's I3 `PRODUCT FAILURE` is therefore gone, and the harness exits 0:
+**PASS 67/67, PRODUCT FAILURE 0, ENVIRONMENTAL 2, NOT EXERCISED 4, MANUAL REVIEW REQUIRED
+12, 85 assertions** (`audit-static-RECONCILED.log`).
+
+### 39.2 — Contradiction 2: the unidentified suite failure (REPRODUCED, OWNED, FIXED)
+
+It was reproduced, so this is not a "not reproduced" report. Across 14 retained
+invocations at 8 seeds only one was ever red — `m3-shuffle-20260904` — and its retained
+summary names the three failures, which is the whole point of the harness rewrite. The
+owner was **test-harness and cross-test interference, not the product**: a shared
+not-found spy left set by whichever test ran first, a wall-clock fallback racing an abort,
+and a file that crossed vitest's inherited 5000 ms default. Fixes went to the owners, and
+R5 pins them by running exactly those three files in exactly the shuffled order that
+failed them; R4b pins the explicit `testTimeout` so the default cannot silently come back.
+
+Three further runs at the reconciliation tip, all **GREEN**, 384 files / 7432 tests /
+0 failed:
+
+| Label | Configuration | Wall | Artifact |
+|---|---|---|---|
+| `reconciled-final` | default order, default workers | 10.0 s | `suite/reconciled-final.summary.json` |
+| `reconciled-shuffle-20260904` | shuffled at **the seed that was red** | 10.4 s | `suite/reconciled-shuffle-20260904.summary.json` |
+| `reconciled-single-worker` | `--maxWorkers=1 --minWorkers=1` | 64 s | `suite/reconciled-single-worker.summary.json` |
+
+R4 is satisfied by construction rather than by assertion of intent: an intentionally red
+fixture leaves its name, file, seed, worker count, timing and stack trace in the retained
+summary and the runner still exits nonzero, `ENVIRONMENTAL` is reported when vitest never
+ran at all (the `--repeats=2` case, a flag vitest 3.2 does not have), a real failure is
+never attributed to the environment, and the red fixture is kept out of the suite that
+must stay green.
+
+### 39.3 — Contradiction 3: rate-limit topology (CLOSED via Path A)
+
+Path A: the launch architecture genuinely supports one instance, so the constraint is made
+explicit and verifiable rather than left in prose. `DEPLOYMENT_TOPOLOGY=single-instance` is
+**required in production and is the only accepted value** (`productionProblems()` in
+`src/infrastructure/config/env.ts`, invoked at boot by `instrumentation.ts` via
+`startupGate.ts`); `docker-compose.yml` declares it and pins `container_name`, so
+`docker compose up --scale pdfdadi=2` fails. 12 tests in `deploymentTopology.test.ts` cover
+R6 and R8, including the absent value, any other value at parse time, the arithmetic that
+names the operator's own configured limits, development and `next build` exemptions,
+all-problems-at-once reporting, and the compose file agreeing with the gate.
+
+What the gate does **not** do is stated in `SERVER_SETUP.md` rather than glossed: it is not
+mutual exclusion, and two hand-started processes against one database would each declare
+`single-instance` and each start. R7 (cross-process limiting) is **N/A under Path A** — no
+Redis or other service was added for it, which the brief forbids doing silently.
+
+### 39.4 — Contradiction 4: proxy matcher exclusion parity (CLOSED)
+
+The exclusion is load-bearing, and the A/B proves it while holding the route handler
+constant at *none*: `/api/nope` (matcher **included**) reads a 64 MiB anonymous body in
+full; `/api/nope.txt` (matcher **excluded**) reads ~1.25 MiB and answers 404. Same absent
+handler, same body, one variable — matcher membership. The mechanism was read out of Next's
+own `cloneBodyStream` (`node_modules/next/dist/server/body-streams.js`): past the limit it
+pushes null into both PassThroughs and returns early, and it never unpipes `input`, so
+`experimental.proxyClientMaxBodySize` bounds **retention, not socket reads**. Recorded with
+the per-path-class table and the concurrency series in
+`evidence/final-prelaunch/proxy-body-clone-cost.log`.
+
+R9 tests the matcher **Next actually compiled** — `functions-config-manifest.json`
+`functions["/_middleware"].matchers[0].regexp`, taken from the cold production build, not
+the source string (`middleware-manifest.json` is present, parsable and *empty* under Next
+16's rename, which is a trap a test that trusted it would fall into). It asserts the five
+canonical upload paths are excluded, that **every other API route on disk is still
+matched** including routes added after the test was written, and that the approximation
+`proxy.test.ts` uses agrees with the compiled regexp so the two cannot drift.
+
+R10 covers the boundary spellings the brief lists: trailing slash (matched, but redirected
+before the proxy runs), query string (never reaches the matcher, so `?slug=` cannot
+re-enter it), percent-encoding (matched raw, excluded decoded — which is why the matcher is
+applied to both forms), nested document/version ids (an id segment cannot swallow a slash),
+similarly prefixed paths (only the exact five are out), and the two dimensions the matcher
+does not have: **method** (exclusion is path-only, and the proxy has nothing method-shaped
+to lose) and **case** (a literal segment re-enters the matcher and resolves to a different
+file — App Router resolution is an exact-key lookup in `app-paths-manifest.json`, not a
+filesystem probe, so `/api/JOBS` 404s even though APFS would say the directory exists).
+
+R11 disposes of every responsibility in the brief's inventory for all five excluded routes,
+and pins the *list itself* so a new responsibility cannot be added without passing through
+this file:
+
+| Responsibility | Disposition for the five excluded routes |
+|---|---|
+| Security headers | Equivalent: the six headers come from `next.config.mjs` `headers()`, which covers all five |
+| CSP / nonce | Inapplicable: all five are route handlers and a handler renders no script, so no nonce is consumed |
+| Inbound CSP request-header stripping | Inapplicable: the unstripped headers are read by nothing |
+| Host/origin checks (CSRF) | Route-level equivalent: `requireSameOrigin` inside the gate, stage 1 |
+| Authentication / session | Route-level equivalent: stage 4, and it is *earlier* than the proxy could ever be |
+| Request IDs / tracing | Route-level equivalent, asserted on refusal paths |
+| Response caching (`no-store`) | Route-level equivalent: every `refuse()` sets it |
+| Admin gate | Never applied: unauthenticated, the five are not redirected |
+| Redirects / canonicalisation, locale, maintenance gates, cookie changes, rewrites | Never applied to API upload routes |
+
+Nothing was lost, so nothing had to be moved to a shared API boundary. 19 tests in
+`proxyMatcherParity.test.ts`, plus 28 in `proxy.test.ts` (which still pins the body-clone
+block and the 120 MB fallback for any path that is ever matched again).
+
+### 39.5 — Deployment requirements, corrected
+
+§38 item 12's "Nothing new is *required*" is superseded. Required in production now:
+**`DEPLOYMENT_TOPOLOGY=single-instance`**. Optional and behind-a-proxy only:
+`TRUSTED_PROXY_SECRET` plus the three `UPLOAD_*_PER_MIN` overrides.
+
+Two operator facts were added to `SERVER_SETUP.md` this session because measurement found
+the docs silent on both:
+
+1. **`report-to` on static assets is decided at build time.** `next.config.mjs` resolves
+   `reportingEndpointFor(NEXT_PUBLIC_SITE_URL)` while `next build` runs, and the
+   `Dockerfile` passes no build argument for it, so `docker build` with no extra flag ships
+   `/_next/static/*` with `report-uri` only. That matters beyond reporting cosmetics: a Web
+   Worker inherits the CSP of its own response, and the pdf.js worker *is* a static asset
+   (`.next/static/media/pdf.worker.min.*.mjs`). Measured both ways on a cold artifact.
+2. **Reverse-proxy body caps.** Not for the byte ceilings — the app owns those — but for
+   the retention in 39.4. A small global `client_max_body_size`, raised with
+   `proxy_request_buffering off` only on the five excluded paths, is the zero-cost
+   mitigation; the config is in `SERVER_SETUP.md` under "Security & privacy model".
+
+### 39.6 — §6 authentication lookup cost, measured (no change made)
+
+`workspaceUploadGate` authenticates (stage 4) before it rate limits (stage 5), deliberately,
+so an unauthenticated flood reaches session resolution at full request rate. The brief's
+instruction was to measure rather than theorise. Measured against real SQLite through the
+real providers — `AuthService.getMe`, exactly what stage 4 calls — with 5002 sessions
+seeded so an unindexed lookup would show, median of 21 samples after a warm-up:
+
+| Cookie state | Queries | Median |
+|---|---|---|
+| no cookie at all | **0** | 0 ms |
+| malformed (`not-a-token; drop table sessions --`) | 1 | 0.168 ms |
+| random invalid, valid shape | 1 | 0.090 ms |
+| expired, validly shaped | 1 | 0.140 ms |
+| valid session | 2 (session, then user) | 0.211 ms |
+
+Query **counts** and the SQLite query **plan** are the assertions; wall-clock is reported
+beside them and is deliberately not a gate, because a timing threshold on a shared machine
+is a coin flip. R13 asserts the plan searches the unique token index and never scans
+`sessions`, which is the property that keeps the cost flat as the table grows.
+
+**Conclusion: no preliminary control was added, and that is a measured decision.** An
+absent cookie costs zero queries; a rotated invalid cookie costs one indexed unique-key
+lookup at ~0.1 ms with no user read. That is not "meaningful I/O", and the smallest
+"safe preliminary control" available — keying a pre-auth limiter on a client address —
+would either be spoofable (`X-Forwarded-For` without the proxy secret) or would collapse
+every anonymous caller into one global bucket, i.e. an easy denial of service. Both are
+what the brief told us not to build. 6 tests in `authLookupCost.test.ts` (R12, R13).
+
+### 39.7 — Mutation exercise: 10 mutations, each red, each reverted
+
+Full detail in `evidence/final-prelaunch/mutation-reconciliation.md`, with the exact red
+test and assertion per mutation. Applied individually and reverted with `git checkout --`;
+the affected gate reran green after each.
+
+| # | Mutation | Owning gate | Red tests |
+|---|---|---|---|
+| 1 | failure output dropped from the runner | R4 | 1 |
+| 2 | high advisory reclassified with no reachability evidence | R2 | 1 |
+| 3 | vulnerable dependency version restored | R3 | 2 |
+| 4 | process B gets a fresh bucket after A exhausts it | `uploadRateLimit` | 1 |
+| 5 | unsupported multi-worker configuration allowed to boot | R6/R8 + harness B1 | 5 + 1 |
+| 6 | upload paths restored to the body-buffering matcher | R9/R10 | 7 |
+| 7 | CSRF removed from the gate | S3/S18 + R11 | 8 |
+| 8a/8b/8c | trailing-slash and encoded-path matcher bypasses | R9/R10 | 1 / 1 / 2 |
+| 9a/9b | scan lookup / extra read on invalid cookies | R13 / R12 | 1 / 2 |
+| 10a/10b | `no-store` / request id removed from a refusal path | S-series / R11 | 25 / 2 |
+
+Two edits the exercise exposed were kept deliberately, neither part of any mutation: a
+legible assertion message in `lib/server/uploadRateLimit.test.ts` and an
+`Error.prepareStackTrace` save/restore in `proxyMatcherParity.test.ts`.
+
+### 39.8 — Live verification at one artifact
+
+A cold production artifact was rebuilt because product-adjacent files changed, and **every**
+live gate below was re-run against that one build — `BUILD_ID J9-02HdnjsxfHyAkc7Xg-` — so no
+gate cites an older artifact:
+
+| Live gate | Result |
+|---|---|
+| `upload-abuse-probe` | **32/32** (R14) |
+| `proxy-parity-probe` | 37/37 |
+| `csp-probe` (with `--server-log`) | **118/118**, exit 0 |
+| `legacy-job-ownership-probe` | 25/25 |
+| `tool-runtime-matrix` | 29/29 exercised, 2 ENVIRONMENTAL, 3 NOT EXERCISED |
+| `phase1-reliability` | 29/29, 2 NOT EXERCISED |
+| `workflow-completeness` | 155/156, 1 ENVIRONMENTAL (no `soffice` on this host) |
+| `export-fidelity` | 35/35 |
+| `tsc` / `eslint` / `prisma migrate` | 0 errors / 0 errors + 13 warnings / 0, 23 migrations up to date |
+
+R14 in the suite: **78 S1–S18 assertions green, 0 failed**, across `uploadBoundary.test.ts`
+(68) and `lib/server/multipart.test.ts` (10). Server log across all six live probe runs: 38
+lines, 24 info, 8 warn, **0 error, 0 5xx, 0 stack traces, 0 Server Action errors**; the 8
+warns are 4 missing-LibreOffice (already `ENVIRONMENTAL` above) and 4 deliberate
+`workspace.access.denied` from the reliability probe.
+
+### 39.9 — Defects found in the *evidence*, not the product
+
+Recorded because a probe that cannot fail is the failure mode this branch exists to find:
+
+- **A CSP check that could only ever 404.** It fetched `/api/jobs/<id>/result`, whose route
+  404s unless the stored row is `type: "processing"` — a pipeline entered only for
+  `compress-pdf` with `unified_processing_pipeline` on (default OFF). On a stock build the
+  check could never pass. Retargeted to `/download`, which dispatches on stored type and
+  serves both pipelines through the same ownership gates (`0719a63`).
+- **A probe that "passed" by not running.** 110/110 instead of 118 — `--server-log` was
+  omitted, so nine endpoint-log checks never ran. Diffed check names to prove it.
+- **Two environmental CSP failures were my build, not the product**: `.env` had
+  `NEXT_PUBLIC_SITE_URL=http://localhost:3000`, and `reportingEndpointFor` correctly
+  returns null for a non-https origin. Rebuilt with the https origin; both cleared. This is
+  what became the `SERVER_SETUP.md` note in 39.5.
+- **`Failed to find Server Action` came from my own curls.** The app has zero Server
+  Actions; a *multipart* POST to a path with no route handler produces the line. Reproduced
+  as a table (`/api/nope` +1, `/` +1, `/api/jobs` +0, JSON POST +0). Zero on the final
+  artifact.
+- **Evidence broke a product gate.** Copying two measurement scripts into `docs/` as
+  `.mjs` put them inside eslint's default file set: exit 1, 20 `no-undef` errors. Renamed
+  to `.mjs.txt`. This is exactly the brief's "avoid placing generated evidence where it
+  changes product behavior", learned the direct way.
+- **A memory reading that would have been wrong.** Run 1 showed +261 MB; run 2 on the
+  already-grown process showed +1 MB, which alone reads as "no leak". The 8× and 16×
+  concurrency series is what showed the plateau scales and is retained: 984 → 1728 peak →
+  1795 MB after.
+
+### 39.10 — What remains open, and why it is not a code blocker
+
+Three statements from earlier reports are corrected here in their accurate form:
+
+1. ~~"Nothing new is *required*."~~ → **`DEPLOYMENT_TOPOLOGY=single-instance` is required in
+   production**, and is the only accepted value (39.3, 39.5).
+2. ~~"All required regression gates pass."~~ → **`PASS 67/67 exercised, PRODUCT FAILURE 0`**,
+   with `ENVIRONMENTAL 2`, `NOT EXERCISED 4` and `MANUAL REVIEW REQUIRED 12` *not counted as
+   passes*. A gate whose command exits nonzero is never reported as passing, and the four
+   verdict classes stay separate.
+3. ~~"PDFDADI CODE READY."~~ → the verdict is qualified, and its basis is now re-run
+   evidence at one named artifact rather than an inherited claim (39.8).
+
+**The one measured characteristic left unfixed in code.** Any path the matcher still claims
+that ends at the App Router — every page URL, and any unrouted path — retains up to
+`proxyClientMaxBodySize` (120 MB) of an anonymous body before dispatch, with no rate limiter
+in front; 28 concurrent 100 MiB posts took one process 301 → 1795 MB RSS and it stayed
+there. It is **pre-existing** (recorded qualitatively in §38 item 13.2 before this branch,
+under §37's CODE READY verdict), **not caused by the exclusion** — which strictly reduces it
+— and it is quantified here rather than discovered. It is not fixed in code because the only
+in-app lever is lowering `proxyClientMaxBodySize`, which re-arms the silent body-truncation
+footgun that `next.config.mjs:130-159` exists to prevent, measured at 10481664 bytes
+through / 10485760 not. The mitigation is therefore an operator action with no product
+change: a small `client_max_body_size` plus `proxy_request_buffering off`, raised only on
+the five excluded paths, now specified in `SERVER_SETUP.md`.
+
+**Still pending, and none of it is code:** human visual acceptance of the contact sheets
+(Entry Gate B), production acceptance in a real environment, a container build, and the 12
+`MANUAL REVIEW REQUIRED` items the static harness enumerates — among them whether
+first-party self-hosted measurement needs a consent banner in the launch jurisdictions,
+which is a question for qualified legal review and not one to answer by inventing a consent
+system. These were open at §37's verdict, are open now, and are what
+"PRODUCTION ACCEPTANCE NOT EXERCISED" names.
+
+**PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**

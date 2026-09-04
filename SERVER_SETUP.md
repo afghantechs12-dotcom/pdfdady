@@ -109,7 +109,7 @@ reads the database. The gate therefore refuses any `DATABASE_URL` that does not
 begin with `file:`, and refuses a relative `file:` path as well.
 
 Moving to PostgreSQL is a schema change plus a regenerated migration history
-(all 24 migrations are SQLite DDL), not a change to this variable. Until that
+(all 23 migrations are SQLite DDL), not a change to this variable. Until that
 work is done and verified, one writable deployment per database file is the
 supported topology — see `docs/adr/ADR-M7-009-sqlite-operations.md`.
 
@@ -217,6 +217,29 @@ Two things an operator needs to know about it:
   therefore be a mute button rather than a fallback, so it is omitted there. If
   you terminate TLS at a proxy, set `NEXT_PUBLIC_SITE_URL` to the `https://`
   public URL and reports keep flowing.
+- **On static assets, `report-to` is decided at BUILD time — including in
+  Docker.** `next.config.mjs` resolves `reportingEndpointFor(NEXT_PUBLIC_SITE_URL)`
+  once, while `next build` runs, so it is the *build* environment's value that
+  decides whether `/_next/static/*` carries `report-to csp-endpoint` and a
+  `Reporting-Endpoints` header. Setting the variable only at runtime fixes
+  documents (`proxy.ts` reads the environment at boot) and cannot fix static
+  responses — which is the half that matters for the pdf.js worker, since a Web
+  Worker inherits the CSP of its own `/_next/static/media/*.mjs` response. The
+  `Dockerfile` passes no build argument for it, so `docker build` with no extra
+  flag produces an image whose static assets report only through `report-uri`.
+  Pass it in:
+
+  ```bash
+  docker build --build-arg NEXT_PUBLIC_SITE_URL=https://pdfdadi.com -t pdfdadi .
+  ```
+
+  and add the matching `ARG NEXT_PUBLIC_SITE_URL` / `ENV NEXT_PUBLIC_SITE_URL`
+  pair to the builder stage. Measured both ways on a cold 16.3.4 artifact:
+  built with `http://localhost:3000`, the static policy ends `report-uri
+  /api/csp-report` and carries no `Reporting-Endpoints`; built with the https
+  origin it ends `report-uri /api/csp-report; report-to csp-endpoint` and carries
+  `csp-endpoint="https://…/api/csp-report"`. Legacy `report-uri` works either
+  way, so this degrades reporting rather than breaking the policy.
 
 ## Option A — Docker (recommended)
 
@@ -332,10 +355,40 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
   caller is counted in one global bucket, which is exactly the bucket a spoofed or
   rotated header cannot escape. If you deploy behind a proxy, set the secret **and**
   configure the proxy to send it; if you do not, change nothing.
-- **The upload limiter is process-local**, like every other limiter here. Behind N
-  instances the request ceiling is N × the configured number; the per-request byte
-  ceiling is unaffected. Multi-instance deployments should add a shared limit at the
-  load balancer.
+- **The upload limiter is process-local**, like every other limiter here — which is
+  why `DEPLOYMENT_TOPOLOGY=single-instance` is required in production and is the only
+  accepted value. Behind N instances the request ceiling would become N × the
+  configured number while the per-request byte ceiling stayed the same; rather than
+  leave that to a load-balancer rule nobody owns, the boot gate refuses the
+  configuration. See "Instance topology" above for the three things multi-instance
+  would need first.
+- **Bound request bodies at the reverse proxy too, if you run one.** Not for the byte
+  ceilings — the app owns those, as above — but for memory. Next buffers the body of
+  any request its proxy matcher claims before the handler runs, up to
+  `experimental.proxyClientMaxBodySize` (`next.config.mjs`, 120 MB here), and that
+  includes every page URL and every unrouted path, where no rate limiter has run yet.
+  Measured on a cold production artifact: a 64 MiB anonymous POST to a matched path
+  is read in full, the same POST to an excluded upload path stops after ~1.25 MiB, and
+  28 concurrent 100 MiB posts took one process from 301 MB to 1795 MB RSS and kept it
+  there (`docs/evidence/final-prelaunch/proxy-body-clone-cost.log`). This is
+  pre-existing Next behaviour, not something the upload work introduced, and lowering
+  the config value instead re-arms the silent-truncation problem its docstring
+  documents. So set a small `client_max_body_size` globally and raise it only on the
+  five paths the matcher excludes, which are the only ones that need a large body:
+
+  ```nginx
+  client_max_body_size 1m;                      # everything else
+
+  location ~ ^/api/(jobs|tools/[^/]+)$                          { client_max_body_size 120m; proxy_request_buffering off; }
+  location ~ ^/api/workspaces/[^/]+/documents/upload$            { client_max_body_size 120m; proxy_request_buffering off; }
+  location ~ ^/api/workspaces/[^/]+/documents/[^/]+/versions/upload$ { client_max_body_size 120m; proxy_request_buffering off; }
+  location ~ ^/api/workspaces/[^/]+/documents/[^/]+/attachments$  { client_max_body_size 120m; proxy_request_buffering off; }
+  ```
+
+  `proxy_request_buffering off` matters as much as the size: with it on, nginx
+  absorbs the whole body itself and the app's early 401/413/429 refusals stop being
+  early. Keep the two path sets in step — a path added to the matcher exclusion in
+  `proxy.ts` needs a `location` here, or its uploads start failing at the proxy.
 - The temp directory is deleted in a `finally` block after every request.
 - **A public tool run keeps nothing.** No database row, no stored file, no
   history: the temp directory is deleted in a `finally` block and a server tool's

@@ -466,3 +466,55 @@ Live acceptance: `scripts/upload-abuse-probe.mjs` → **32/32**
 (`upload-abuse-live.json`). Mutations: **11/11** red then reverted clean
 (`mutations-upload-boundary.log`). Gate ordering for all five call sites:
 `upload-gate-ordering.md`.
+
+## Session 6 — the final code-readiness reconciliation
+
+Branch `final-readiness-reconciliation`, cut from the upload-abuse tip `f324053`. Four
+readiness contradictions were the whole subject; full detail is `FINAL_PRELAUNCH_AUDIT.md`
+§39, and this is the checkpoint view.
+
+| Contradiction | State at entry | State now | Evidence |
+|---|---|---|---|
+| 1. Nine high dependency advisories, harness exit 1 with `PRODUCT FAILURE` I3 | one PRODUCT FAILURE | **CLOSED** — 0 vulnerabilities on both graphs; harness exit 0, PASS 67/67, PRODUCT FAILURE 0. **9 of 11 were production-reachable, not dev-only**: fixed by `next 16.2.12 → 16.3.4` (nested postcss + sharp), `pdfjs-dist 6.1.200 → 6.3.289`, `npm update brace-expansion`/`nanoid`, `autoprefixer` for browserslist, plus one narrow `overrides: deepmerge-ts ^8.0.2` where no supported parent upgrade existed. Next and PDF.js moved, so their gates were run | `audit-RECONCILED-{prod,full}.json`, `audit-static-RECONCILED.log` |
+| 2. One full-suite failure whose identity was not retained | unattributed | **REPRODUCED, OWNED, FIXED** — test-harness + cross-test interference, not the product: a shared spy left set by whichever test ran first, a wall-clock fallback racing an abort, and vitest's inherited 5000 ms default | `suite/m3-shuffle-20260904.summary.json` (the red one) + three GREEN runs below |
+| 3. Process-local upload limiting with unenforced topology | prose only | **CLOSED via Path A** — `DEPLOYMENT_TOPOLOGY=single-instance` required in production and the only accepted value, boot gate + compose `container_name`, 12 tests (R6/R8). R7 N/A; no Redis added | `deploymentTopology.test.ts`, `SERVER_SETUP.md` "Instance topology" |
+| 4. Five upload paths excluded from the matcher, parity unproven | partial | **CLOSED** — R9/R10/R11, 19 tests, against the regexp the cold build actually compiled; every responsibility in the brief's inventory disposed of, none lost, nothing moved | `proxyMatcherParity.test.ts`, `proxy-body-clone-cost.log` |
+
+Three retained suite runs at this tip, all GREEN, **384 files / 7432 tests / 0 failed**:
+`reconciled-final` (10.0 s), `reconciled-shuffle-20260904` (**the seed that was red**,
+10.4 s), `reconciled-single-worker` (`--maxWorkers=1`, 64 s).
+
+§6 authentication lookup cost — measured, not reasoned about, against real SQLite with 5002
+sessions seeded, median of 21: **absent 0 queries / 0 ms · malformed 1 / 0.168 ms · random
+invalid 1 / 0.090 ms · expired 1 / 0.140 ms · valid 2 / 0.211 ms**. The plan searches the
+unique token index and never scans `sessions`. No preliminary control added, and that is the
+measured decision: the two available ones are a spoofable key or a one-bucket global denial
+of service, both of which the brief forbids. `authLookupCost.test.ts`.
+
+Mutations: **10/10 red then reverted** (`mutation-reconciliation.md`), red counts 1, 1, 2, 1,
+5+1, 7, 8, 1/1/2, 1/2, 25/2.
+
+Live, all at one artifact — `BUILD_ID J9-02HdnjsxfHyAkc7Xg-`, rebuilt cold because
+product-adjacent files changed: upload-abuse **32/32**, proxy-parity 37/37, csp **118/118**,
+job-ownership 25/25, tool-matrix 29/29 exercised, phase1-reliability 29/29,
+workflow-completeness 155/156 (1 ENVIRONMENTAL, no `soffice`), export-fidelity 35/35, tsc 0,
+eslint 0 errors, prisma 0 (23 migrations). Server log across all six probe runs: **0 error, 0
+5xx, 0 stack traces, 0 Server Action errors**.
+
+Corrected statements: "Nothing new is *required*" → one variable now is; "All required
+regression gates pass" → `PASS 67/67 exercised, PRODUCT FAILURE 0`, with 2 ENVIRONMENTAL /
+4 NOT EXERCISED / 12 MANUAL REVIEW REQUIRED not counted as passes.
+
+Five defects were found in the **evidence** rather than the product, and are recorded in §39.9
+because that is this branch's own subject: a CSP check that could only ever 404 (it fetched a
+pipeline-only endpoint on a build that does not run that pipeline), a probe that "passed" by
+running 110 of 118 checks, two CSP failures that were my build environment, `Failed to find
+Server Action` lines that came from my own curls, and evidence files that broke the eslint
+gate by landing inside its default file set.
+
+Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**. The one
+measured characteristic left unfixed in code — matched paths retain up to 120 MB of an
+anonymous body before dispatch, 28 concurrent posts taking one process 301 → 1795 MB — is
+pre-existing, was already recorded under §37's verdict, is strictly *reduced* by the
+exclusion, and its mitigation is a reverse-proxy body cap rather than a product change,
+because the in-app lever re-arms the silent-truncation footgun `next.config.mjs` guards.

@@ -1,0 +1,113 @@
+{
+  "label": "reconciled-shuffle-20260904",
+  "exitCode": 0,
+  "green": true,
+  "verdict": "GREEN",
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/reconciled-shuffle-20260904.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/reconciled-shuffle-20260904.junit.xml --sequence.shuffle --sequence.seed=20260904",
+  "startedAt": "2026-09-04T23:34:14.387Z",
+  "durationMs": 10181,
+  "run": {
+    "seed": "20260904",
+    "shuffled": true,
+    "maxWorkers": "vitest default",
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      30.95263671875,
+      10.3310546875,
+      5.859375
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7432,
+    "passed": 7432,
+    "failed": 0,
+    "pending": 0,
+    "totalSuites": 1940,
+    "totalFiles": 384
+  },
+  "reportError": null,
+  "failures": [],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R5 — ordering, seeds and parallelism cannot silently reintroduce cross-test interference runs the three files that failed, in the shuffled order that failed them",
+      "durationMs": 2564.2699170000005
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 1885.5723329999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 886.0287079999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling aborts the processor's signal at the processor's own timeoutMs",
+      "durationMs": 622.908167
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/layout/mobileNavA11y.test.ts",
+      "fullName": "U4 — mobile navigation is keyboard accessible gives the public header trigger a name, a state and a target",
+      "durationMs": 537.242666
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 497.67741699999993
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed says ENVIRONMENTAL, not RED, when vitest never ran at all",
+      "durationMs": 452.440458
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth takes its heading from the page store rather than the built-in fallback",
+      "durationMs": 386.47312500000004
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/tools/destinationSelectorA11y.test.ts",
+      "fullName": "U13 — destination selector remains accessible shows no selector before the destinations are known",
+      "durationMs": 376.39229199999994
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/proxyMatcherParity.test.ts",
+      "fullName": "R11 — the policies that do not come from the matcher the unstripped inbound CSP request headers are read by nothing",
+      "durationMs": 370.9334999999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 347.3938330000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/pilotPipeline.integration.test.ts",
+      "fullName": "pilot pipeline: failure path cleans up after a failed attempt too",
+      "durationMs": 319.1058750000002
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/StatisticsService.test.ts",
+      "fullName": "StatisticsService — statistics rejects text beyond the measurable limit",
+      "durationMs": 272.788208
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/pilotPipeline.integration.test.ts",
+      "fullName": "pilot pipeline: worker crash recovery (table queue) a replacement worker finishes the job the crashed one abandoned",
+      "durationMs": 258.52591700000005
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the terminal stage is not overwritten by a stage write still in flight when the job completes",
+      "durationMs": 248.56179199999997
+    }
+  ]
+}
