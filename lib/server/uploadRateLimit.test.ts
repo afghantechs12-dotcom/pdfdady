@@ -185,7 +185,13 @@ describe("checkUploadLimit — whose budget is spent", () => {
     // process (deploymentTopology.test.ts); this refuses the key that would make one
     // profitable, because the two defences fail in opposite directions.
     const src = readFileSync(join(process.cwd(), "lib/server/uploadRateLimit.ts"), "utf8");
-    expect(src.match(/\.global\.(?:hit|retryAfterSeconds)\("global",/g)).toHaveLength(2);
-    expect(src).not.toMatch(/process\.pid|hostname\(|randomUUID|INSTANCE_ID/);
+    // `?? []` rather than a bare `.match(...)`: a null match asserts as "Target cannot
+    // be null or undefined", which names neither the file nor the key — the exact
+    // anonymous-failure shape this branch exists to remove.
+    const literalKeyed = src.match(/\.global\.(?:hit|retryAfterSeconds)\("global",/g) ?? [];
+    expect(literalKeyed, "both global-bucket calls must pass the literal \"global\"").toHaveLength(2);
+    expect(src, "the ceiling key must not vary per process or host").not.toMatch(
+      /process\.pid|hostname\(|randomUUID|INSTANCE_ID/,
+    );
   });
 });

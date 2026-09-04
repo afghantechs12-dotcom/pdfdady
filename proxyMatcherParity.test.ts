@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 // Next's own build-time matcher compiler and its runtime matcher, so these tests
 // assert against the regex the server actually runs rather than a lookalike.
-import * as pageStaticInfo from "next/dist/build/analysis/get-page-static-info.js";
 import { getMiddlewareRouteMatcher } from "next/dist/shared/lib/router/utils/middleware-route-matcher.js";
 import { tryToParsePath } from "next/dist/lib/try-to-parse-path.js";
 import loadCustomRoutes from "next/dist/lib/load-custom-routes.js";
@@ -71,6 +70,25 @@ const EXCLUDED_ROUTES = [
 ] as const;
 
 const PROXY_SRC = readFileSync("proxy.ts", "utf8");
+
+/**
+ * Loaded dynamically, and with `Error.prepareStackTrace` put back afterwards.
+ *
+ * `next/dist/build/analysis/get-page-static-info.js` drags in Next's build machinery,
+ * which REPLACES `Error.prepareStackTrace` as a side effect of loading — and that hook is
+ * where vitest's source-map remapper lives. As a static import it therefore cost this file
+ * every accurate stack frame: a failure at line 225 was reported at 141, pointing at a
+ * comment, because the position was the one in the transformed module. Found by mutating
+ * the matcher and not recognising the frame the red test named. Only this file imports that
+ * module, so only this file was affected; five sibling `next/dist/**` imports are harmless
+ * and stay static above.
+ *
+ * The module is not replaceable — `getMiddlewareMatchers` is the actual build-time compiler
+ * and using it is the whole point of R9 — so the hook is saved before and restored after.
+ */
+const prepareStackTrace = Error.prepareStackTrace;
+const pageStaticInfo = await import("next/dist/build/analysis/get-page-static-info.js");
+Error.prepareStackTrace = prepareStackTrace;
 
 /**
  * Exported at runtime, absent from the shipped `.d.ts` — so the cast is the type, and
