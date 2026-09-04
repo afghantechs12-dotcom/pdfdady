@@ -1,0 +1,235 @@
+
+> pdfdadi@0.1.0 build
+> prisma generate && node scripts/next-build.js
+
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 75ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env
+✓ Running next.config.mjs took 12ms
+- Experiments (use with caution):
+  · cpus: 4
+  · proxyClientMaxBodySize: "120mb"
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.9s
+  Running TypeScript ...
+  Finished TypeScript in 6.9s ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/63) ...
+  Generating static pages using 4 workers (15/63) 
+  Generating static pages using 4 workers (31/63) 
+  Generating static pages using 4 workers (47/63) 
+✓ Generating static pages using 4 workers (63/63) in 174ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /about
+├ ƒ /admin
+├ ƒ /admin/ai-tools
+├ ƒ /admin/analytics
+├ ƒ /admin/blog
+├ ƒ /admin/faq
+├ ƒ /admin/features
+├ ƒ /admin/login
+├ ƒ /admin/nav
+├ ƒ /admin/pages
+├ ƒ /admin/pricing
+├ ƒ /admin/seo
+├ ƒ /admin/server-tools
+├ ƒ /admin/setup
+├ ƒ /admin/site
+├ ƒ /admin/tools
+├ ƒ /admin/tools/categories
+├ ƒ /admin/trust
+├ ƒ /admin/use-cases
+├ ƒ /api/admin/ai-tools/[id]
+├ ƒ /api/admin/analytics
+├ ƒ /api/admin/blog/[slug]
+├ ƒ /api/admin/blog/author
+├ ƒ /api/admin/faq/[id]
+├ ƒ /api/admin/features/[id]
+├ ƒ /api/admin/login
+├ ƒ /api/admin/logout
+├ ƒ /api/admin/nav
+├ ƒ /api/admin/pages/[key]
+├ ƒ /api/admin/password
+├ ƒ /api/admin/pricing/[id]
+├ ƒ /api/admin/reorder
+├ ƒ /api/admin/seo
+├ ƒ /api/admin/server-tools/[slug]
+├ ƒ /api/admin/setup
+├ ƒ /api/admin/site
+├ ƒ /api/admin/store
+├ ƒ /api/admin/tool-categories/[id]
+├ ƒ /api/admin/tools
+├ ƒ /api/admin/tools/[slug]
+├ ƒ /api/admin/tools/bulk
+├ ƒ /api/admin/trust/[id]
+├ ƒ /api/admin/use-cases/[id]
+├ ƒ /api/analytics/events
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/auth/register
+├ ƒ /api/auth/signup
+├ ƒ /api/billing/checkout
+├ ƒ /api/billing/portal
+├ ƒ /api/billing/summary
+├ ƒ /api/billing/webhook
+├ ƒ /api/csp-report
+├ ƒ /api/health
+├ ƒ /api/health/dependencies
+├ ƒ /api/health/ready
+├ ƒ /api/jobs
+├ ƒ /api/jobs/[id]
+├ ƒ /api/jobs/[id]/cancel
+├ ƒ /api/jobs/[id]/download
+├ ƒ /api/jobs/[id]/progress
+├ ƒ /api/jobs/[id]/result
+├ ƒ /api/jobs/[id]/retry
+├ ƒ /api/jobs/[id]/save-to-workspace
+├ ƒ /api/storage/file
+├ ƒ /api/storage/multipart
+├ ƒ /api/storage/multipart/[...segments]
+├ ƒ /api/tools/[slug]
+├ ƒ /api/usage
+├ ƒ /api/workflow/save-target
+├ ƒ /api/workspaces
+├ ƒ /api/workspaces/[workspaceId]
+├ ƒ /api/workspaces/[workspaceId]/archive
+├ ƒ /api/workspaces/[workspaceId]/commands
+├ ƒ /api/workspaces/[workspaceId]/documents
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/attachments
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/attachments/[attachmentId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/attachments/[attachmentId]/download
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/autosave
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/autosave/mark-saved
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/autosave/recover
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/bookmarks
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/bookmarks/[bookmarkId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments/[threadId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments/[threadId]/messages
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments/[threadId]/messages/[messageId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments/[threadId]/reopen
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comments/[threadId]/resolve
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comparisons
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comparisons/[comparisonId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comparisons/[comparisonId]/cancel
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comparisons/[comparisonId]/result
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/comparisons/[comparisonId]/retry
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/content
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/editor-state
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/embedded-capabilities
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/favorite
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/lifecycle
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/metadata
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/opened
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/outline
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/outline/[outlineItemId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/permissions
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/permissions/[grantId]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/properties
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/search-index
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/search-index/reindex
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/statistics
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/tags
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/versions
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/versions/[versionNumber]
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/versions/[versionNumber]/restore
+├ ƒ /api/workspaces/[workspaceId]/documents/[documentId]/versions/upload
+├ ƒ /api/workspaces/[workspaceId]/documents/bulk
+├ ƒ /api/workspaces/[workspaceId]/documents/upload
+├ ƒ /api/workspaces/[workspaceId]/folders
+├ ƒ /api/workspaces/[workspaceId]/folders/[folderId]
+├ ƒ /api/workspaces/[workspaceId]/folders/[folderId]/breadcrumbs
+├ ƒ /api/workspaces/[workspaceId]/folders/[folderId]/lifecycle
+├ ƒ /api/workspaces/[workspaceId]/members
+├ ƒ /api/workspaces/[workspaceId]/members/[userId]
+├ ƒ /api/workspaces/[workspaceId]/operations
+├ ƒ /api/workspaces/[workspaceId]/operations/[operationId]/cancel
+├ ƒ /api/workspaces/[workspaceId]/operations/[operationId]/retry
+├ ƒ /api/workspaces/[workspaceId]/projects
+├ ƒ /api/workspaces/[workspaceId]/projects/[projectId]
+├ ƒ /api/workspaces/[workspaceId]/projects/[projectId]/lifecycle
+├ ƒ /api/workspaces/[workspaceId]/restore
+├ ƒ /api/workspaces/[workspaceId]/search
+├ ƒ /api/workspaces/[workspaceId]/search/statistics
+├ ƒ /api/workspaces/[workspaceId]/session
+├ ƒ /api/workspaces/[workspaceId]/session/split
+├ ƒ /api/workspaces/[workspaceId]/session/tabs
+├ ƒ /api/workspaces/[workspaceId]/session/tabs/[tabId]
+├ ƒ /api/workspaces/[workspaceId]/smart-collections
+├ ƒ /api/workspaces/[workspaceId]/smart-collections/[collectionId]
+├ ƒ /api/workspaces/[workspaceId]/smart-collections/preview
+├ ƒ /api/workspaces/[workspaceId]/tags
+├ ƒ /api/workspaces/[workspaceId]/tags/[tagId]
+├ ƒ /api/workspaces/[workspaceId]/tags/bulk
+├ ƒ /api/workspaces/provision-default
+├ ƒ /blog
+├ ƒ /blog/[slug]
+├   /blog/[slug]/opengraph-image-yqks0s
+│ ├ ● /blog/how-to-merge-pdf-files-online/opengraph-image-yqks0s
+│ ├ ● /blog/how-to-compress-a-pdf-for-email/opengraph-image-yqks0s
+│ ├ ● /blog/how-to-protect-private-documents/opengraph-image-yqks0s
+│ └ ● [+6 more paths]
+├ ƒ /brand-logo
+├ ƒ /contact
+├ ƒ /editor
+├ ○ /icon
+├ ƒ /login
+├ ○ /opengraph-image
+├ ƒ /pricing
+├ ƒ /privacy-policy
+├ ƒ /register
+├ ○ /robots.txt
+├ ƒ /server-status
+├ ƒ /signup
+├ ○ /sitemap.xml
+├ ƒ /terms
+├ ƒ /tools
+├ ƒ /tools/[slug]
+├ ƒ /tools/add-page-numbers
+├ ƒ /tools/add-watermark
+├ ƒ /tools/annotate-pdf
+├ ƒ /tools/crop-pdf
+├ ƒ /tools/delete-pdf-pages
+├ ƒ /tools/edit-pdf
+├ ƒ /tools/extract-pdf-pages
+├ ƒ /tools/fill-pdf-forms
+├ ƒ /tools/image-to-pdf
+├ ƒ /tools/jpg-to-pdf
+├ ƒ /tools/merge-pdf
+├ ƒ /tools/organize-pdf
+├ ƒ /tools/png-to-pdf
+├ ƒ /tools/remove-pdf-metadata
+├ ƒ /tools/reorder-pdf-pages
+├ ƒ /tools/rotate-pdf
+├ ƒ /tools/sign-pdf
+├ ƒ /tools/split-pdf
+├ ƒ /workspaces
+├ ƒ /workspaces/[workspaceId]
+├ ƒ /workspaces/[workspaceId]/documents/[documentId]
+└ ƒ /workspaces/[workspaceId]/settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -1,0 +1,219 @@
+{
+  "generatedAt": "2026-09-04T23:25:36.885Z",
+  "base": "https://10.161.164.42:3051",
+  "binaries": {
+    "gs": "/opt/homebrew/bin/gs",
+    "qpdf": "/opt/homebrew/bin/qpdf",
+    "pdftoppm": "/opt/homebrew/bin/pdftoppm",
+    "pdfinfo": "/opt/homebrew/bin/pdfinfo",
+    "tesseract": "/opt/homebrew/bin/tesseract",
+    "ocrmypdf": "/opt/homebrew/bin/ocrmypdf",
+    "soffice": null
+  },
+  "results": [
+    {
+      "slug": "merge-pdf",
+      "title": "merge-pdf",
+      "verdict": "PASS",
+      "detail": "5460 bytes, starts \"%PDF\", named multipage-fixture-and-second-fixture-merged.pdf"
+    },
+    {
+      "slug": "split-pdf",
+      "title": "split-pdf",
+      "verdict": "PASS",
+      "detail": "4886 bytes, starts \"%PDF\", named multipage-fixture-split_1-12.pdf"
+    },
+    {
+      "slug": "extract-pdf-pages",
+      "title": "extract-pdf-pages",
+      "verdict": "PASS",
+      "detail": "4886 bytes, starts \"%PDF\", named multipage-fixture-split_1-12.pdf"
+    },
+    {
+      "slug": "organize-pdf",
+      "title": "organize-pdf",
+      "verdict": "PASS",
+      "detail": "4888 bytes, starts \"%PDF\", named multipage-fixture-edited.pdf"
+    },
+    {
+      "slug": "rotate-pdf",
+      "title": "rotate-pdf",
+      "verdict": "PASS",
+      "detail": "4889 bytes, starts \"%PDF\", named multipage-fixture-edited.pdf"
+    },
+    {
+      "slug": "delete-pdf-pages",
+      "title": "delete-pdf-pages",
+      "verdict": "PASS",
+      "detail": "4888 bytes, starts \"%PDF\", named multipage-fixture-edited.pdf"
+    },
+    {
+      "slug": "reorder-pdf-pages",
+      "title": "reorder-pdf-pages",
+      "verdict": "PASS",
+      "detail": "4888 bytes, starts \"%PDF\", named multipage-fixture-edited.pdf"
+    },
+    {
+      "slug": "edit-pdf",
+      "title": "edit-pdf",
+      "verdict": "PASS",
+      "detail": "4888 bytes, starts \"%PDF\", named multipage-fixture-edited.pdf"
+    },
+    {
+      "slug": "crop-pdf",
+      "title": "crop-pdf",
+      "verdict": "PASS",
+      "detail": "4909 bytes, starts \"%PDF\", named multipage-fixture-cropped.pdf"
+    },
+    {
+      "slug": "add-page-numbers",
+      "title": "add-page-numbers",
+      "verdict": "PASS",
+      "detail": "7327 bytes, starts \"%PDF\", named multipage-fixture-numbered.pdf"
+    },
+    {
+      "slug": "add-watermark",
+      "title": "add-watermark",
+      "verdict": "PASS",
+      "detail": "8045 bytes, starts \"%PDF\", named multipage-fixture-watermarked.pdf"
+    },
+    {
+      "slug": "remove-pdf-metadata",
+      "title": "remove-pdf-metadata",
+      "verdict": "PASS",
+      "detail": "4847 bytes, starts \"%PDF\", named multipage-fixture-cleaned.pdf"
+    },
+    {
+      "slug": "jpg-to-pdf",
+      "title": "jpg-to-pdf",
+      "verdict": "PASS",
+      "detail": "69210 bytes, starts \"%PDF\", named image-fixture-images.pdf"
+    },
+    {
+      "slug": "png-to-pdf",
+      "title": "png-to-pdf",
+      "verdict": "PASS",
+      "detail": "57032 bytes, starts \"%PDF\", named probe-small-images.pdf"
+    },
+    {
+      "slug": "image-to-pdf",
+      "title": "image-to-pdf",
+      "verdict": "PASS",
+      "detail": "69210 bytes, starts \"%PDF\", named image-fixture-images.pdf"
+    },
+    {
+      "slug": "annotate-pdf",
+      "title": "annotate-pdf",
+      "verdict": "PASS",
+      "detail": "5295 bytes, starts \"%PDF\", named multipage-fixture-annotated.pdf"
+    },
+    {
+      "slug": "fill-pdf-forms",
+      "title": "fill-pdf-forms",
+      "verdict": "PASS",
+      "detail": "3586 bytes, starts \"%PDF\", named form-fixture-filled.pdf"
+    },
+    {
+      "slug": "sign-pdf",
+      "title": "sign-pdf",
+      "verdict": "PASS",
+      "detail": "61514 bytes, starts \"%PDF\", named multipage-fixture-signed.pdf"
+    },
+    {
+      "slug": "compress-pdf",
+      "title": "compress-pdf",
+      "verdict": "PASS",
+      "detail": "8219 bytes, starts \"%PDF\", named multipage-fixture-compressed.pdf (via gs)"
+    },
+    {
+      "slug": "repair-pdf",
+      "title": "repair-pdf",
+      "verdict": "PASS",
+      "detail": "8083 bytes, starts \"%PDF\", named multipage-fixture-repaired.pdf (via qpdf+gs)"
+    },
+    {
+      "slug": "pdf-to-pdfa",
+      "title": "pdf-to-pdfa",
+      "verdict": "PASS",
+      "detail": "14698 bytes, starts \"%PDF\", named multipage-fixture-pdfa.pdf (via gs)"
+    },
+    {
+      "slug": "flatten-pdf",
+      "title": "flatten-pdf",
+      "verdict": "PASS",
+      "detail": "4917 bytes, starts \"%PDF\", named multipage-fixture-flattened.pdf (via qpdf)"
+    },
+    {
+      "slug": "protect-pdf",
+      "title": "protect-pdf",
+      "verdict": "PASS",
+      "detail": "5915 bytes, starts \"%PDF\", named multipage-fixture-protected.pdf (via qpdf)"
+    },
+    {
+      "slug": "unlock-pdf",
+      "title": "unlock-pdf",
+      "verdict": "PASS",
+      "detail": "5021 bytes, starts \"%PDF\", named encrypted-fixture-unlocked.pdf (via qpdf)"
+    },
+    {
+      "slug": "pdf-to-jpg",
+      "title": "pdf-to-jpg",
+      "verdict": "PASS",
+      "detail": "145795 bytes, starts \"PK..\", named multipage-fixture-jpeg.zip (via pdftoppm+pdfinfo)"
+    },
+    {
+      "slug": "pdf-to-png",
+      "title": "pdf-to-png",
+      "verdict": "PASS",
+      "detail": "220867 bytes, starts \"PK..\", named multipage-fixture-png.zip (via pdftoppm+pdfinfo)"
+    },
+    {
+      "slug": "ocr-pdf",
+      "title": "ocr-pdf",
+      "verdict": "PASS",
+      "detail": "56236 bytes, starts \"%PDF\", named multipage-fixture-ocr.pdf (via ocrmypdf+tesseract)"
+    },
+    {
+      "slug": "pdf-to-word",
+      "title": "pdf-to-word",
+      "verdict": "ENVIRONMENTAL",
+      "detail": "soffice is absent on this host (which: none), so no run is possible here"
+    },
+    {
+      "slug": "pdf-to-word",
+      "title": "pdf-to-word dependency message",
+      "verdict": "PASS",
+      "detail": "reports a server-side unavailability, blames no file, leaks no path or command: \"This tool is temporarily unavailable on the server. Please try again later.\""
+    },
+    {
+      "slug": "html-to-pdf",
+      "title": "html-to-pdf",
+      "verdict": "ENVIRONMENTAL",
+      "detail": "soffice is absent on this host (which: none), so no run is possible here"
+    },
+    {
+      "slug": "html-to-pdf",
+      "title": "html-to-pdf dependency message",
+      "verdict": "PASS",
+      "detail": "reports a server-side unavailability, blames no file, leaks no path or command: \"This tool is temporarily unavailable on the server. Please try again later.\""
+    },
+    {
+      "slug": "word-to-pdf",
+      "title": "word-to-pdf",
+      "verdict": "NOT EXERCISED",
+      "detail": "no .docx fixture in the repository; its dependency was checked anyway (soffice=absent)"
+    },
+    {
+      "slug": "powerpoint-to-pdf",
+      "title": "powerpoint-to-pdf",
+      "verdict": "NOT EXERCISED",
+      "detail": "no .pptx fixture in the repository; its dependency was checked anyway (soffice=absent)"
+    },
+    {
+      "slug": "excel-to-pdf",
+      "title": "excel-to-pdf",
+      "verdict": "NOT EXERCISED",
+      "detail": "no .xlsx fixture in the repository; its dependency was checked anyway (soffice=absent)"
+    }
+  ]
+}

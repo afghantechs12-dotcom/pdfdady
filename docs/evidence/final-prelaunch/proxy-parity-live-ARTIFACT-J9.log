@@ -1,0 +1,78 @@
+# proxy parity probe — target https://10.161.164.42:3051 (direct http://127.0.0.1:3052, front https://10.161.164.42:3051)
+PASS  X1 control: a matcher-MATCHED path carries the six headers and a per-request nonce
+      status 200; missing []; wrong []; nonce present
+PASS  X2.canonical/jobs excluded path still carries the six security headers
+      status 400; missing []; wrong []
+PASS  X3.canonical/jobs its CSP is the build-time one — present, and with no nonce to lose
+      csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…
+PASS  X4.canonical/jobs the request id it was given comes back (workspace routes) or is not part of the shape
+      echoed n/a; body {"error":"Missing `slug` query parameter."}
+PASS  X2.canonical/tools excluded path still carries the six security headers
+      status 404; missing []; wrong []
+PASS  X3.canonical/tools its CSP is the build-time one — present, and with no nonce to lose
+      csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…
+PASS  X4.canonical/tools the request id it was given comes back (workspace routes) or is not part of the shape
+      echoed n/a; body {"error":"This tool does not support server processing."}
+PASS  X2.canonical/upload excluded path still carries the six security headers
+      status 403; missing []; wrong []
+PASS  X3.canonical/upload its CSP is the build-time one — present, and with no nonce to lose
+      csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…
+PASS  X4.canonical/upload the request id it was given comes back (workspace routes) or is not part of the shape
+      echoed parity-canonical-upload; body {"error":{"code":"CSRF_ORIGIN_REQUIRED","message":"A same-origin request is required.","requestId":"parity-canonical-upl
+PASS  X2.canonical/version excluded path still carries the six security headers
+      status 403; missing []; wrong []
+PASS  X3.canonical/version its CSP is the build-time one — present, and with no nonce to lose
+      csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…
+PASS  X4.canonical/version the request id it was given comes back (workspace routes) or is not part of the shape
+      echoed parity-canonical-version; body {"error":{"code":"CSRF_ORIGIN_REQUIRED","message":"A same-origin request is required.","requestId":"parity-canonical-ver
+PASS  X2.canonical/attach excluded path still carries the six security headers
+      status 403; missing []; wrong []
+PASS  X3.canonical/attach its CSP is the build-time one — present, and with no nonce to lose
+      csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…
+PASS  X4.canonical/attach the request id it was given comes back (workspace routes) or is not part of the shape
+      echoed parity-canonical-attach; body {"error":{"code":"CSRF_ORIGIN_REQUIRED","message":"A same-origin request is required.","requestId":"parity-canonical-att
+PASS  X5.canonical/jobs trailing slash is redirected before middleware, so it cannot re-enter the matcher
+      status 308; location /api/jobs
+PASS  X5.canonical/tools trailing slash is redirected before middleware, so it cannot re-enter the matcher
+      status 308; location /api/tools/merge-pdf
+PASS  X5.canonical/upload trailing slash is redirected before middleware, so it cannot re-enter the matcher
+      status 308; location /api/workspaces/cku1abc/documents/upload
+PASS  X5.canonical/version trailing slash is redirected before middleware, so it cannot re-enter the matcher
+      status 308; location /api/workspaces/cku1abc/documents/cku2def/versions/upload
+PASS  X5.canonical/attach trailing slash is redirected before middleware, so it cannot re-enter the matcher
+      status 308; location /api/workspaces/cku1abc/documents/cku2def/attachments
+PASS  X6.case/jobs a re-entrant spelling keeps every security header
+      status 404; missing []; wrong []
+PASS  X7.case/jobs reaches no upload handler at all: 404/405, never 2xx and never 5xx
+      /api/JOBS → 404 (route resolution is raw and case-sensitive, so this is a different file)
+PASS  X7b.case/jobs control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere
+      /api/jobs → 400
+PASS  X6.case/upload a re-entrant spelling keeps every security header
+      status 405; missing []; wrong []
+PASS  X7.case/upload reaches no upload handler at all: 404/405, never 2xx and never 5xx
+      /api/workspaces/cku1abc/documents/UPLOAD → 405 (route resolution is raw and case-sensitive, so this is a different file)
+PASS  X7b.case/upload control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere
+      /api/workspaces/cku1abc/documents/upload → 403
+PASS  X6.encoded/jobs a re-entrant spelling keeps every security header
+      status 404; missing []; wrong []
+PASS  X7.encoded/jobs reaches no upload handler at all: 404/405, never 2xx and never 5xx
+      /api/%6Aobs → 404 (route resolution is raw and case-sensitive, so this is a different file)
+PASS  X7b.encoded/jobs control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere
+      /api/jobs → 400
+PASS  X6.encoded/upload a re-entrant spelling keeps every security header
+      status 405; missing []; wrong []
+PASS  X7.encoded/upload reaches no upload handler at all: 404/405, never 2xx and never 5xx
+      /api/workspaces/cku1abc/documents/%75pload → 405 (route resolution is raw and case-sensitive, so this is a different file)
+PASS  X7b.encoded/upload control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere
+      /api/workspaces/cku1abc/documents/upload → 403
+PASS  X8.canonical/upload refused before the body was read, with the matcher no longer involved
+      status 401; 0.06 of 8 MiB sent when the answer arrived; 2ms
+PASS  X8.canonical/version refused before the body was read, with the matcher no longer involved
+      status 401; 0.06 of 8 MiB sent when the answer arrived; 2ms
+PASS  X8.canonical/attach refused before the body was read, with the matcher no longer involved
+      status 401; 0.06 of 8 MiB sent when the answer arrived; 3ms
+PASS  X9 the /_next/data prefix form is a miss, not a crash
+      status 404
+
+37/37 checks passed
+json → docs/evidence/final-prelaunch/proxy-parity-live-ARTIFACT-J9.json

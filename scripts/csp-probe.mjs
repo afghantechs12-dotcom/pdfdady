@@ -779,10 +779,22 @@ async function main() {
       // The connect-src case that matters: this fetch FOLLOWS a 302 to a signed
       // storage URL. Same-origin with local disk; the R2 account endpoint in
       // production, which is why storageOrigins exists in the policy builder.
+      //
+      // `/download`, not `/result`, and the difference is not cosmetic. `/result`
+      // exists only for the unified pipeline: its route 404s unless the stored row
+      // is `type: "processing"` (app/api/jobs/[id]/result/route.ts). Submission
+      // enters that pipeline only for `compress-pdf` AND with
+      // `unified_processing_pipeline` on (lib/server/processingPilot.ts, default
+      // OFF), so on a stock build POST /api/jobs writes a `pdf-tool` row and
+      // `/result` can only ever answer 404 — this check spent its life unable to
+      // pass, which is a probe that proves nothing rather than a product with a
+      // broken download. `/download` dispatches on the stored type and serves
+      // BOTH pipelines through the same ownership and completion gates, so it
+      // exercises the redirect whichever path the build selected.
       const out = await evaluate(`(async () => {
         try {
-          const r = await fetch('/api/jobs/${jobId}/result', { credentials: 'same-origin' });
-          if (!r.ok) return { error: 'result ' + r.status, finalUrl: r.url };
+          const r = await fetch('/api/jobs/${jobId}/download', { credentials: 'same-origin' });
+          if (!r.ok) return { error: 'download ' + r.status, finalUrl: r.url };
           const buf = new Uint8Array(await r.arrayBuffer());
           return { bytes: buf.length, header: String.fromCharCode(...buf.slice(0, 5)), finalUrl: r.url };
         } catch (e) { return { error: 'fetch failed: ' + ((e && e.message) || e) }; }

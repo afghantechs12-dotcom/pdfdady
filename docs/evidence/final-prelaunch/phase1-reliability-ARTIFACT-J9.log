@@ -1,0 +1,35 @@
+(node:78509) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  1a: a server is answering on the verification origin  — GET / → 200
+PASS  1: registering through the form lands the user in the authenticated app  — https://10.161.164.42:3051/workspaces
+PASS  2: the Workspace picker renders for a signed-in user  — status 200
+PASS  3: creating a Workspace navigates to that Workspace's own route  — https://10.161.164.42:3051/workspaces/cmtnl1eul006fuokx67c0a553?organizationId=cmtnl17d50069uokxb7f664kp
+PASS  3: the Workspace shell rendered, with the Workspace's name  — Skip to content | PDFDadi | P | Phase 1 Reliability Test | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TO
+PASS  3: NOT the generic server-error page — the original recording's outcome  — status 200
+PASS  4: reloading the Workspace URL resolves the same Workspace  — status 200
+PASS  5: navigating away from the Workspace works
+PASS  7: the picker lists the Workspace it just created  — /workspaces/cmtnl1eul006fuokx67c0a553?organizationId=cmtnl17d50069uokxb7f664kp /workspaces/cmtnl17d6006buokxkokk541t?organizationId=cmtnl17d50069uokxb7f664kp
+PASS  7: clicking the picker entry opens that same Workspace  — https://10.161.164.42:3051/workspaces/cmtnl1eul006fuokx67c0a553?organizationId=cmtnl17d50069uokxb7f664kp
+PASS  8: a copied URL opened in a new tab resolves the same Workspace  — Skip to content | PDFDadi | P | Phase 1 Reliability Test | Workspace | WORKSPACE | Home | Documents | Favorites | Rece
+PASS  9: a second Workspace gets its own id and its own route  — cmtnl1eul006fuokx67c0a553 vs cmtnl1yst006muokxrnjvre2z
+PASS  9: the picker shows both, each pointing at its own id  — /workspaces/cmtnl1yst006muokxrnjvre2z?organizationId=cmtnl17d50069uokxb7f664kp /workspaces/cmtnl1eul006fuokx67c0a553?organizationId=cmtnl17d50069uokxb7f664kp /workspaces/cmtnl17d6006buokxkokk541t?organizationId=cmtnl17d50069uokxb7f664kp
+PASS  10: a duplicate name is refused in the dialog, with no crash and no navigation  — A Workspace with this name already exists in this organization.
+PASS  10: two simultaneous submits create exactly one Workspace  — {"statuses":[201,409],"created":1,"id":"cmtnl28n8006ruokx4hznrz1o"}
+PASS  10: the Workspace that won the race is immediately openable  — status 200
+PASS  11: archiving succeeds and removes the Workspace from the active picker  — {"status":200,"listed":false}
+PASS  11: an archived Workspace still opens for its owner — restore needs a way in  — status 200
+PASS  11: restore works and returns the Workspace to the picker  — {"status":200,"listed":true}
+PASS  12: a nonexistent id renders the controlled not-found page with a 404  — status 404 — Skip to content
+PASS  12: a nonexistent id leaks no identifier and no stack  — Skip to content | This Workspace is not available |  | It may have been removed, or yo
+PASS  12: a malformed id renders the controlled not-found page with a 404  — status 404 — Skip to content
+PASS  12: a malformed id leaks no identifier and no stack  — Skip to content | This Workspace is not available |  | It may have been removed, or yo
+PASS  13: signing out of the first account succeeds  — 200
+PASS  13: another account gets the same controlled not-found, never the Workspace  — status 404 — Skip to content
+PASS  13: and the outsider's own picker does not advertise it either  — cmtnl2nhm0074uokx6330dq6w
+PASS  browser console: no hydration or unhandled-rejection errors
+PASS  browser console: no React or page exceptions beyond the deliberate access-denied logs
+NOT EXERCISED  observability: the refusals produced structured access-denied lines  — server logs are not replayed into the browser console outside `next dev`; pass --dev-log-forwarding against a dev server, or read the server's log
+NOT EXERCISED  observability: those lines carry ids only — no email, token, cookie or password  — server logs are not replayed into the browser console outside `next dev`; pass --dev-log-forwarding against a dev server, or read the server's log
+PASS  no document response in the whole walk was a 5xx
+
+29/29 checks passed · 2 not exercised

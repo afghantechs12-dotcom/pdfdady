@@ -1,0 +1,136 @@
+1. HEADERS FROM THE REAL ARTIFACT (stage: Content-Security-Policy)
+(node:74379) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   / sends Content-Security-Policy — 200
+  ok   / sends no content-security-policy-report-only (never both at once)
+  ok   / carries a nonce Next's own regex accepts — 2lPxCAvuqbDNg6oWcgu6vw==
+  ok   / nonce is >= 128 bits of base64 — 24 chars
+  ok   /pricing sends Content-Security-Policy — 200
+  ok   /pricing sends no content-security-policy-report-only (never both at once)
+  ok   /pricing carries a nonce Next's own regex accepts — SIp/SXEwLHbhsuRdaHh8gw==
+  ok   /pricing nonce is >= 128 bits of base64 — 24 chars
+  ok   /editor sends Content-Security-Policy — 200
+  ok   /editor sends no content-security-policy-report-only (never both at once)
+  ok   /editor carries a nonce Next's own regex accepts — JKUpCwtHIfrKxCGULEK/1Q==
+  ok   /editor nonce is >= 128 bits of base64 — 24 chars
+  ok   /tools/merge-pdf sends Content-Security-Policy — 200
+  ok   /tools/merge-pdf sends no content-security-policy-report-only (never both at once)
+  ok   /tools/merge-pdf carries a nonce Next's own regex accepts — ByHREpsw6m8+gbL2gTWHvA==
+  ok   /tools/merge-pdf nonce is >= 128 bits of base64 — 24 chars
+  ok   /api/health sends Content-Security-Policy — 200
+  ok   /api/health sends no content-security-policy-report-only (never both at once)
+  ok   /api/health carries a nonce Next's own regex accepts — FbHVLo0j+BFqEpf4S5019w==
+  ok   /api/health nonce is >= 128 bits of base64 — 24 chars
+  ok   every route sends the SAME policy modulo the nonce (one source of truth) — 1 distinct
+  ok   every route got a DISTINCT nonce (no reuse across requests) — 5 nonces / 5 requests
+  ok   two requests to the SAME route get different nonces — Lp/eErj5kiLInfG0BqL/ug== vs Zo7tyJTViXIrIyBlnnfMJg==
+  ok   the policy is non-trivial — 325 chars / 14 directives
+  ok   no wildcard source anywhere in the policy
+  ok   object-src is 'none'
+  ok   base-uri is locked to 'self'
+  ok   frame-ancestors is 'none'
+  ok   form-action is 'self'
+  ok   no 'unsafe-eval' in a production policy
+  ok   no 'wasm-unsafe-eval' in a production policy
+  ok   script-src carries no 'unsafe-inline' (the nonce is the whole mechanism) — 'nonce-X' 'strict-dynamic'
+  ok   script-src is the nonce + 'strict-dynamic' and nothing else — 'nonce-X' 'strict-dynamic'
+  ok   worker-src is 'self' (no blob:)
+  ok   reports go to a same-origin path via report-uri, on either scheme — /api/csp-report
+  ok   report-to is PRESENT on an https origin (the Reporting API works here) — csp-endpoint
+  ok   pre-existing header x-content-type-options is intact — nosniff
+  ok   pre-existing header x-frame-options is intact — DENY
+  ok   pre-existing header referrer-policy is intact — strict-origin-when-cross-origin
+  ok   pre-existing header permissions-policy is intact — camera=(), microphone=(), geolocation=()
+  ok   pre-existing header cross-origin-opener-policy is intact — same-origin
+  ok   Reporting-Endpoints defines the group report-to names — csp-endpoint="https://10.161.164.42:3051/api/csp-report"
+  ok   the report endpoint it names is this origin's own sink — csp-endpoint="https://10.161.164.42:3051/api/csp-report"
+  ok   the CSP response carries no secret-shaped value
+  ok   a static chunk URL was found in the served HTML — /_next/static/chunks/1jexzsn2qdw84.js
+  ok   static assets are covered by the policy too (worker context) — 281 chars
+  ok   the static-asset policy needs no nonce, and has none — script-src 'self'
+ FAIL  the static-asset policy advertises the same report-to group — report-uri /api/csp-report
+ FAIL  and the static response defines that group too (the worker inherits this one) — null
+
+1b. NONCE ON THE GENERATED SCRIPTS
+  ok   /: every executable <script> carries a nonce — 94 scripts, 0 unnonced
+  ok   /: there were scripts to check — 94
+  ok   /: the scripts carry the RESPONSE header's nonce — D3xe3bZxgHJD2PTpneGCxw==
+  ok   /pricing: every executable <script> carries a nonce — 35 scripts, 0 unnonced
+  ok   /pricing: there were scripts to check — 35
+  ok   /pricing: the scripts carry the RESPONSE header's nonce — /UxG4+QAKFulfPEMegRMOQ==
+  ok   /editor: every executable <script> carries a nonce — 25 scripts, 0 unnonced
+  ok   /editor: there were scripts to check — 25
+  ok   /editor: the scripts carry the RESPONSE header's nonce — ZptWbjEtqEchob3RpWtWRw==
+  ok   /tools/merge-pdf: every executable <script> carries a nonce — 38 scripts, 0 unnonced
+  ok   /tools/merge-pdf: there were scripts to check — 38
+  ok   /tools/merge-pdf: the scripts carry the RESPONSE header's nonce — WERqDsBLTOLJ1UvAmh5Icw==
+  ok   /login: every executable <script> carries a nonce — 24 scripts, 0 unnonced
+  ok   /login: there were scripts to check — 24
+  ok   /login: the scripts carry the RESPONSE header's nonce — dq25nk8D84QsaN+KCQJOdg==
+  ok   /blog: every executable <script> carries a nonce — 36 scripts, 0 unnonced
+  ok   /blog: there were scripts to check — 36
+  ok   /blog: the scripts carry the RESPONSE header's nonce — 5oZQwjuxp0uwBV/1FzrD0Q==
+
+2. BROWSER WALK
+  ok   homepage renders real content — 7140 chars
+  ok   every homepage violation carries disposition "enforce" — 0 violations, dispositions: none
+  ok   the homepage is silent under enforcement (the nonce is doing its job) — 0 violations
+  ok   pricing renders its plans — 2548 chars
+  ok   the Pro card's own /api/billing/summary request completed (connect-src 'self') — {"cardFetched":true,"transferred":451,"status":200,"plan":"guest","keys":8}
+  ok   a page-context fetch of the billing summary returns a real body — {"cardFetched":true,"transferred":451,"status":200,"plan":"guest","keys":8}
+  ok   a client-side link navigation worked (so React hydrated and the router runs) — {"href":"/","at":"/","sentinel":"alive","chars":7202}
+  ok   the editor mounted a page canvas — {"w":1082,"h":702}
+  ok   PDF.js rendered the imported document (so its worker started) — import={"ok":true} hitRegions=3
+  ok   the pdf.js worker script was fetched from our own origin — ["pdf.worker.min.3bl-ygmetel-a.mjs"]
+  ok   the page background rasterized (canvas → data: URL path exercised)
+  ok   both synthetic documents reached the merge tool — {"ok":true}
+  ok   the local merge produced a downloadable result — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Merg
+  ok   a Blob object URL was created and its download click violated nothing — {"scheme":"blob","newViolations":0}
+  ok   a processing job was accepted — 202 {"jobId":"cmtnk5xex001auowtcay3qam3"}
+  ok   the anonymous owner cookie is Secure in production
+  ok   the server job reached a terminal state, read by the BROWSER — completed
+ FAIL  the processed result downloaded through the 302 — {"error":"result 404","finalUrl":"https://10.161.164.42:3051/api/jobs/cmtnk5xex001auowtcay3qam3/result"}
+  ok   the signed result URL is same-origin with the page under local storage — https://10.161.164.42:3051/api/jobs/cmtnk5xex001auowtcay3qam3/result
+  ok   an account was created FROM THE PAGE, same-origin, behind the proxy — 201
+  ok   the AUTHENTICATED workspace shell rendered (so the Secure session cookie arrived) — /workspaces — Skip to content PDFDadi CP CSP Probe csp-probe-74379@pdfdadi
+  ok   the authenticated usage surface answers a page-context fetch — {"status":200,"keys":8}
+  ok   a representative AUTHENTICATED workspace mutation succeeded through the proxy — 200 {"workspace":{"id":"cmtnk5y8m001huowtd9aofoxw","organizationId":"cmtnk5y8l001fuo
+  ok   signup with the PUBLIC origin and an internal bind URL is accepted over HTTP too — 201 
+  ok   a CROSS-ORIGIN signup is refused — 403 CSRF_ORIGIN_REJECTED
+  ok   forged forwarded/Host headers cannot make an evil Origin acceptable — 403 CSRF_ORIGIN_REJECTED
+  ok   the Node session resolved a workspace actor (so the mutations below are authenticated) — cmtnk60mm001muowtxdo1t2sy
+  ok   an AUTHENTICATED mutation with the public origin is accepted — 200 
+  ok   the SAME authenticated mutation, same session cookie, foreign Origin, is refused — 403 CSRF_ORIGIN_REJECTED
+  ok   naming the INTERNAL bind origin is refused as well — 403 CSRF_ORIGIN_REJECTED
+
+3. REPORT ENDPOINT, END TO END
+  ok   the deliberate img-src violation was observed in the page — {"directive":"img-src","blocked":"https://csp-probe.invalid/pixel.png?token=sk_live_CSPPROBE_MUST_NOT_APPEAR&doc=payroll","disposition":"enforce","source":"","line":0}
+  ok   the browser IS evaluating the policy, with disposition "enforce" — enforce
+  ok   the browser's own report carries the full URL including the secret — (so redaction is load-bearing)
+  ok   the browser's report REACHED /api/csp-report — one log line
+  ok   the endpoint logged the blocked origin+path
+  ok   the endpoint did NOT log the query string or its secret
+  ok   the endpoint did NOT log the document's query string
+  ok   the endpoint logged no cookie, sample or policy text
+  ok   the endpoint logged NO nonce (the policy text never lands in a log)
+  ok   the log line names the directive it violated
+  ok   the endpoint logged it at warn, matching the live disposition — "level":"warn"
+  ok   a malformed report fails safely (204, not 500) — 204
+  ok   an oversized report is refused (413) — 413
+  ok   the page is unaffected by either
+  ok   GET on the report endpoint is 405 with an Allow header
+
+4. VIOLATION CLASSIFICATION
+  NOISE     img-src https://csp-probe.invalid/pixel.png?token=sk_live_CSPPROBE_MUST_NOT_APPEAR&doc=payroll  ×1  [report-endpoint-canary]
+  ok   every violation is classified (an unknown one must force a decision)
+  ok   no violation asks for a source the policy should grow
+  ok   the inline-script surface 3.1 measured is GONE (152 -> 0)
+  ok   no violation is a 3.2 REGRESSION — img-src https://csp-probe.invalid/pixel.png?token=sk_live_CSPPROBE_MUST_NOT_APPEAR&doc=payroll
+  ok   no uncaught JS error during the walk
+  ok   no worker failure in the browser log
+
+115/118 checks passed
+FAILED:
+  - the static-asset policy advertises the same report-to group (report-uri /api/csp-report)
+  - and the static response defines that group too (the worker inherits this one) (null)
+  - the processed result downloaded through the 302 ({"error":"result 404","finalUrl":"https://10.161.164.42:3051/api/jobs/cmtnk5xex001auowtcay3qam3/result"})

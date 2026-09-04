@@ -1,0 +1,91 @@
+# Proxy body-clone cost, measured per path class
+artifact BUILD_ID J9-02HdnjsxfHyAkc7Xg- · Next 16.3.4 · 2026-09-04T23:18:23Z
+proxyClientMaxBodySize (resolved, shipped): 125829120 bytes
+
+64 MiB multipart streamed, anonymous, measured against the cold artifact:
+
+EXCLUDED  upload route       403  read      1 MiB       3ms  cc=no-store
+EXCLUDED  version upload     403  read      1 MiB       2ms  cc=no-store
+EXCLUDED  attachments        403  read   2.25 MiB       2ms  cc=no-store
+EXCLUDED  tools              404  read   1.25 MiB       2ms  cc=-
+EXCLUDED  jobs               400  read   1.25 MiB       1ms  cc=-
+MATCHED   unrouted           400  read     64 MiB      16ms  cc=-
+EXCLUDED  unrouted (dotted)  404  read   1.25 MiB       2ms  cc=private, no-cache, no-store, max-age=0, must-revalidate
+MATCHED   page path          400  read     64 MiB      14ms  cc=-
+MATCHED   upload + 1 segment 400  read     64 MiB      17ms  cc=-
+EXCLUDED  unrouted _next     404  read   1.25 MiB       1ms  cc=private, no-cache, no-store, max-age=0, must-revalidate
+
+--- concurrency: does the clone stay resident? ---
+baseline RSS 579 MB · 4 concurrent x 100 MiB to /api/nope (unrouted, matched, anonymous)
+statuses [400,400,400,400] · bytes read ["100MiB","100MiB","100MiB","100MiB"]
+peak RSS 580 MB (+1 MB over baseline)
+RSS 6s after 580 MB
+
+--- does the plateau scale with concurrency? (same process, already plateaued) ---
+baseline RSS 577 MB · 8 concurrent x 100 MiB to /api/nope (unrouted, matched, anonymous)
+statuses [400,400,400,400,400,400,400,400] · bytes read ["100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB"]
+peak RSS 951 MB (+374 MB over baseline)
+RSS 6s after 984 MB
+
+baseline RSS 984 MB · 16 concurrent x 100 MiB to /api/nope (unrouted, matched, anonymous)
+statuses [400,400,400,400,400,400,400,400,400,400,400,400,400,400,400,400] · bytes read ["100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB","100MiB"]
+peak RSS 1728 MB (+744 MB over baseline)
+RSS 6s after 1795 MB
+
+NOTE on the table above: /api/tools/merge-pdf answering 404 is correct — merge is a
+client-side tool ({"error":"This tool does not support server processing."}). The
+server-tool control is /api/tools/compress-pdf, which answers 400 on a bogus body.
+
+================================================================================
+WHAT THIS MEASURES, AND WHAT IT DOES NOT
+================================================================================
+
+The A/B that isolates the matcher. `/api/nope` and `/api/nope.txt` both resolve to
+NO route handler — the only difference between them is that the second ends in a
+dot, so `.*\.[^/]*$` excludes it from the proxy matcher. Matched: 64 MiB read.
+Excluded: 1.25 MiB read, then 404. With the handler held constant at "none", that
+63 MiB is attributable to matcher membership and nothing else. It is the most
+direct evidence in this branch that excluding the five upload paths is
+load-bearing rather than cosmetic.
+
+Mechanism, read rather than inferred. `node_modules/next/dist/server/body-streams.js`
+`cloneBodyStream()` feeds two PassThroughs while counting bytes; past
+`proxyClientMaxBodySize` it pushes null into both and RETURNS EARLY on every
+later chunk — it never unpipes `input`. So the cap bounds what is RETAINED, not
+what is read off the socket: the full body is drained either way. `finalize()`
+then swaps the buffered clone in as the request body, which is why the cap has to
+stay above every advertised ceiling (next.config.mjs:132-158 records the
+measurement: 10481664 bytes went through, 10485760 did not).
+
+The residue scales with concurrency and is not returned:
+
+    concurrency   baseline   peak      delta     6s after
+    4 x 100 MiB    301 MB     562 MB   +261 MB    579 MB
+    8 x 100 MiB    577 MB     951 MB   +374 MB    984 MB
+   16 x 100 MiB    984 MB    1728 MB   +744 MB   1795 MB
+
+28 anonymous requests to a page URL took one process from 301 MB to 1795 MB. Per
+request it is bounded (120 MiB, the configured clone limit); in aggregate it is
+bounded only by concurrency, and no rate limiter stands in front of a page path —
+`checkUploadLimit` is wired into `workspaceUploadGate` on the five upload routes
+and TOOLS_RATE_LIMIT_PER_MIN into the tool routes.
+
+NOT CAUSED BY THIS BRANCH. The matcher has always claimed page paths; the
+exclusion only REMOVED five paths from it. Every large-body route the product
+advertises — the three uploads, /api/tools/[slug], /api/jobs — is already
+excluded, so on today's artifact the 120 MiB clone limit governs no legitimate
+body at all. It is retained deliberately (next.config.mjs:150-157) as the
+fallback should one of those paths ever be matched again.
+
+NOT FIXED HERE, and the reason is a trade-off that is the owner's to make.
+Lowering `proxyClientMaxBodySize` is the only in-app lever, and it re-arms the
+silent-truncation footgun that comment records for any future matched body route.
+The zero-cost lever is at the edge, which SERVER_SETUP.md does not mention at
+all today: a small `client_max_body_size` by default, raised only on the same
+path set the matcher excludes. Both are written up in the report; neither is
+taken unilaterally.
+
+Also measured, and correct product behaviour rather than a finding:
+POST /api/tools/merge-pdf answers 404 {"error":"This tool does not support server
+processing."} because merge is client-side. The server-tool control is
+/api/tools/compress-pdf, which answers 400 on a bogus body.
