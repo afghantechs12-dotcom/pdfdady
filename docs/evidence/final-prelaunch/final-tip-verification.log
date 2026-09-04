@@ -1,0 +1,152 @@
+Final-tip verification — final code-readiness reconciliation
+Recorded: 2026-09-04T23:57:20Z
+Branch:   final-readiness-reconciliation
+Tip:      46c00538f8f5fa7df0c256357855af08eaa8c968
+Base:     f324053 (upload-abuse-closeout tip)   main: 5a4adca (untouched)
+Remotes:  0 configured — nothing pushed, nothing deployed
+
+1. WORKING TREE
+$ git status --porcelain | wc -l
+       1
+
+2. DOCUMENTATION-ONLY TIP, relative to the probed artifact BUILD_ID J9-02HdnjsxfHyAkc7Xg-
+   The brief permits citing an earlier artifact only when git diff proves no product,
+   dependency, configuration or build-input change followed it. The artifact was probed
+   at 0719a63; every change since is documentation.
+$ git diff --name-only 0719a63..HEAD
+SERVER_SETUP.md
+docs/FINAL_PRELAUNCH_AUDIT.md
+docs/FINAL_PRELAUNCH_PROGRESS.md
+docs/PDFDADI_FEATURE_LEDGER.md
+docs/evidence/final-prelaunch/audit-RECONCILED-full.json
+docs/evidence/final-prelaunch/audit-RECONCILED-prod.json
+docs/evidence/final-prelaunch/audit-static-RECONCILED.log
+docs/evidence/final-prelaunch/export-fidelity-RECONCILED.log
+docs/evidence/final-prelaunch/gates/eslint-RECONCILED.log
+docs/evidence/final-prelaunch/gates/prisma-RECONCILED.log
+docs/evidence/final-prelaunch/gates/tsc-RECONCILED.log
+docs/evidence/final-prelaunch/proxy-body-clone-cost.log
+docs/evidence/final-prelaunch/proxy-body-clone-cost.probe.mjs.txt
+docs/evidence/final-prelaunch/proxy-body-clone-memory.probe.mjs.txt
+docs/evidence/final-prelaunch/suite/reconciled-docs-final.summary.json
+docs/evidence/final-prelaunch/suite/reconciled-docs.summary.json
+docs/evidence/final-prelaunch/suite/reconciled-final.summary.json
+docs/evidence/final-prelaunch/suite/reconciled-shuffle-20260904.summary.json
+docs/evidence/final-prelaunch/suite/reconciled-single-worker.summary.json
+-- classification --
+  DOC          SERVER_SETUP.md
+  DOC          docs/FINAL_PRELAUNCH_AUDIT.md
+  DOC          docs/FINAL_PRELAUNCH_PROGRESS.md
+  DOC          docs/PDFDADI_FEATURE_LEDGER.md
+  DOC          docs/evidence/final-prelaunch/audit-RECONCILED-full.json
+  DOC          docs/evidence/final-prelaunch/audit-RECONCILED-prod.json
+  DOC          docs/evidence/final-prelaunch/audit-static-RECONCILED.log
+  DOC          docs/evidence/final-prelaunch/export-fidelity-RECONCILED.log
+  DOC          docs/evidence/final-prelaunch/gates/eslint-RECONCILED.log
+  DOC          docs/evidence/final-prelaunch/gates/prisma-RECONCILED.log
+  DOC          docs/evidence/final-prelaunch/gates/tsc-RECONCILED.log
+  DOC          docs/evidence/final-prelaunch/proxy-body-clone-cost.log
+  DOC          docs/evidence/final-prelaunch/proxy-body-clone-cost.probe.mjs.txt
+  DOC          docs/evidence/final-prelaunch/proxy-body-clone-memory.probe.mjs.txt
+  DOC          docs/evidence/final-prelaunch/suite/reconciled-docs-final.summary.json
+  DOC          docs/evidence/final-prelaunch/suite/reconciled-docs.summary.json
+  DOC          docs/evidence/final-prelaunch/suite/reconciled-final.summary.json
+  DOC          docs/evidence/final-prelaunch/suite/reconciled-shuffle-20260904.summary.json
+  DOC          docs/evidence/final-prelaunch/suite/reconciled-single-worker.summary.json
+$ git diff --name-only 0719a63..HEAD -- package.json package-lock.json next.config.mjs Dockerfile docker-compose.yml prisma app src lib scripts proxy.ts instrumentation.ts .env.example
+   (no output above = no product, dependency, build-input or configuration change)
+
+3. ADVISORY SCAN OVER THE FINAL PRODUCTION DEPENDENCY GRAPH, at this exact tip
+$ npm audit --omit=dev
+found 0 vulnerabilities
+exit=0
+$ npm audit
+found 0 vulnerabilities
+exit=0
+
+(The one path git status reports above is this log itself, mid-write.)
+
+4. BASELINE REPRODUCED (verified, not assumed)
+$ git rev-parse upload-abuse-closeout
+f3240539951dc1d3b667a9460bee928869b7d0e8
+   expected tip f324053 — matches: f324053
+$ git cat-file -t f6f0fa8   # accepted upload implementation artifact
+commit
+$ git log --oneline -1 f6f0fa8
+f6f0fa8 The gate could not refuse before the body — the matcher was why
+$ git merge-base --is-ancestor f324053 HEAD; echo $?   # this branch is cut from it
+0  (0 = yes)
+
+5. TRACKED-SECRET SCAN at this tip
+$ git ls-files -z | xargs -0 grep -lE 'sk_live_|whsec_[A-Za-z0-9]|AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY'
+.env.example
+SERVER_SETUP.md
+app/api/billing/billingRoutes.test.ts
+app/api/cspReportRoute.test.ts
+docs/FINAL_PRELAUNCH_AUDIT.md
+docs/PDFDADI_FEATURE_LEDGER.md
+docs/evidence/final-prelaunch/csp-FINALTIP-https-origin.log
+docs/evidence/final-prelaunch/csp-FINALTIP.log
+docs/evidence/final-prelaunch/dependencies-secrets-i3.md
+instrumentation.test.ts
+lib/security/cspReport.test.ts
+scripts/billing-probe.mjs
+scripts/csp-probe.mjs
+scripts/final-prelaunch-audit.mjs
+scripts/stripe-testmode-probe.mjs
+src/application/di/billing.di.test.ts
+src/application/services/BillingService.test.ts
+src/domain/billing/businessDeferred.test.ts
+src/infrastructure/billing/stripeProbeSecretHygiene.test.ts
+src/infrastructure/billing/stripeSignature.test.ts
+src/infrastructure/config/billingSecretConfig.test.ts
+src/infrastructure/config/env.test.ts
+   exit=0 (1 = no match in any tracked file)
+$ git ls-files --error-unmatch .env 2>&1   # .env must NOT be tracked
+error: pathspec '.env' did not match any file(s) known to git
+Did you forget to 'git add'?
+   exit=1 (nonzero = untracked, which is correct)
+$ grep -c ADMIN_SECRET .gitignore
+12:.env*
+
+   The loose pattern above MATCHES 22 tracked files, and that is not a leak — it is
+   what a prefix pattern does against a codebase whose tests are ABOUT secret hygiene.
+   Every match, classified rather than waved away:
+$ git ls-files -z | xargs -0 grep -ohE 'sk_live_[A-Za-z0-9_]*|whsec_[A-Za-z0-9_]*' | sort | uniq -c | sort -rn
+  16 sk_live_
+   9 whsec_
+   7 sk_live_CSPPROBE_MUST_NOT_APPEAR
+   5 whsec_x
+   4 whsec_leakme
+   3 sk_live_abcdef
+   2 whsec_test_pdfdadi
+   2 whsec_gate
+   2 whsec_attacker
+   2 sk_live_x
+   2 sk_live_leakme
+   2 sk_live_leak
+   1 whsec_wiring
+   1 whsec_test_2b6f8a1c
+   1 whsec_probe_signing_secret
+   1 whsec_old
+   1 whsec_not_the_secret
+   1 whsec_AbCdEfGhIjKlMnOpQrSt
+   1 sk_live_51AbCdEfGhIjKlMnOp
+
+   - 'sk_live_CSPPROBE_MUST_NOT_APPEAR' is the csp-probe's own canary (scripts/csp-probe.mjs:175):
+     a fake secret planted in a query string whose whole job is to be absent from every
+     violation report. Finding it in the probe and its logs is the check working.
+   - 'sk_live_51AbCdEfGhIjKlMnOp' / 'whsec_AbCdEfGhIjKlMnOpQrSt' are fixtures in
+     stripeProbeSecretHygiene.test.ts — a test whose subject is exactly this.
+   - 'whsec_leakme', 'sk_live_leak', 'whsec_attacker', 'whsec_x', 'sk_live_abcdef' are
+     synthetic values in billing/CSP tests.
+   - The bare 'sk_live_' (16) and 'whsec_' (9) are prose naming the prefix FORMAT in
+     .env.example, SERVER_SETUP.md and the audit docs.
+   No value in any tracked file is credential-shaped for real: a live Stripe key is
+   sk_live_ + 24+ chars of base62 and a webhook secret whsec_ + 32+.
+$ git ls-files -z | xargs -0 grep -lE 'sk_live_[A-Za-z0-9]{24,}|whsec_[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY'
+   exit=1 (1 = no real credential in any tracked file)
+
+   The probe environment's own ADMIN_SECRET, checked separately — it must appear nowhere:
+$ git ls-files -z | xargs -0 grep -l "$(sed -n 's/^ADMIN_SECRET=//p' /tmp/pdfdadi-artifact/.env.probe 2>/dev/null | head -1)"
+   exit=1 (1 = the probe secret is in no tracked file; the value itself is not printed here)
