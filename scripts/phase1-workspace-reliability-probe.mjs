@@ -38,7 +38,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const ORIGIN = process.argv[2] ?? "http://localhost:3001";
+const ORIGIN = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "http://localhost:3001";
+// `next dev` replays server-side stderr into the browser console; a production
+// standalone build replays nothing. Two rows below can only observe server log
+// lines through that replay, so they are exercised on request rather than
+// guessed at — see `skip` for what happens without the flag.
+const DEV_LOG_FORWARDING = process.argv.includes("--dev-log-forwarding");
 const CHROME =
   process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const DEBUG_PORT = 9412;
@@ -48,6 +53,12 @@ const results = [];
 function check(label, pass, detail = "") {
   results.push({ label, pass: !!pass, detail: String(detail).slice(0, 300) });
   console.log(`${pass ? "PASS" : "FAIL"}  ${label}${detail ? `  — ${detail}` : ""}`);
+}
+/** A row this run cannot observe. Counted separately: neither a pass to lean on
+ *  nor a failure to chase. */
+function skip(label, reason) {
+  results.push({ label, pass: true, skipped: true, detail: reason });
+  console.log(`NOT EXERCISED  ${label}  — ${reason}`);
 }
 
 async function main() {
@@ -69,6 +80,12 @@ async function main() {
       "--disable-gpu",
       "--hide-scrollbars",
       "--window-size=1440,1100",
+      // An https origin here is the audit's TLS front with a self-signed
+      // certificate. Without this the browser renders its interstitial and every
+      // row fails with "Your connection is not private" — a probe fault that
+      // reads exactly like a broken product. Same flag `scripts/lib/probe-browser.mjs`
+      // uses for `insecure: true`.
+      ...(ORIGIN.startsWith("https:") ? ["--ignore-certificate-errors"] : []),
       "about:blank",
     ],
     { stdio: "ignore" },
@@ -473,17 +490,30 @@ async function main() {
     unexplained.length === 0,
     unexplained.slice(0, 3).join(" || "),
   );
-  check(
-    "observability: the refusals produced structured access-denied lines",
-    forwardedLogs.length >= 2 &&
-      forwardedLogs.every((line) => /"category":"WORKSPACE_(NOT_FOUND|ID_INVALID|ACCESS_DENIED)"/.test(line)),
-    `${forwardedLogs.length} lines`,
-  );
-  check(
-    "observability: those lines carry ids only — no email, token, cookie or password",
-    !forwardedLogs.some((line) => /@example\.test|passwordHash|cookie|token|session=|Phase1-Probe-Password/i.test(line)),
-    forwardedLogs[0] ?? "",
-  );
+  // Against a production build these two are structurally 0-and-vacuous: no
+  // replay means no line to read, so the first row fails for the transport and
+  // the second passes because an empty list contains no email either. Reporting
+  // them as not exercised is the honest outcome; the same property is then
+  // verified from the server's own log, which is where the lines actually are
+  // (docs/evidence/final-prelaunch/f5-cross-tenant-final.log).
+  if (!DEV_LOG_FORWARDING) {
+    const why = "server logs are not replayed into the browser console outside `next dev`; pass --dev-log-forwarding against a dev server, or read the server's log";
+    skip("observability: the refusals produced structured access-denied lines", why);
+    skip("observability: those lines carry ids only — no email, token, cookie or password", why);
+  } else {
+    check(
+      "observability: the refusals produced structured access-denied lines",
+      forwardedLogs.length >= 2 &&
+        forwardedLogs.every((line) => /"category":"(WORKSPACE|ORGANIZATION)_(NOT_FOUND|ID_INVALID|ACCESS_DENIED|ROLE_MISSING)"/.test(line)),
+      `${forwardedLogs.length} lines`,
+    );
+    check(
+      "observability: those lines carry ids only — no email, token, cookie or password",
+      forwardedLogs.length >= 2 &&
+        !forwardedLogs.some((line) => /@example\.test|passwordHash|cookie|token|session=|Phase1-Probe-Password/i.test(line)),
+      forwardedLogs[0] ?? "",
+    );
+  }
   const serverErrors = documentStatuses.filter((row) => row.status >= 500);
   check(
     "no document response in the whole walk was a 5xx",
@@ -494,8 +524,13 @@ async function main() {
   sock.close();
   chrome.kill("SIGKILL");
 
-  const failed = results.filter((row) => !row.pass);
-  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  const failed = results.filter((row) => !row.pass && !row.skipped);
+  const skipped = results.filter((row) => row.skipped);
+  const exercised = results.length - skipped.length;
+  console.log(
+    `\n${exercised - failed.length}/${exercised} checks passed` +
+      (skipped.length > 0 ? ` · ${skipped.length} not exercised` : ""),
+  );
   if (failed.length > 0) {
     console.log("FAILED:");
     for (const row of failed) console.log(`  - ${row.label} — ${row.detail}`);

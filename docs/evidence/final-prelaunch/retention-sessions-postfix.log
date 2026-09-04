@@ -1,0 +1,35 @@
+SESSION AND FILE RETENTION, OBSERVED ON THE FINAL-HEAD ARTIFACT — audit host, 2026-09-03/04
+HEAD 6e09c28 · running artifact BUILD_ID Y8FTkWwDAOHlzSbHMICnZ · LOG_LEVEL=debug
+
+Why this file exists. The earlier runtime observation (retention-r19-r20.md) was
+made on BUILD_ID Q0Vyn2Fqoa0Yn_j5UK-H-, built at bfed32f — which is BEFORE 371f4ef,
+the commit that added session pruning. That log's line
+`sessions already expired and still stored: 1` is therefore the SYMPTOM the fix
+addresses, not evidence of the fix working. It could not be, and it was not claimed
+to be. This file is the post-fix runtime evidence, on an artifact that contains it.
+
+$ grep 'Retention sweep' /tmp/audit-final-server.log
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-03T23:11:06.460Z","purged":324,"intentsPruned":0,"sessionsPruned":1}
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-03T23:26:06.449Z","purged":10,"intentsPruned":0,"sessionsPruned":0}
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-03T23:41:06.444Z","purged":0,"intentsPruned":0,"sessionsPruned":0}
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-03T23:56:06.440Z","purged":0,"intentsPruned":0,"sessionsPruned":0}
+
+Two facts are readable from those four lines and neither comes from a unit test:
+
+1. `sessionsPruned: 1` — the recurring sweep DELETED a genuinely expired session row
+   in a deployed standalone artifact. The field did not exist before 371f4ef.
+2. The sweep re-schedules itself: 23:11:06 → 23:26:06 → 23:41:06 → 23:56:06, four
+   consecutive firings exactly 900 s apart, with no request touching it. Every unit
+   test in this repository builds the handler itself, so all of them stay green in a
+   deployment where the lazy `ensureWorkerReady()` never fires and nothing expires.
+
+$ sqlite3 /tmp/audit-final-db.db \
+    "select count(*), sum(case when expiresAt < strftime('%s','now')*1000 then 1 else 0 end) from sessions;"
+sessions total: 27  ·  still expired and stored: 0
+expiresAt sqlite type: integer
+
+The sqlite type is checked because a millisecond epoch stored as TEXT compares
+lexicographically and the prune would silently match nothing.
+
+Purge counts fall to zero and stay there (324 → 10 → 0 → 0) rather than repeating a
+number, which is what a sweep that deletes rather than merely selects looks like.

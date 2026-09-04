@@ -1,0 +1,184 @@
+F5 / R11 — WORKSPACE RELIABILITY AND TENANT ISOLATION, IN A REAL BROWSER
+HEAD 6e09c28 · audit host, 2026-09-04 · against the standalone artifact behind the TLS front
+$ node scripts/phase1-workspace-reliability-probe.mjs https://172.20.10.2:3051
+
+R11 was NOT EXERCISED by the static harness: cross-tenant refusal is a runtime
+property, and no test in this repository renders a Workspace route (vitest runs
+environment: "node"). This run exercises it end to end — two real accounts
+registered through the real form, in one real browser, against one real server.
+
+── run result ─────────────────────────────────────────────────────────
+30/31 checks passed.  The one failure is a PROBE DEFECT; see below.
+
+The rows that carry R11:
+   PASS  13: signing out of the first account succeeds — 200
+   PASS  13: another account gets the same controlled not-found, never the
+             Workspace — status 404 — "This Workspace is not available"
+   PASS  13: and the outsider's own picker does not advertise it either
+             — /api/workspaces returned only cmtm6wkgr00cquo77wbku91p4
+
+and the rows that make those non-vacuous:
+   PASS  3:  creating a Workspace navigates to that Workspace's own route
+             — /workspaces/cmtm6vbvh00c1uo777pdbj4ud?organizationId=cmtm6v4dq00bvuo773fp0e6ec
+   PASS  3:  the Workspace shell rendered, with the Workspace's name
+   PASS  3:  NOT the generic server-error page — the original defect's outcome
+   PASS  12: a nonexistent id renders the controlled not-found page with a 404
+   PASS  12: a malformed id renders the controlled not-found page with a 404
+   PASS  12: neither leaks an identifier or a stack
+   PASS  10: two simultaneous submits create exactly one Workspace
+             — {"statuses":[201,409],"created":1}
+   PASS  11: archive removes it from the picker; restore returns it
+   PASS  no document response in the whole walk was a 5xx
+
+So the outsider is refused a Workspace that demonstrably existed and
+demonstrably rendered for its owner seconds earlier. That is the isolation
+claim, and it cannot pass by nothing having been created.
+
+── the first run of this probe failed ~18 rows. Cause: the probe, not the product
+Every row after step 1 reported chrome-error://chromewebdata/ and "Your
+connection is not private". The audit origin is a self-signed TLS front, and this
+probe launched Chrome without --ignore-certificate-errors — the flag
+scripts/lib/probe-browser.mjs:136 already passes for insecure: true. Row 1a
+passed alone because it is a node fetch under NODE_TLS_REJECT_UNAUTHORIZED=0.
+Fixed in the probe (one argv line, commented); rerun gave the 30/31 above.
+Classified PROBE DEFECT.
+
+── the one remaining FAIL, and why it is also the probe ────────────────
+   FAIL  observability: the refusals produced structured access-denied lines
+         — 0 lines
+
+It counts lines in the BROWSER console. The probe's own comment says why that
+ever worked: "next dev replays server-side console output into the browser
+console". This run drove a production standalone build, which replays nothing —
+so the count is structurally 0 there no matter how the product behaves.
+
+The server's own log, same run, same window:
+$ grep -c 'workspace.access.denied' /tmp/audit-final-server.log   → 4
+$ grep -cE '@example|password|cookie|token' <those lines>          → 0
+  {"level":"warn","msg":"workspace.access.denied","ts":"2026-09-04T00:02:21.840Z",
+   "operation":"WorkspaceService.get","category":"WORKSPACE_NOT_FOUND",
+   "stage":"workspace_unavailable","actorId":"cmtm6v4do00buuo77a4c0dwte",
+   "organizationId":"…","workspaceId":"ckzzzzzzzzzzzzzzzzzzzzzzz",
+   "workspaceExists":false,"membershipExists":false}
+Ids only — no email, no password, no cookie, no token. R18 holds.
+
+── then the log itself was checked, and it held a real gap ─────────────
+Those 4 lines are steps 12's two ids and two earlier runs. Step 13 — the actual
+cross-tenant navigation — produced NO line. Rather than reason about it, each
+refusal shape was replayed one at a time against the running artifact, waiting
+2s after each so nothing was missed to buffering:
+
+  request (outsider session, first account's workspace id)   http  new log lines
+  --------------------------------------------------------   ----  -------------
+  PAGE /workspaces/<id>?organizationId=<FIRST ACCOUNT'S org>  404        0
+  PAGE /workspaces/<id>            (no organizationId)        404        1
+  API  /api/workspaces/<id>                                   404        1
+  PAGE /workspaces/<id>            (no session at all)        307        0
+
+All four answers are correct: the 404s render "This Workspace is not available"
+with 0 occurrences of the other tenant's Workspace name, and an anonymous
+visitor is redirected to login rather than told the Workspace exists.
+
+But the first row — the URL shape the probe used, and the shape a deliberate
+cross-tenant probe has, because it NAMES the other tenant's organization —
+was the one refusal that logged nothing. Cause, in the source:
+
+  src/application/services/workspacePageData.ts (before the fix)
+    const org = organizationId ? orgs.find(item => item.id === organizationId) : orgs[0];
+    if (!org) notFound();
+
+The organization guard runs BEFORE any Workspace lookup, so
+WorkspaceService.get — the one place that logs a refusal — is never reached.
+Correct answer, invisible refusal.
+
+── the fix ────────────────────────────────────────────────────────────
+Both page-level org refusals now emit the same structured line, ids only:
+
+  workspace.access.denied  operation=workspacePageActor
+    category=ORGANIZATION_NOT_FOUND      stage=organization_unavailable
+    category=ORGANIZATION_ROLE_MISSING   stage=role_unavailable
+    actorId=<cuid>  organizationId=<the id the URL named, or null>
+
+An anonymous visitor is deliberately NOT logged: that path is a redirect to
+login, and a line there would be written for every crawler that finds a
+Workspace URL.
+
+Covered by src/application/services/workspacePageData.test.ts — 5 tests, the
+container's real resolution path with fakes registered for the three tokens the
+function resolves. Not a source scan: the assertions call the function and read
+the logger.
+
+  $ npx vitest run src/application/services/workspacePageData.test.ts
+    Tests  5 passed (5)
+  $ npx tsc --noEmit                                        exit=0
+  $ npx eslint <the two files>                               exit=0
+
+MUTATION (both denyOrganization calls put back to the pre-fix `notFound()`):
+    Tests  3 failed | 2 passed (5)
+  × refuses a URL naming another tenant's organization, and says so in the log
+  × logs the refusal with ids only — no email, name, cookie or token
+  × logs the separate case of a membership that no longer carries a role
+  ✓ resolves the actor's own organization without logging a refusal
+  ✓ sends an unauthenticated visitor to the login page instead
+REVERTED → Tests 5 passed (5).
+
+The two that stay green under the mutation are the two that must: they assert
+the paths where no refusal happens. A third assertion initially stayed green
+under the mutation too — JSON.stringify({}) contains no email either — so it now
+asserts the line exists before asserting what is absent from it.
+
+── re-measured against a REBUILT artifact, not the one that had the gap ─
+$ npm run build            exit=0   BUILD_ID Xh7-umLcPW6vE-EVOjOYB
+$ node .next/standalone/server.js  (health 200)
+
+  request (signed-in outsider, first account's workspace id)  http  audit lines
+  ---------------------------------------------------------   ----  -----------
+  PAGE /workspaces/<id>?organizationId=<the OTHER tenant's>    404       1
+    → operation=workspacePageActor category=ORGANIZATION_NOT_FOUND
+      stage=organization_unavailable actorId=cmtm6wkgo… organizationId=cmtm6v4dq…
+  PAGE /workspaces/<id>   (no organizationId)                  404       1
+    → operation=WorkspaceService.get category=WORKSPACE_NOT_FOUND
+      stage=workspace_unavailable  workspaceId=cmtm6vbvh…
+  API  /api/workspaces/<id>                                    404       1
+    → operation=WorkspaceService.get category=WORKSPACE_NOT_FOUND
+  PAGE /workspaces/<id>   (no session at all)                  307       0
+
+  leaks-other-tenant-name: 0 in all four bodies
+  and the owner is unaffected: first account → own Workspace, http=200, name present
+
+The `organizationId` in the first line is the id the URL NAMED — the other
+tenant's — which is the field that makes the line worth having.
+
+── the probe's two console-reading rows, after this ────────────────────
+They now report NOT EXERCISED with the reason unless `--dev-log-forwarding` is
+passed, and under that flag the ids-only row additionally requires the lines to
+exist before asserting what is absent from them. One false red and one vacuous
+green, both removed. The probe's origin argument also now tolerates flags.
+
+── the probe rerun on the rebuilt artifact ─────────────────────────────
+$ NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/phase1-workspace-reliability-probe.mjs \
+    https://172.20.10.2:3051
+   29/29 checks passed · 2 not exercised
+   PASS  13: another account gets the same controlled not-found, never the
+             Workspace — status 404
+   PASS  13: and the outsider's own picker does not advertise it either
+   NOT EXERCISED  the two rows that can only read a dev server's replayed log
+
+And the line that was missing now exists for the BROWSER walk, not just for a
+curl — the server's log at the moment step 13 ran:
+
+  00:39:49.992  WorkspaceService.get   WORKSPACE_NOT_FOUND  workspaceId=ckzzzzzz…
+  00:39:53.013  WorkspaceService.get   WORKSPACE_NOT_FOUND  workspaceId=%20
+  00:40:06.077  workspacePageActor     ORGANIZATION_NOT_FOUND  orgId=cmtm87b2c…   ← step 13
+
+  6 access-denied lines in the log · 0 containing an email, password, cookie or token
+
+(The probe registers a throwaway account per run, so the ids differ from the
+pre-fix run above. That is the point: the property was re-measured, not re-read.)
+
+── verdict ────────────────────────────────────────────────────────────
+F5 / R11: PASS — a cross-tenant read is refused end to end, in a real browser,
+against the deployed artifact, and the refusal is now auditable in every shape it
+comes in. One probe defect (TLS) and one probe defect (browser-console
+observability) were fixed in the probe; one real observability gap was fixed in
+the product.

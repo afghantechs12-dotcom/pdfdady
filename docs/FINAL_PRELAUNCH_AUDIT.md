@@ -291,6 +291,221 @@ leak no path, stack, or command line. Both pass.
 file." about a perfectly valid PDF. Fixed in `46baf5e`; the row now reads
 `[PASS] ocr-pdf 56235 bytes, starts "%PDF", named multipage-fixture-ocr.pdf`.
 
+**Re-run at final HEAD** (`tool-matrix-final.log` / `.json`, BUILD_ID
+`Y8FTkWwDAOHlzSbHMICnZ`), because the `ocr-pdf` fix landed after the first matrix and
+an old matrix cannot describe a new artifact. The result is identical row for row:
+**29/29 exercised, 0 product failures, 2 environmental, 3 not exercised, 34 rows for
+32 tools**, with `ocr-pdf` at the same 56235 bytes. Host binaries as measured by the
+probe's own header: `gs=present qpdf=present pdftoppm=present pdfinfo=present
+tesseract=present ocrmypdf=present soffice=absent`.
+
+## §7 — Core workflow acceptance
+
+**Verdict: `PASS`** — 155/156, zero product failures, zero probe failures, on the
+configuration that actually ships. Evidence:
+`docs/evidence/final-prelaunch/workflow-probe-final-default.log` (HEAD `371f4ef`
+app code = final HEAD app code, BUILD_ID `Y8FTkWwDAOHlzSbHMICnZ`,
+`PROCESSING_PIPELINE` unset) and the independent from-scratch reproduction in
+`fresh-env-final.log` (§5), which reaches the same 155/156 in **both**
+configurations.
+
+The probe drives a real Chromium over CDP against the deployed standalone artifact
+behind a TLS front, registers its own throwaway account, and walks sixteen journeys
+end to end:
+
+| | Journey |
+|---|---|
+| SETUP | a real account and a real Workspace |
+| A | a browser result opens in the editor, and the bytes never leave |
+| B | a browser result becomes ONE Workspace document, and stays one |
+| C | a server job's output is copied server-to-server, never through the page |
+| D | the Workspace editor can publish a version of the document it holds |
+| E | publishing your own version does not become a conflict on the next edit |
+| F | an intentional open is recorded, and nothing else pretends to be one |
+| G | the activity feed names the document, the version and the tool |
+| H | a signed-out result offers sign-in and still opens in the editor |
+| H+ | nothing broke quietly while all of that happened |
+| I | unsupported output, and the server-side half of the same rule |
+| I′ | a non-PDF cloud result, with no test behaviour anywhere in the product |
+| J | a member of several Workspaces chooses where the result goes |
+| K | a lost response and a retry produce the SAME document, not a second |
+| L | what the Workspace holds is what the tool made — parsed, not counted |
+| M | a genuinely stale second session is refused, and told the truth |
+| N | a save intention decides whether two saves are one, and content does not |
+
+Three of those deserve to be called out, because they are the ones a green unit
+suite is compatible with failing:
+
+- **K — idempotency.** A lost response and a retry produce the *same* document. The
+  suite cannot see this: it needs a real network round trip that is abandoned.
+- **L — content, parsed not counted.** What the Workspace holds is compared by
+  parsing the stored PDF, not by comparing a byte count. A byte count passes when
+  the wrong document of the right size is stored.
+- **I′ — a non-PDF cloud result.** This is the journey that had never once armed on
+  the shipped configuration, and it is the reason §3 exists. See below.
+
+**The one non-pass is environmental and is the same row in every run:**
+
+```
+FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is
+unreachable on this machine — every non-PDF-output tool is server-run and its
+binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here.
+```
+
+That is a missing system binary, not a defect, and it is not called a PASS. The
+route branch it would exercise is covered by `saveToWorkspaceRoute.test.ts`, and the
+browser behaviour that branch guards is covered by I′ — which does run here.
+
+**Both probe defects found in this group were the probe's, and both were fixed in
+the probe rather than in the product.** They are recorded because a probe that
+misreports is worse than a probe that fails:
+
+1. **N3 raced the ingestion.** The first save returns 409 with a body whose own
+   `preparation: "processing"` says why; the probe discarded the body and read the
+   status as a product failure.
+2. **I′ armed nothing on the shipped default.** The product has **two job
+   transports that name the output mime differently** — the polled
+   `/api/jobs/:id` response carries `job.outputMimeType` alongside
+   `resultAvailable`, while the SSE terminal frame from `/api/jobs/:id/progress`
+   carries `result.mimeType` and **no `resultAvailable` at all**. The probe's retype
+   hook only understood the polled shape, so outside `PROCESSING_PIPELINE=on` it
+   rewrote nothing and the journey passed vacuously. It now handles both frame
+   shapes, and on the shipped default it reports `rewrites=1` — the hook fired — and
+   all four I′ rows pass against real behaviour: `Download` **is** offered,
+   `Open in Editor` is offered **nowhere**, `selects=0 chooseCopy=false`, and
+   `0 → 0` handoff entries were written.
+
+That second one is the substantive result of this whole audit group. The gap it
+closed was not a failing assertion; it was an assertion that could not fail, in the
+only configuration that ships.
+
+## §8 — Authentication and sessions
+
+**Verdict: `PASS` on the mechanics, with one `LAUNCH DECISION REQUIRED`** —
+account recovery does not exist. Nothing below is a source scan: every row was
+measured against the running standalone artifact (BUILD_ID `Xh7-umLcPW6vE-EVOjOYB`)
+over the TLS front, and no token value appears in this report or in any evidence
+file.
+
+The whole end-user auth surface is four routes — `login`, `logout`, `me`,
+`signup` (with `register` as a delegating alias). There is no fifth.
+
+| | Claim | Measured |
+|---|---|---|
+| E1 | the session cookie is httpOnly, sameSite and secure | `pdfdadi_session=<masked>; Path=/; Max-Age=43200; Secure; HttpOnly; SameSite=lax` |
+| E2 | logout revokes server-side, not just in the browser | session row count 6 → 5 on logout, and **replaying the saved pre-logout cookie returns 401** `UNAUTHORIZED` |
+| E3 | login rotates the token, closing session fixation | two consecutive logins issue two different cookies |
+| E4 | a wrong password is indistinguishable from an unknown email | both: `401 INVALID_CREDENTIALS` · `"Email or password is incorrect."` — byte-identical |
+| R9 | sessions expire and expired rows are actually removed | `Max-Age=43200` (12 h) and the retention sweep reported `sessionsPruned: 1`, then `0` expired rows remaining |
+
+E2 is the row worth stating twice, because "logout" that only clears a cookie is
+indistinguishable from real revocation in a browser: the pre-logout cookie was
+saved to a separate jar, replayed after the logout returned 200, and answered
+`401` with `"Your session has expired. Please sign in again."` The record is gone
+from `sessions`, so a stolen cookie dies with the logout.
+
+R9's expiry half is in `docs/evidence/final-prelaunch/retention-sessions-postfix.log`
+— four self-rescheduled sweeps 15 minutes apart, `sessionsPruned: 1` on the one
+that had something to prune, `sessions total: 27 · still expired and stored: 0`,
+and `expiresAt` stored as a sqlite `integer` (the type the sweep's comparison
+needs; a text column would have made the sweep silently no-op).
+
+**Brute force.** `loginRateLimiter` is 10 attempts per 60 s, `signupRateLimiter`
+10 per hour, both per client
+([src/application/services/authHttp.ts:112-113](src/application/services/authHttp.ts#L112-L113)).
+
+**Two items are recorded as they are, not as one would wish** (both
+`MANUAL REVIEW REQUIRED`, both pre-existing):
+
+- **E5 — the admin session is a stateless HMAC** with a 7-day maximum age, so an
+  individual admin token cannot be revoked; rotating `ADMIN_SECRET` invalidates all
+  of them at once. That is a deliberate design for a single-operator panel, and it
+  is a different guarantee from the end-user session above. Accept or schedule.
+- **E6 — no default admin password ships**, and an initialized deployment cannot be
+  re-run through setup. Verified by hand that no password hash is seeded in the
+  shipped store.
+
+**`LAUNCH DECISION REQUIRED` — there is no account recovery and no email
+verification.** Measured, not assumed: the `users` table has no verification
+column (`id, email, provider, providerExternalId, createdAt, updatedAt,
+passwordHash, name`), no route or page exists for verify / reset / forgot, and the
+only password-change endpoint in the repository is
+[app/api/admin/password/route.ts](app/api/admin/password/route.ts), which is behind
+`requireAdmin` and belongs to the admin panel. So a user who forgets their password
+loses the account and its Workspace documents, and an email address is never proven
+to belong to the person who typed it. This is not a defect in the code that exists
+— it is a product decision that has not been made, and this audit does not make it.
+
+## §9 — Authorization and tenant isolation
+
+**Verdict: `PASS`, and R11 is now exercised at runtime rather than reasoned about.**
+Evidence: `docs/evidence/final-prelaunch/f5-cross-tenant-final.log`.
+
+The static harness rows hold at final HEAD:
+
+| | Claim |
+|---|---|
+| F1 | every Workspace API route resolves the actor server-side |
+| F2 | no Workspace route trusts an organization id from the client without re-resolving it |
+| F3 | every mutating Workspace route enforces same-origin |
+| F4 | the job routes authorize per job, not per session — via `resolveJobActor` / `legacyJobAccessDenied` / `processingResultStream` / `processingResultRedirect` |
+
+F5 was `NOT EXERCISED` there, and honestly so: a static harness cannot provision
+two accounts. It is now exercised in a real browser —
+`scripts/phase1-workspace-reliability-probe.mjs`, two real accounts registered
+through the real form, **30/31 checks passed**:
+
+- a Workspace is created, opens for its owner, and shows its own name (so the
+  refusal below is a refusal of something that demonstrably existed);
+- a second account requesting that Workspace's URL gets **`404`** and the
+  controlled "This Workspace is not available" page — never the Workspace, never
+  the generic server-error page;
+- the outsider's own picker (`GET /api/workspaces`) does not list it either;
+- a nonexistent id and a malformed id get the same controlled answer, leaking no
+  identifier and no stack;
+- no document response in the whole walk was a 5xx.
+
+**The one failing row is a probe defect, and chasing it found a real gap.** The row
+counts `workspace.access.denied` lines in the *browser* console, which only works
+under `next dev` — that server replays its stderr into the page, a production
+standalone build replays nothing, so the count is structurally 0 there whatever the
+product does. The server's own log held the lines, ids only, no email or token.
+
+But replaying each refusal shape one at a time against the artifact showed that
+one of them logged nothing at all:
+
+| request by a signed-in outsider | http | audit line |
+|---|---|---|
+| `/workspaces/<id>?organizationId=<the OTHER tenant's org>` | 404 | **0 — before the fix** |
+| `/workspaces/<id>` (no `organizationId`) | 404 | 1 |
+| `/api/workspaces/<id>` | 404 | 1 |
+| `/workspaces/<id>` with no session at all | 307 → login | 0, deliberately |
+
+Every answer was already correct — no 404 body contained the other tenant's
+Workspace name — but the shape that *names another tenant's organization*, which is
+what a deliberate cross-tenant probe looks like, was invisible in the log. The
+organization guard in `workspacePageActor` runs before any Workspace lookup, so
+`WorkspaceService.get` — the one place that logs a refusal — was never reached.
+
+Fixed in
+[src/application/services/workspacePageData.ts](src/application/services/workspacePageData.ts):
+both page-level organization refusals now emit the same ids-only line
+(`operation=workspacePageActor`, `category=ORGANIZATION_NOT_FOUND` or
+`ORGANIZATION_ROLE_MISSING`, `actorId`, and the `organizationId` the URL named).
+An anonymous visitor is still not logged — that path is a redirect to login, and a
+line there would be written for every crawler that finds a Workspace URL.
+
+Verified after rebuilding the artifact: the first row above now produces exactly
+one line carrying the other tenant's org id, the other two still produce exactly
+one each, the anonymous row still produces none, and the owner still opens their
+own Workspace with `200`. Covered by five tests in
+`src/application/services/workspacePageData.test.ts`, of which **three go red**
+when the fix is reverted; `tsc` and `eslint` clean.
+
+The probe's two console-reading rows now report `NOT EXERCISED` with the reason
+instead of one false red and one vacuous green — the second of them passed with an
+empty list, because `JSON.stringify({})` contains no email either.
+
 ## §10 — File and processing security: the upload ceilings
 
 `docs/evidence/final-prelaunch/upload-ceiling.log` records both directions of this
