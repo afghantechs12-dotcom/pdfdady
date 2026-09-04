@@ -1,0 +1,113 @@
+{
+  "label": "m5-shuffle-7375",
+  "exitCode": 0,
+  "green": true,
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m5-shuffle-7375.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m5-shuffle-7375.junit.xml --sequence.shuffle --sequence.seed=7375",
+  "startedAt": "2026-09-04T22:00:07.941Z",
+  "durationMs": 22811,
+  "run": {
+    "seed": "7375",
+    "shuffled": true,
+    "maxWorkers": "vitest default",
+    "repeats": null,
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      90.54638671875,
+      33.37109375,
+      16.22998046875
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7424,
+    "passed": 7424,
+    "failed": 0,
+    "pending": 0,
+    "totalSuites": 1939,
+    "totalFiles": 384
+  },
+  "reportError": null,
+  "failures": [],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 2664.3023749999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 2534.1151250000003
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth never renders a billing period the store did not give",
+      "durationMs": 2024.520542
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/layout/mobileNavA11y.test.ts",
+      "fullName": "U4 — mobile navigation is keyboard accessible mounts no drawer at all until it is opened",
+      "durationMs": 1738.9556669999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 1630.601583
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/tools/destinationSelectorA11y.test.ts",
+      "fullName": "U13 — destination selector remains accessible shows no selector before the destinations are known",
+      "durationMs": 999.251667
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — the public 404 is the product's own page, not the framework's exists at the root, so it answers for every route group",
+      "durationMs": 907.231708
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/proxyMatcherParity.test.ts",
+      "fullName": "R11 — the policies that do not come from the matcher the unstripped inbound CSP request headers are read by nothing",
+      "durationMs": 813.903
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/StatisticsService.test.ts",
+      "fullName": "StatisticsService — statistics rejects text beyond the measurable limit",
+      "durationMs": 757.7040419999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/AuthService.test.ts",
+      "fullName": "AuthService (local flow) uses a short session by default and a long one for remember-me",
+      "durationMs": 592.2339589999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 572.120833
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/lib/server/zip.test.ts",
+      "fullName": "streamZipFiles handles many entries (streaming — never holds the whole archive)",
+      "durationMs": 563.125916
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/storage/LocalFileStorage.test.ts",
+      "fullName": "LocalFileStorage putStream then getStream round-trips a large-ish payload",
+      "durationMs": 549.7389580000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/workspaces/storedOutputFidelity.test.ts",
+      "fullName": "C14 — a local Merge result becomes the Workspace document stores the merged PDF: its bytes, its pages, and neither input",
+      "durationMs": 540.8836670000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/lib/admin/passwords.test.ts",
+      "fullName": "admin password helpers produces unique salts for the same password",
+      "durationMs": 443.039209
+    }
+  ]
+}

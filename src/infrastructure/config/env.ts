@@ -153,6 +153,15 @@ const envSchema = z.object({
   // your own rate-limit key — so a too-short value is a configuration error, not
   // a warning.
   TRUSTED_PROXY_SECRET: z.string().min(16).optional(),
+  // The instance topology this deployment is being run under, declared rather
+  // than assumed. One value is accepted, because one value is supported: the
+  // upload rate limiter counts in process memory and prisma/schema.prisma is
+  // SQLite, so two instances sharing a database serve twice the configured
+  // upload budget and contend for a single writer (ADR-M7-009). Declaring
+  // anything else is a parse error, not a warning — an operator who intends to
+  // scale out needs PostgreSQL and a shared limiter first, and this refuses to
+  // pretend otherwise.
+  DEPLOYMENT_TOPOLOGY: z.enum(["single-instance"]).optional(),
   // Object storage (M2.2). All optional — when R2 creds are absent the app uses
   // the local filesystem adapter, so everything builds/runs with no cloud creds.
   R2_ACCOUNT_ID: z.string().optional(),
@@ -374,6 +383,18 @@ export function productionProblems(e: z.infer<typeof envSchema>): string[] {
   if (siteHost !== null && LOOPBACK_HOSTS.has(siteHost)) {
     problems.push(
       "NEXT_PUBLIC_SITE_URL points at a loopback host — either it was left at the development default or set to localhost. Signed download and multipart-upload URLs are built from it, so clients would receive links pointing at their own machine. Set it to the public origin, e.g. https://pdfdadi.com.",
+    );
+  }
+
+  // Upload abuse control is per-process, and so is the SQLite writer. Neither
+  // fact is visible from the outside, and neither is enforced by anything but
+  // this line: nothing else in the stack notices a second instance. So the
+  // topology is DECLARED, at boot, by whoever runs the deployment — the same
+  // shape as every other required production value here, and the reason the
+  // limits documented in SERVER_SETUP.md can be stated as absolute numbers.
+  if (e.DEPLOYMENT_TOPOLOGY !== "single-instance") {
+    problems.push(
+      `DEPLOYMENT_TOPOLOGY is not set to "single-instance". PDFDadi's upload rate limits (UPLOAD_RATE_LIMIT_PER_MIN=${e.UPLOAD_RATE_LIMIT_PER_MIN}, UPLOAD_ANON_RATE_LIMIT_PER_MIN=${e.UPLOAD_ANON_RATE_LIMIT_PER_MIN}, UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN=${e.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN}) are counted in process memory, so N instances behind one address admit N times those budgets — the global ceiling stops being a ceiling. The same deployment is also limited to one writable instance by SQLite (see docs/adr/ADR-M7-009-sqlite-operations.md). Set DEPLOYMENT_TOPOLOGY=single-instance to confirm exactly one instance serves this database. Scaling out requires PostgreSQL and a shared rate-limit store first; there is no supported multi-instance value.`,
     );
   }
 

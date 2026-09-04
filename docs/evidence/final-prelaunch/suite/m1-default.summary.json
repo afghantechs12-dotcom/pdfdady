@@ -1,0 +1,113 @@
+{
+  "label": "m1-default",
+  "exitCode": 0,
+  "green": true,
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m1-default.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m1-default.junit.xml",
+  "startedAt": "2026-09-04T21:55:19.741Z",
+  "durationMs": 10421,
+  "run": {
+    "seed": null,
+    "shuffled": false,
+    "maxWorkers": "vitest default",
+    "repeats": null,
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      22.98046875,
+      9.80419921875,
+      6.63720703125
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7424,
+    "passed": 7424,
+    "failed": 0,
+    "pending": 0,
+    "totalSuites": 1939,
+    "totalFiles": 384
+  },
+  "reportError": null,
+  "failures": [],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 4788.430708
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 3074.8285000000005
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/workspaces/storedOutputFidelity.test.ts",
+      "fullName": "C14 — a local Merge result becomes the Workspace document stores the merged PDF: its bytes, its pages, and neither input",
+      "durationMs": 1328.873833
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/lib/tools/localToolRegression.test.ts",
+      "fullName": "local tools: run with the network taken away merges two PDFs entirely on the device",
+      "durationMs": 1288.327667
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 1002.889375
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/auth/LocalSessionProvider.test.ts",
+      "fullName": "LocalSessionProvider.pruneExpired deletes expired rows, keeps live ones, and returns the count",
+      "durationMs": 647.9824999999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 496.80324999999993
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/layout/mobileNavA11y.test.ts",
+      "fullName": "U4 — mobile navigation is keyboard accessible mounts no drawer at all until it is opened",
+      "durationMs": 423.83225
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/proxyMatcherParity.test.ts",
+      "fullName": "R11 — the policies that do not come from the matcher the unstripped inbound CSP request headers are read by nothing",
+      "durationMs": 383.41095800000005
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth renders every plan from the store, and nothing from a second source",
+      "durationMs": 372.503875
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/tools/destinationSelectorA11y.test.ts",
+      "fullName": "U13 — destination selector remains accessible shows no selector before the destinations are known",
+      "durationMs": 364.30625
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the terminal stage is not overwritten by a stage write still in flight when the job completes",
+      "durationMs": 346.484375
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/AccountProvisioningService.test.ts",
+      "fullName": "personalOrganizationName / Slug prefers the display name and falls back to the email local part",
+      "durationMs": 334.63420800000017
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/jobs/saveToWorkspaceRoute.test.ts",
+      "fullName": "POST /api/jobs/:id/save-to-workspace — the gates refuses a request with no same-origin evidence, and one from another origin",
+      "durationMs": 312.67395899999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/prisma/provision-workspaces.test.ts",
+      "fullName": "provisionAllDefaultWorkspaces creates one authoritative default and is idempotent on repeat",
+      "durationMs": 281.04212499999994
+    }
+  ]
+}

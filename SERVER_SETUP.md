@@ -34,7 +34,7 @@ and never echoes a value, because this text lands in logs and error trackers:
 
 ```
 [startup] PDFDadi refused to start.
-Refusing to start: 3 production configuration problems.
+Refusing to start: 4 production configuration problems.
   - DATABASE_URL is not set. Point it at a SQLite file on a persistent volume,
     e.g. file:/app/data/db/pdfdadi.db. There is no production default on
     purpose: a relative path would silently put the live database inside the
@@ -43,6 +43,9 @@ Refusing to start: 3 production configuration problems.
     download URLs, so without it both are forgeable: admin takeover with no
     password, and arbitrary reads of any stored file.
   - NEXT_PUBLIC_SITE_URL points at a loopback host ...
+  - DEPLOYMENT_TOPOLOGY is not set to "single-instance". PDFDadi's upload rate
+    limits are counted in process memory, so N instances behind one address
+    admit N times those budgets ...
 ```
 
 The process then exits with code 1, so Docker, systemd or your orchestrator
@@ -55,6 +58,7 @@ reports a failed container rather than a running one that 500s.
 | `DATABASE_URL` | No production default. Must be an **absolute** `file:` path — see "Which database" below. A relative path would put the live database inside the container's writable layer and lose it on redeploy. |
 | `ADMIN_SECRET` | Signs admin session cookies *and* local storage download URLs. Must be ≥16 characters, and must not be the public dev fallback string that ships in this repo. |
 | `NEXT_PUBLIC_SITE_URL` | Signed download and multipart-upload URLs are built from it; a loopback value hands clients links to their own machine. Must be an absolute `http(s)` URL and not localhost/127.0.0.1/0.0.0.0/::1. |
+| `DEPLOYMENT_TOPOLOGY` | Must be exactly `single-instance`, the only supported value. It makes the operator declare what the rest of the build assumes: upload rate limits are counted in one process's memory, and the database is single-writer SQLite. See "Instance topology" below. |
 
 **Also refused**
 
@@ -108,6 +112,44 @@ Moving to PostgreSQL is a schema change plus a regenerated migration history
 (all 24 migrations are SQLite DDL), not a change to this variable. Until that
 work is done and verified, one writable deployment per database file is the
 supported topology — see `docs/adr/ADR-M7-009-sqlite-operations.md`.
+
+### Instance topology — one instance, declared at boot
+
+`DEPLOYMENT_TOPOLOGY=single-instance` is required in production, and it is the
+only accepted value. It is a declaration rather than a tuning knob, and two
+independent things depend on it:
+
+1. **The upload rate limits are per-process.** `lib/server/uploadRateLimit.ts`
+   holds three `Map`s in memory — `user:<id>`, `client:<address>` and one literal
+   `global` bucket. The global bucket is the one an attacker cannot rotate away
+   from by changing keys, which makes it the real ceiling. Behind a load balancer
+   with N instances, each admits the full budget independently, so that ceiling
+   becomes **N × `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN`** and the number in your
+   configuration stops describing your deployment.
+2. **The database takes one writer.** SQLite supports one writable deployment per
+   database file (ADR-M7-009). That constraint holds regardless of rate limiting,
+   and it is not relaxed by a shared queue.
+
+There is deliberately no multi-instance value. Adding one would be a lie until
+all three of these exist, in this order:
+
+| Needed for multi-instance | Status today |
+|---------------------------|--------------|
+| PostgreSQL (or another multi-writer engine) with a regenerated migration history | Not started; `provider = "sqlite"` |
+| A shared rate-limit store, so the three buckets are counted once for the fleet | Not started; the buckets are process-local `Map`s |
+| A shared job queue | **Available** — set `REDIS_URL` (see "Background jobs") |
+
+`REDIS_URL` alone does **not** make the app multi-instance; it moves job dispatch
+out of the server process. The other two rows still apply.
+
+**What the gate does and does not do.** It refuses to boot a production process
+that has not declared the topology, and `docker-compose.yml` declares it and
+pins `container_name`, which makes `docker compose up --scale pdfdadi=2` fail. It
+is **not** mutual exclusion: two processes started by hand against the same
+database would each declare `single-instance` and each start. Operating one
+instance per database remains an operator responsibility — the gate makes the
+assumption explicit and auditable, and R6/R8 in `deploymentTopology.test.ts` keep
+it that way.
 
 ### Migrations
 

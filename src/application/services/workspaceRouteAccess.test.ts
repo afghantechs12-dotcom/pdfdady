@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError, WorkspaceAccessError, WorkspaceLifecycleError } from "@/src/domain/errors";
 
 const notFound = vi.fn(() => {
@@ -18,6 +18,17 @@ const actor = {
 function reader(result: Promise<never> | { workspace: { id: string }; role: string }) {
   return { get: () => (result instanceof Promise ? result : Promise.resolve(result)) } as never;
 }
+
+// `notFound` is one module-level spy shared by every test in this file, so its
+// call count is shared state. Each test used to clear it on its own first line —
+// except the first, which only ever ASSERTED "not called" and happened to run
+// before anything could call it. At `--sequence.shuffle --sequence.seed=20260904`
+// it stopped running first and went red: "expected spy to not be called at all,
+// but actually been called 1 times". One reset here removes the ordering
+// dependency for all of them.
+beforeEach(() => {
+  notFound.mockClear();
+});
 
 describe("loadWorkspaceForRoute", () => {
   it("passes a successful lookup straight through", async () => {
@@ -41,7 +52,6 @@ describe("loadWorkspaceForRoute", () => {
   });
 
   it("lets an infrastructure failure propagate instead of reporting 'no such Workspace'", async () => {
-    notFound.mockClear();
     const outage = new Error("SQLITE_BUSY: database is locked");
     await expect(loadWorkspaceForRoute(reader(Promise.reject(outage)), actor, "w1")).rejects.toBe(outage);
     // A database outage rendered as a not-found would silently tell every user
@@ -50,7 +60,6 @@ describe("loadWorkspaceForRoute", () => {
   });
 
   it("does not swallow an archived-Workspace refusal, which is not a not-found", async () => {
-    notFound.mockClear();
     const lifecycle = new WorkspaceLifecycleError("archived");
     await expect(loadWorkspaceForRoute(reader(Promise.reject(lifecycle)), actor, "w1")).rejects.toBe(lifecycle);
     expect(notFound).not.toHaveBeenCalled();
@@ -59,7 +68,6 @@ describe("loadWorkspaceForRoute", () => {
 
 describe("routeOr404", () => {
   it("applies the same mapping to any route read, e.g. the document a URL names", async () => {
-    notFound.mockClear();
     await expect(routeOr404(Promise.reject(new NotFoundError("Document not found.")))).rejects.toThrow(
       "NEXT_NOT_FOUND",
     );

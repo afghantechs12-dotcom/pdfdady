@@ -1,0 +1,141 @@
+{
+  "label": "m3-shuffle-20260904",
+  "exitCode": 1,
+  "green": false,
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m3-shuffle-20260904.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m3-shuffle-20260904.junit.xml --sequence.shuffle --sequence.seed=20260904",
+  "startedAt": "2026-09-04T21:59:25.098Z",
+  "durationMs": 22819,
+  "run": {
+    "seed": "20260904",
+    "shuffled": true,
+    "maxWorkers": "vitest default",
+    "repeats": null,
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      56.70751953125,
+      18.76953125,
+      10.40234375
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7424,
+    "passed": 7421,
+    "failed": 3,
+    "pending": 0,
+    "totalSuites": 1939,
+    "totalFiles": 384
+  },
+  "reportError": null,
+  "failures": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/workspaceRouteAccess.test.ts",
+      "fullName": "loadWorkspaceForRoute passes a successful lookup straight through",
+      "title": "passes a successful lookup straight through",
+      "durationMs": 6.313499999999976,
+      "failureMessages": [
+        "AssertionError: expected \"spy\" to not be called at all, but actually been called 1 times\u001b[90m\n\nReceived: \n\n\u001b[1m  1st spy call:\n\n\u001b[22m    Array []\n\u001b[39m\u001b[90m\n\nNumber of calls: \u001b[1m1\u001b[22m\n\u001b[39m\n    at Proxy.<anonymous> (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/expect/dist/index.js:1335:10)\n    at Proxy.<anonymous> (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/expect/dist/index.js:1029:14)\n    at Proxy.methodWrapper (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/chai/index.js:1686:25)\n    at /Users/faisalarifi/Downloads/pdfmaster/src/application/services/workspaceRouteAccess.test.ts:30:26\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ]
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling aborts the processor's signal at the processor's own timeoutMs",
+      "title": "aborts the processor's signal at the processor's own timeoutMs",
+      "durationMs": 3267.9334160000003,
+      "failureMessages": [
+        "AssertionError: expected false to be true // Object.is equality\n    at /Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts:565:27\n    at file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20"
+      ]
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/editor/serialization/SerializationService.test.ts",
+      "fullName": "SerializationService: migrations migrate applies registered steps up to the target version",
+      "title": "migrate applies registered steps up to the target version",
+      "durationMs": 7.453333000000043,
+      "failureMessages": [
+        "Error: No migration path from serialized version 100; current is 102.\n    at migrate (/Users/faisalarifi/Downloads/pdfmaster/src/application/editor/serialization/SerializationService.ts:106:13)\n    at /Users/faisalarifi/Downloads/pdfmaster/src/application/editor/serialization/SerializationService.test.ts:182:18\n    at file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file:///Users/faisalarifi/Downloads/pdfmaster/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+      ]
+    }
+  ],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 6295.789208
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 3492.5027499999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling aborts the processor's signal at the processor's own timeoutMs",
+      "durationMs": 3267.9334160000003
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 2732.713084
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth takes its heading from the page store rather than the built-in fallback",
+      "durationMs": 1864.0604160000003
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 1436.3316249999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/layout/mobileNavA11y.test.ts",
+      "fullName": "U4 — mobile navigation is keyboard accessible gives the public header trigger a name, a state and a target",
+      "durationMs": 822.3482919999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/config/billingSecretConfig.test.ts",
+      "fullName": "billing config is server-only has no NEXT_PUBLIC_ variant anywhere in the source",
+      "durationMs": 799.2928750000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/proxyMatcherParity.test.ts",
+      "fullName": "R11 — the policies that do not come from the matcher the unstripped inbound CSP request headers are read by nothing",
+      "durationMs": 786.0392499999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/components/tools/destinationSelectorA11y.test.ts",
+      "fullName": "U13 — destination selector remains accessible shows no selector before the destinations are known",
+      "durationMs": 749.059708
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/uploadBoundary.test.ts",
+      "fullName": "S17 — parser exception coverage at all five call sites toolJobSubmit and processingJobSubmit throw the shared error, mapped to 400",
+      "durationMs": 617.2214999999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/StatisticsService.test.ts",
+      "fullName": "StatisticsService — statistics rejects text beyond the measurable limit",
+      "durationMs": 536.455875
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/lib/server/zip.test.ts",
+      "fullName": "streamZipFiles handles many entries (streaming — never holds the whole archive)",
+      "durationMs": 525.447666
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/config/billingSecretConfig.test.ts",
+      "fullName": "billing config is server-only reads each secret in exactly one place",
+      "durationMs": 425.4140420000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/pilotPipeline.integration.test.ts",
+      "fullName": "pilot pipeline: failure path tells the user something true and safe about the failure",
+      "durationMs": 370.50937499999964
+    }
+  ]
+}

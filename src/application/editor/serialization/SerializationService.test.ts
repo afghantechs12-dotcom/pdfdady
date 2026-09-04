@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   addObjectToPage,
   createEditorState,
@@ -159,36 +159,45 @@ describe("SerializationService: round-trip", () => {
 });
 
 describe("SerializationService: migrations", () => {
-  afterEach(() => {
-    // The migrations map is module-level with no unregister API. The real 1->2
-    // migration is registered at module load; these tests use synthetic versions
-    // (100+) so they never collide with it.
-  });
+  // The migrations map is module-level with no unregister API, and registering the
+  // same `fromVersion` twice throws — so a test that registers a step is writing
+  // shared state that no hook can undo. Each test below therefore owns its own
+  // synthetic version band (100s, 200s, 300s), all far above the real 1->2
+  // migration registered at module load.
+  //
+  // They used to share the 100s band and read each other's registrations: "migrate
+  // applies registered steps" needed the 100->101 step that the duplicate-rejection
+  // test happened to leave behind. At `--sequence.shuffle --sequence.seed=20260904`
+  // it ran first and went red with "No migration path from serialized version 100".
+  // The third test was worse than red: its `toThrow(/No migration path/)` passed
+  // either way, for the wrong reason, because a missing FIRST step throws the same
+  // error as the missing intermediate one it means to prove.
+  const envelope = (version: number) => ({ ...new SerializationService().serialize(createEditorState()), version });
 
   it("registerMigration rejects a duplicate fromVersion", () => {
-    // Register 1→2 once; a second registration must throw.
     registerMigration(100, (d) => ({ ...d, version: 101 }));
     expect(() => registerMigration(100, (d) => ({ ...d, version: 101 }))).toThrow(/already registered/);
   });
 
   it("migrate applies registered steps up to the target version", () => {
-    registerMigration(101, (d) => ({
+    registerMigration(200, (d) => ({ ...d, version: 201 }));
+    registerMigration(201, (d) => ({
       ...d,
-      version: 102,
-      document: { ...(d.document as Record<string, unknown>), migratedTo: 102 },
+      version: 202,
+      document: { ...(d.document as Record<string, unknown>), migratedTo: 202 },
     }));
-    const svc = new SerializationService();
-    const v100 = { ...svc.serialize(createEditorState()), version: 100 };
-    const v102 = migrate(v100, 102);
-    expect(v102.version).toBe(102);
-    expect((v102.document as Record<string, unknown>).migratedTo).toBe(102);
+    const v202 = migrate(envelope(200), 202);
+    expect(v202.version).toBe(202);
+    // Both steps ran, in order: the 201->202 step is the only one that writes this.
+    expect((v202.document as Record<string, unknown>).migratedTo).toBe(202);
   });
 
   it("migrate throws when no step is registered for an intermediate version", () => {
-    const svc = new SerializationService();
-    const v100 = { ...svc.serialize(createEditorState()), version: 100 };
-    // 100->101 and 101->102 are registered above, but 102->103 is not.
-    expect(() => migrate(v100, 103)).toThrow(/No migration path/);
+    // 300->301 IS registered, so reaching 302 fails at the INTERMEDIATE hop and
+    // nowhere else — which is the claim. The message names the version it stopped
+    // at, so the assertion can tell that apart from failing at the first hop.
+    registerMigration(300, (d) => ({ ...d, version: 301 }));
+    expect(() => migrate(envelope(300), 302)).toThrow(/No migration path from serialized version 301/);
   });
 
   it("the real v1->v2 migration backfills letterSpacing and crop with defaults", () => {

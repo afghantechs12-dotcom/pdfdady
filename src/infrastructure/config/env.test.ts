@@ -14,6 +14,7 @@ import { INSECURE_DEV_SECRET } from "@/lib/admin/session";
 const env = process.env as unknown as Record<string, string | undefined>;
 const KEYS = [
   "NODE_ENV",
+  "DEPLOYMENT_TOPOLOGY",
   "NEXT_PHASE",
   "ADMIN_SECRET",
   "PDFDADI_ALLOW_INSECURE_DEV_SECRET",
@@ -74,6 +75,10 @@ function setValidProductionEnv(): void {
   env.DATABASE_URL = GOOD_DATABASE_URL;
   env.ADMIN_SECRET = GOOD_SECRET;
   env.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.com";
+  // The upload limiter counts in process memory and SQLite takes one writer, so
+  // the gate makes the operator say which topology this is. R6 in
+  // `deploymentTopology.test.ts` owns that rule; here it is just part of "valid".
+  env.DEPLOYMENT_TOPOLOGY = "single-instance";
 }
 
 /** The gate's message, or "" when the gate let the config through. */
@@ -262,12 +267,14 @@ describe("production configuration gate", () => {
 
   it("reports every problem at once rather than one per restart", () => {
     env.NODE_ENV = "production";
-    // Nothing else set: DATABASE_URL, ADMIN_SECRET and the site URL are all bad.
+    // Nothing else set: DATABASE_URL, ADMIN_SECRET, the site URL and the instance
+    // topology are all missing or wrong.
     const msg = gateError();
     expect(msg).toMatch(/DATABASE_URL/);
     expect(msg).toMatch(/ADMIN_SECRET/);
     expect(msg).toMatch(/NEXT_PUBLIC_SITE_URL/);
-    expect(msg).toMatch(/3 production configuration problems/);
+    expect(msg).toMatch(/DEPLOYMENT_TOPOLOGY/);
+    expect(msg).toMatch(/4 production configuration problems/);
   });
 
   it("never echoes a secret value into the error message", () => {

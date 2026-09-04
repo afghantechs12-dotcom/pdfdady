@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { _resetConfigForTests } from "@/src/infrastructure/config/env";
@@ -172,5 +175,17 @@ describe("checkUploadLimit — whose budget is spent", () => {
     const decision = checkUploadLimit({ request: req(), userId: "user-abc-secret" });
     expect(decision.bucket).toBe("user");
     expect(JSON.stringify(decision)).not.toContain("user-abc-secret");
+  });
+
+  it("keys the ceiling on a constant, so no second process could mint a fresh one", () => {
+    // The global bucket is the bound key rotation cannot escape, and it is only that
+    // while its key is a literal. `global:${process.pid}` would pass every behavioural
+    // test in this file — one process cannot watch its own pid change — while handing
+    // each additional process a full budget. DEPLOYMENT_TOPOLOGY refuses the second
+    // process (deploymentTopology.test.ts); this refuses the key that would make one
+    // profitable, because the two defences fail in opposite directions.
+    const src = readFileSync(join(process.cwd(), "lib/server/uploadRateLimit.ts"), "utf8");
+    expect(src.match(/\.global\.(?:hit|retryAfterSeconds)\("global",/g)).toHaveLength(2);
+    expect(src).not.toMatch(/process\.pid|hostname\(|randomUUID|INSTANCE_ID/);
   });
 });

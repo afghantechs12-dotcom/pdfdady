@@ -1,0 +1,228 @@
+{
+  "_": "The advisory set the static harness's I3 check reported as one PRODUCT FAILURE, one row per DISTINCT advisory rather than per flagged package. npm's `metadata.vulnerabilities` counts packages rolled up to their worst severity, which is why the earlier report said 'nine high advisories' and listed eight package names: there were nine flagged production packages carrying nine distinct advisories, of which 7 were high and 2 moderate, and `sharp` was missing from the list of eight. Every derivable field here is re-derived and compared by R1..R3 in finalReconciliation.test.ts against audit-baseline-{prod,full}.json and the live package-lock.json, so this file cannot drift from either the advisory data or the installed tree.",
+  "baseline": {
+    "recordedAt": "2026-09-04",
+    "commandProduction": "npm audit --omit=dev --json",
+    "commandFullGraph": "npm audit --json",
+    "productionEvidence": "docs/evidence/final-prelaunch/audit-baseline-prod.json",
+    "fullGraphEvidence": "docs/evidence/final-prelaunch/audit-baseline-full.json",
+    "flaggedProductionPackages": 9,
+    "distinctProductionAdvisories": 9,
+    "distinctFullGraphAdvisories": 11
+  },
+  "advisories": [
+    {
+      "advisoryId": 1117015,
+      "ghsa": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
+      "package": "postcss",
+      "severity": "moderate",
+      "cwe": [
+        "CWE-79"
+      ],
+      "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+      "vulnerableRange": "<8.5.10",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "8.5.10",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > postcss",
+      "installedBefore": "8.5.18 (dev) / 8.4.31 (production, nested under next)",
+      "installedAfter": "8.5.28 (dev) / 8.5.23 (production, nested under next)",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "next 16.2.12 -> 16.3.4 raised the nested production postcss to 8.5.23; devDependency postcss 8.5.18 -> 8.5.28"
+    },
+    {
+      "advisoryId": 1124066,
+      "ghsa": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
+      "package": "sharp",
+      "severity": "high",
+      "cwe": [
+        "CWE-1395"
+      ],
+      "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+      "vulnerableRange": "<0.35.0",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "0.35.0",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > sharp (optional; next's image optimizer)",
+      "installedBefore": "0.34.5",
+      "installedAfter": "0.35.4",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "next 16.2.12 -> 16.3.4 moved its optional sharp dependency to ^0.35.4. This is the ninth flagged package, absent from the earlier report's list of eight."
+    },
+    {
+      "advisoryId": 1124252,
+      "ghsa": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+      "package": "postcss",
+      "severity": "high",
+      "cwe": [
+        "CWE-22",
+        "CWE-200"
+      ],
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "vulnerableRange": "<=8.5.11",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "8.5.12",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > postcss",
+      "installedBefore": "8.5.18 (dev) / 8.4.31 (production, nested under next)",
+      "installedAfter": "8.5.28 (dev) / 8.5.23 (production, nested under next)",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "Same upgrade as 1117015. PostCSS runs at build time on this project's own CSS, never on attacker input at runtime, but the fix was available so reachability was not relied on."
+    },
+    {
+      "advisoryId": 1130709,
+      "ghsa": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp",
+      "package": "postcss",
+      "severity": "moderate",
+      "cwe": [
+        "CWE-22",
+        "CWE-200"
+      ],
+      "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+      "vulnerableRange": "<=8.5.22",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "8.5.23",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > postcss",
+      "installedBefore": "8.5.18 (dev) / 8.4.31 (production, nested under next)",
+      "installedAfter": "8.5.28 (dev) / 8.5.23 (production, nested under next)",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "Same upgrade as 1117015. next 16.3.4 pins exactly 8.5.23, the first fixed version — one patch of margin, which is why R3 pins it."
+    },
+    {
+      "advisoryId": 1130734,
+      "ghsa": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "package": "brace-expansion",
+      "severity": "high",
+      "cwe": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "vulnerableRange": ">=4.0.0 <5.0.9",
+      "introducedAtOrAbove": "4.0.0",
+      "fixedAtOrAbove": "5.0.9",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > archiver > readdir-glob > minimatch > brace-expansion",
+      "installedBefore": "5.0.8",
+      "installedAfter": "5.0.9",
+      "disposition": "FIXED — transitive update, no parent change",
+      "remediation": "npm update brace-expansion. The earlier audit recorded this as reaching the tree through eslint only; it also reaches PRODUCTION through archiver, which is how ZIP export builds its file list."
+    },
+    {
+      "advisoryId": 1138116,
+      "ghsa": "https://github.com/advisories/GHSA-hq66-cqwq-w95j",
+      "package": "pdfjs-dist",
+      "severity": "high",
+      "cwe": [
+        "CWE-79"
+      ],
+      "title": "PDF.js: Arbitrary JavaScript execution upon opening a malicious PDF ",
+      "vulnerableRange": ">=5.6.83 <6.2.108",
+      "introducedAtOrAbove": "5.6.83",
+      "fixedAtOrAbove": "6.2.108",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > pdfjs-dist (direct dependency; the editor's page renderer)",
+      "installedBefore": "6.1.200",
+      "installedAfter": "6.3.289",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "pdfjs-dist 6.1.200 -> 6.3.289. The most reachable advisory in the set: this product's core input is a user-supplied PDF, so no reachability argument was available and none was attempted."
+    },
+    {
+      "advisoryId": 1139427,
+      "ghsa": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "package": "nanoid",
+      "severity": "high",
+      "cwe": [
+        "CWE-835"
+      ],
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "vulnerableRange": "<3.3.18",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "3.3.18",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > postcss > nanoid",
+      "installedBefore": "3.3.16",
+      "installedAfter": "3.3.18",
+      "disposition": "FIXED — transitive update, no parent change",
+      "remediation": "npm update nanoid."
+    },
+    {
+      "advisoryId": 1139510,
+      "ghsa": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+      "package": "postcss",
+      "severity": "high",
+      "cwe": [
+        "CWE-22"
+      ],
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "vulnerableRange": "<=8.5.17",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "8.5.18",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > next > postcss",
+      "installedBefore": "8.5.18 (dev) / 8.4.31 (production, nested under next)",
+      "installedAfter": "8.5.28 (dev) / 8.5.23 (production, nested under next)",
+      "disposition": "FIXED — supported upgrade",
+      "remediation": "Same upgrade as 1117015. The dev copy was already at the fixed floor; the production copy nested under next was not."
+    },
+    {
+      "advisoryId": 1145093,
+      "ghsa": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "package": "deepmerge-ts",
+      "severity": "high",
+      "cwe": [
+        "CWE-674"
+      ],
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "vulnerableRange": "<8.0.0",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "8.0.0",
+      "productionReachable": true,
+      "dependencyPath": "pdfdadi > @prisma/client > prisma > @prisma/config > deepmerge-ts",
+      "installedBefore": "7.1.5",
+      "installedAfter": "8.0.2",
+      "disposition": "FIXED — narrow override",
+      "remediation": "No supported parent upgrade exists: @prisma/config@6.19.3 pins deepmerge-ts at exactly 7.1.5, there is no prisma 6.20.x, and npm's own proposed fix was a semver-major DOWNGRADE to prisma@6.12.0. Used overrides: { \"deepmerge-ts\": \"^8.0.2\" } instead, then proved compatibility rather than assuming it: prisma validate, prisma generate and prisma migrate status all exit 0 on the overridden tree."
+    },
+    {
+      "advisoryId": 1153171,
+      "ghsa": "https://github.com/advisories/GHSA-c83g-rgw3-j3cx",
+      "package": "browserslist",
+      "severity": "high",
+      "cwe": [
+        "CWE-770"
+      ],
+      "title": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+      "vulnerableRange": "<=4.28.6",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "4.28.7",
+      "productionReachable": false,
+      "dependencyPath": "pdfdadi > autoprefixer [dev] > browserslist — dev-only; absent from `npm audit --omit=dev` and from the production graph",
+      "installedBefore": "4.28.4 (dev)",
+      "installedAfter": "4.28.9 (dev)",
+      "disposition": "FIXED — supported upgrade (was never a production finding)",
+      "remediation": "autoprefixer 10.4.20 -> 10.5.5. Classified dev-only from the lockfile's own dev flags and from its absence in the production audit, not from the word 'transitive'."
+    },
+    {
+      "advisoryId": 1153172,
+      "ghsa": "https://github.com/advisories/GHSA-73wf-gq98-2v4g",
+      "package": "browserslist",
+      "severity": "high",
+      "cwe": [
+        "CWE-248",
+        "CWE-1321"
+      ],
+      "title": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+      "vulnerableRange": "<=4.28.6",
+      "introducedAtOrAbove": "0.0.0",
+      "fixedAtOrAbove": "4.28.7",
+      "productionReachable": false,
+      "dependencyPath": "pdfdadi > autoprefixer [dev] > browserslist — dev-only; absent from `npm audit --omit=dev` and from the production graph",
+      "installedBefore": "4.28.4 (dev)",
+      "installedAfter": "4.28.9 (dev)",
+      "disposition": "FIXED — supported upgrade (was never a production finding)",
+      "remediation": "Same upgrade as 1153171."
+    }
+  ]
+}

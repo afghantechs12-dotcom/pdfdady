@@ -141,6 +141,22 @@ interface ProcessorSpy {
   sawInput: string[];
 }
 
+/**
+ * Resolves when the handler aborts the processor's signal — with NO fallback timer.
+ *
+ * All five call sites used to race the abort against a 3s fallback timer of their
+ * own, and the fallback winning was reported as "expected false to be true" with nothing
+ * naming which clock lost. That is what went red at `--sequence.shuffle
+ * --sequence.seed=20260904` on a 56-loadavg machine: the abort was late, not
+ * absent, and a 3s wall-clock fallback cannot tell those apart. So it is gone. An
+ * abort that genuinely never arrives is now the 30s `testTimeout` failing by name
+ * (see vitest.config.ts), and scheduling slack no longer decides the result.
+ */
+function abortOf(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+}
+
 function processor(
   id: string,
   timeoutMs: number,
@@ -538,14 +554,16 @@ describe("the execution ceiling", () => {
   });
 
   it("aborts the processor's signal at the processor's own timeoutMs", async () => {
-    let abortedWithin = false;
-    const { processor: p } = processor("compress-pdf", 30, async (ctx) => {
+    // A LOWER bound on a 600ms ceiling, not an upper bound on a 30ms one. Load can
+    // only make a timer late, never early, so `>= 500` is the direction that cannot
+    // flake — and it is the direction that carries the claim: an abort at ~0ms would
+    // mean a different clock fired (this handler has two more, CANCEL_POLL_MS = 200
+    // and the `cancelPollMs: 5` below), and no abort at all is a test timeout.
+    let elapsedAtAbort = -1;
+    const { processor: p } = processor("compress-pdf", 600, async (ctx) => {
       const start = Date.now();
-      await new Promise<void>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(), { once: true });
-        setTimeout(resolve, 3_000);
-      });
-      abortedWithin = ctx.signal.aborted && Date.now() - start < 2_000;
+      await abortOf(ctx.signal);
+      elapsedAtAbort = Date.now() - start;
       throw new CommandAbortedError();
     });
     const handler = createProcessingJobHandler({
@@ -562,15 +580,12 @@ describe("the execution ceiling", () => {
 
     // The ceiling is enforced by the handler, not by the processor choosing to
     // stop: a hung tool cannot hold the worker slot open.
-    expect(abortedWithin).toBe(true);
+    expect(elapsedAtAbort).toBeGreaterThanOrEqual(500);
   });
 
   it("classifies a timeout as processor_timeout, not as a cancellation", async () => {
     const { processor: p } = processor("compress-pdf", 20, async (ctx) => {
-      await new Promise<void>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(), { once: true });
-        setTimeout(resolve, 3_000);
-      });
+      await abortOf(ctx.signal);
       // A killed subprocess surfaces as an abort; only the handler knows the
       // abort came from the clock rather than from the user.
       throw new CommandAbortedError();
@@ -597,10 +612,7 @@ describe("the execution ceiling", () => {
     const { processor: p } = processor("compress-pdf", 20, async (ctx) => {
       // Write a half-finished file, as a killed Ghostscript would.
       await fs.writeFile(path.join(ctx.workDir, "partial.pdf"), "%PDF-1.7\n% trunc");
-      await new Promise<void>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(), { once: true });
-        setTimeout(resolve, 3_000);
-      });
+      await abortOf(ctx.signal);
       throw new CommandAbortedError();
     });
     const handler = createProcessingJobHandler({
@@ -654,10 +666,7 @@ describe("cancellation", () => {
   it("aborts the processor's signal when cancellation arrives mid-run", async () => {
     let sawAbort = false;
     const { processor: p } = processor("compress-pdf", 10_000, async (ctx) => {
-      await new Promise<void>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(), { once: true });
-        setTimeout(resolve, 3_000);
-      });
+      await abortOf(ctx.signal);
       sawAbort = ctx.signal.aborted;
       throw new CommandAbortedError();
     });
@@ -673,10 +682,7 @@ describe("cancellation", () => {
 
   it("records a cancellation as cancelled, never as a failure", async () => {
     const { processor: p } = processor("compress-pdf", 10_000, async (ctx) => {
-      await new Promise<void>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(), { once: true });
-        setTimeout(resolve, 3_000);
-      });
+      await abortOf(ctx.signal);
       throw new CommandAbortedError();
     });
     const job = await stageJob(h);

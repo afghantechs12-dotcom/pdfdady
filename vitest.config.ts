@@ -24,5 +24,22 @@ export default defineConfig({
     // stale copies of `*.test.ts` are not source and must not be collected —
     // otherwise a snapshot of yesterday's assertions fails today's suite.
     exclude: ["node_modules/**", ".next/**", ".kiro/**", ".billing-backup-*/**"],
+    // An explicit per-test budget, because the default one was never chosen.
+    //
+    // Vitest's default is 5000ms. `app/seoIndexingTruth.test.ts` derives the
+    // private-route rule by importing every `app/**/page.tsx` — 55 modules today,
+    // one more with every page added — so its cost scales with the app, not with
+    // anything the test controls. Measured on this machine: 1591ms run alone,
+    // 4263ms under the CPU contention of the other 379 test files. 85% of a budget
+    // nobody set. It crossed once, at the branch tip, and the report recorded
+    // `1 failed | 7375 passed` with no name attached to the failure.
+    //
+    // 30s is ~7x the measured worst case, which is margin for a slower machine and
+    // for the pages this tree has not grown yet. The assertions are untouched: the
+    // failure was wall-clock, not a property. Raising a budget does cost the
+    // accidental "something got 10x slower" signal that a tight default gives for
+    // free, so `scripts/suite-evidence.mjs` records the 15 slowest tests of every
+    // run instead — a measurement, rather than an ambush.
+    testTimeout: 30_000,
   },
 });

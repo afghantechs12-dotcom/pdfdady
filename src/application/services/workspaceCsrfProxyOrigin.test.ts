@@ -76,6 +76,7 @@ const env = process.env as unknown as Record<string, string | undefined>;
 const KEYS = [
   "NODE_ENV",
   "NEXT_PHASE",
+  "DEPLOYMENT_TOPOLOGY",
   "ADMIN_SECRET",
   "PDFDADI_ALLOW_INSECURE_DEV_SECRET",
   "NEXT_PUBLIC_SITE_URL",
@@ -134,6 +135,9 @@ function deployBehindProxy(siteUrl: string = PUBLIC_ORIGIN): void {
   env.DATABASE_URL = "file:/srv/pdfdadi/data/pdfdadi.db";
   env.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
   env.NEXT_PUBLIC_SITE_URL = siteUrl;
+  // The gate requires the topology to be declared; the limiter it protects counts
+  // in process memory. See `deploymentTopology.test.ts` R6.
+  env.DEPLOYMENT_TOPOLOGY = "single-instance";
   _resetConfigForTests();
 }
 

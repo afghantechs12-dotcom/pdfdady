@@ -34,6 +34,14 @@ services:
       # which is inside the image layer AND inside a root-owned directory the
       # uid-1001 server cannot create.
       - STORAGE_LOCAL_ROOT=${STORAGE_LOCAL_ROOT:-/app/data/storage}
+      # REQUIRED in production, and the reason this file has no `replicas:` and a
+      # fixed `container_name` (which makes `docker compose up --scale` fail).
+      # The upload rate limiter counts in one process's memory and the database is
+      # single-writer SQLite, so a second instance would serve twice the upload
+      # budget and contend for the same writer. The gate refuses to boot unless
+      # the topology is declared; declaring it here keeps the compose file and the
+      # gate from disagreeing.
+      - DEPLOYMENT_TOPOLOGY=single-instance
       # Optional public-tool API tuning.
       - TOOLS_MAX_CONCURRENCY=${TOOLS_MAX_CONCURRENCY:-4}
       - TOOLS_RATE_LIMIT_PER_MIN=${TOOLS_RATE_LIMIT_PER_MIN:-20}

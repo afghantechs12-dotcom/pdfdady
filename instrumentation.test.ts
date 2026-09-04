@@ -11,6 +11,7 @@ const env = process.env as unknown as Record<string, string | undefined>;
 const KEYS = [
   "NODE_ENV",
   "NEXT_RUNTIME",
+  "DEPLOYMENT_TOPOLOGY",
   "NEXT_PHASE",
   "ADMIN_SECRET",
   "DATABASE_URL",
@@ -50,6 +51,9 @@ function setValidProductionEnv(): void {
   env.DATABASE_URL = "file:/srv/pdfdadi/data/pdfdadi.db";
   env.ADMIN_SECRET = SECRET;
   env.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.com";
+  // Declared, because the gate makes the operator declare it: the upload limiter
+  // counts in process memory. See `deploymentTopology.test.ts` R6.
+  env.DEPLOYMENT_TOPOLOGY = "single-instance";
 }
 
 /** Mocks the three sinks register() writes to, plus process.exit. */

@@ -726,8 +726,11 @@ this is the map.
   all restored byte-exact (SHA-256 verified).
 - **Feature flags:** As above; unconfigured → 503, never an invented price.
 - **Known limitations:** No UI, no plan-change/proration path, no seat picker.
-  Rate limited per client IP at 6/min, in-process (a multi-instance deployment
-  limits per instance).
+  Rate limited per client IP at 6/min, in-process. That is the whole limit,
+  because `DEPLOYMENT_TOPOLOGY=single-instance` is now required in production and
+  enforced at boot — there is no second process to multiply it by. Scaling out
+  needs a shared limiter store and PostgreSQL first; see
+  `docs/adr/ADR-M7-009-sqlite-operations.md`.
 - **Next related step:** Pricing UI calls this endpoint and reads `url` only. If
   a future session wants faster feedback after the redirect, poll
   `/api/usage` — do **not** add an endpoint that trusts the redirect.

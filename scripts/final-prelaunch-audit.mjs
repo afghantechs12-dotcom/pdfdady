@@ -345,16 +345,19 @@ function groupB() {
   beginGroup("B", "Production configuration gate");
   const envSrc = read("src/infrastructure/config/env.ts");
 
-  check("B1", "a production start without DATABASE_URL, ADMIN_SECRET or a site URL is refused", () => {
+  check("B1", "a production start with none of the four required values is refused, and names all four", () => {
     const out = tsFacts(`
       const e = process.env; e.NODE_ENV = "production";
       delete e.DATABASE_URL; delete e.ADMIN_SECRET; delete e.NEXT_PUBLIC_SITE_URL; delete e.NEXT_PHASE;
+      delete e.DEPLOYMENT_TOPOLOGY;
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
-      console.log(JSON.stringify({ refused: msg !== "", names: ["DATABASE_URL","ADMIN_SECRET","NEXT_PUBLIC_SITE_URL"].filter(n => msg.includes(n)) }));
+      console.log(JSON.stringify({ refused: msg !== "", names: ["DATABASE_URL","ADMIN_SECRET","NEXT_PUBLIC_SITE_URL","DEPLOYMENT_TOPOLOGY"].filter(n => msg.includes(n)) }));
     `);
     if (!out.refused) return "getConfig() returned normally with nothing configured";
-    return out.names.length === 3 ? null : `named only ${out.names.join(", ")}`;
+    // Four, since the topology declaration became required: the upload limiter counts in
+    // one process's memory, so the operator has to state that there is one process.
+    return out.names.length === 4 ? null : `named only ${out.names.join(", ")}`;
   });
 
   check("B2", "the gate refuses a DATABASE_URL the shipped Prisma provider cannot open", () => {
@@ -364,6 +367,9 @@ function groupB() {
       e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
       e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
       e.DATABASE_URL = "postgresql://u:p@db.internal:5432/pdfdadi";
+      // Declared, so the ONLY problem this fixture leaves is the URL. Without it the
+      // refusal below would be true no matter what DATABASE_URL said.
+      e.DEPLOYMENT_TOPOLOGY = "single-instance";
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
       console.log(JSON.stringify({ refused: msg !== "", leaks: msg.includes("u:p@") }));
@@ -381,11 +387,13 @@ function groupB() {
       e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
       e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
       e.DATABASE_URL = "file:./prisma/dev.db";
+      e.DEPLOYMENT_TOPOLOGY = "single-instance";
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
-      console.log(JSON.stringify({ refused: msg !== "" }));
+      console.log(JSON.stringify({ refused: msg !== "", names: msg.includes("DATABASE_URL") }));
     `);
-    return out.refused ? null : "a relative file: path was accepted";
+    if (!out.refused) return "a relative file: path was accepted";
+    return out.names ? null : "the refusal does not name DATABASE_URL";
   });
 
   check("B4", "the gate refuses the public dev fallback secret and a short one", () => {
@@ -396,6 +404,7 @@ function groupB() {
       const attempt = (secret) => {
         e.NODE_ENV = "production"; e.DATABASE_URL = "file:/srv/db.sqlite";
         e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example"; e.ADMIN_SECRET = secret;
+        e.DEPLOYMENT_TOPOLOGY = "single-instance";
         _resetConfigForTests();
         try { getConfig(); return false; } catch { return true; }
       };
@@ -430,6 +439,7 @@ function groupB() {
       const e = process.env; e.NODE_ENV = "production"; delete e.NEXT_PHASE;
       e.DATABASE_URL = "file:/srv/db.sqlite"; e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
       e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
+      e.DEPLOYMENT_TOPOLOGY = "single-instance";
       e.R2_ACCOUNT_ID = "acct"; delete e.R2_ACCESS_KEY_ID; delete e.R2_SECRET_ACCESS_KEY; delete e.R2_BUCKET;
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }

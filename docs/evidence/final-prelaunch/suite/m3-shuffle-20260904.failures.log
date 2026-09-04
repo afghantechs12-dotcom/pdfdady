@@ -1,0 +1,80 @@
+
+ RUN  v3.2.6 /Users/faisalarifi/Downloads/pdfmaster
+      Running tests with seed "20260904"
+
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > reducePageClick: Ctrl+click > adds a page and keeps document order 1ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > reducePageClick: Ctrl+click > toggles a selected page off and re-anchors to the last remaining 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > reducePageClick: Ctrl+click > toggling off a non-anchor keeps the anchor 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > normalizePagesSelection > drops deleted ids and re-anchors 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > normalizePagesSelection > re-sorts survivors into document order after a reorder 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > normalizePagesSelection > empties cleanly when nothing survives 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > reducePageClick: Shift+click > range-selects between the anchor and the clicked page (forward) 0ms
+ ✓ components/editor/panels/pagesPanelLogic.test.ts > reducePageClick: Shift+click > range-selects backward and keeps the anchor for re-ranging 0ms
+
+[trimmed: the three failure blocks and the run summary; the full 2MB verbose log
+ is reproducible from summary.json's `command` field]
+
+Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/application/services/workspaceRouteAccess.test.ts > loadWorkspaceForRoute > passes a successful lookup straight through
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ src/application/services/workspaceRouteAccess.test.ts:30:26
+     28|     );
+     29|     expect(resolved.workspace.id).toBe("w1");
+     30|     expect(notFound).not.toHaveBeenCalled();
+       |                          ^
+     31|   });
+     32| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/infrastructure/jobs/ProcessingJobHandler.test.ts > the execution ceiling > aborts the processor's signal at the processor's own timeoutMs
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/infrastructure/jobs/ProcessingJobHandler.test.ts:565:27
+    563|     // The ceiling is enforced by the handler, not by the processor ch…
+    564|     // stop: a hung tool cannot hold the worker slot open.
+    565|     expect(abortedWithin).toBe(true);
+       |                           ^
+    566|   });
+    567| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/application/editor/serialization/SerializationService.test.ts > SerializationService: migrations > migrate applies registered steps up to the target version
+Error: No migration path from serialized version 100; current is 102.
+ ❯ migrate src/application/editor/serialization/SerializationService.ts:106:13
+    104|     const step = migrations.get(current.version);
+    105|     if (!step) {
+    106|       throw new Error(
+       |             ^
+    107|         `No migration path from serialized version ${current.version};…
+    108|       );
+ ❯ src/application/editor/serialization/SerializationService.test.ts:182:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed | 381 passed (384)
+      Tests  3 failed | 7421 passed (7424)
+   Start at  23:59:25
+   Duration  21.88s (transform 22.39s, setup 0ms, collect 84.12s, tests 86.84s, environment 85ms, prepare 40.70s)
+
+JSON report written to /Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m3-shuffle-20260904.json
+JUNIT report written to /Users/faisalarifi/Downloads/pdfmaster/docs/evidence/final-prelaunch/suite/m3-shuffle-20260904.junit.xml
