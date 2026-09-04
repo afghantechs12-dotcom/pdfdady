@@ -62,3 +62,25 @@ AND ONE NEW FINDING — P2, fixed on this branch:
   multipart body." for the same input; only the two tool submit paths did
   not. Fixed at both, with the same message, plus a log line at each of the
   two unclassified-500 sites. Mutations U1-U3 in mutation-U-malformed-body.log.
+===== R13 / MALFORMED BODY, RE-MEASURED AFTER THE FIX 2026-09-04T01:56:20Z =====
+Artifact: BUILD_ID 1nfPtJYCTsqaZBbSstXKc at HEAD 388e8af, pid 31634.
+--- filename sent (literal): ["><img src=x onerror=alert(1)>../../../etc/passwd.pdf]
+    400 {"error":"Malformed multipart body."}
+--- filename sent (literal): [`id`$(whoami)&&rm -rf ~.pdf]
+    202 {"jobId":"cmtmayyf50004uoeqo0gkyzc5"}
+--- filename sent (literal): [....//....//etc/passwd.pdf]
+    202 {"jobId":"cmtmayygk0008uoeqhouju7vu"}
+--- the log line the 400 leaves (there was none before the fix):
+    (a 400 is a validation refusal, not an unclassified fault, so it correctly logs NOTHING here;
+     the log line is reserved for a genuine 500 — asserted in jobErrorDisclosure.test.ts)
+--- and the pipeline configuration, same body:
+    (PROCESSING_PIPELINE is unset on this server, so the legacy path answered above)
+
+--- SECOND LEG: the same body against PROCESSING_PIPELINE=on (the other guard)
+    health: 200
+    400 {"error":"Malformed multipart body."}
+
+BOTH CONFIGURATIONS, AFTER THE FIX: 400 "Malformed multipart body." on the
+shipped default AND on PROCESSING_PIPELINE=on — the two submit paths are two
+separate guards, so both were sent the body rather than one being inferred
+from the other. The two inert names still complete (202).

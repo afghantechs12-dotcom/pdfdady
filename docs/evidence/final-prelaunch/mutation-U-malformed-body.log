@@ -1,28 +1,27 @@
-===== MUTATION U — the malformed-body guard 2026-09-04T01:47:44Z =====
-Applied singly to product source, expected RED, reverted through Git.
+===== MUTATION U — the malformed-body guard and the unlogged 500 =====
+Rerun 2026-09-04T01:52:03Z against the COMMITTED baseline 388e8af.
+The first run of these three was valid RED but its reverts restored the
+PRE-fix code, because the fix was not committed yet — a revert can only
+restore what Git holds. Rerun so 'reverted through Git' means the fix.
+--- baseline HEAD: 388e8af · tree: 1 modified files
 
---- U1: remove the guard from lib/server/toolJobSubmit.ts (back to a bare parse)
-applied
- ❯ finalPrelaunchRegression.test.ts (32 tests | 1 failed) 25ms
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
- Test Files  1 failed (1)
-      Tests  1 failed | 31 passed (32)
---- reverting through Git
---- tree clean for that file: 0 lines
+--- U1 remove the guard from lib/server/toolJobSubmit.ts (back to a bare parse)
+     Test Files  1 failed (1)
+          Tests  1 failed | 31 passed (32)
+    reverted: lib/server/toolJobSubmit.ts · still modified in tree: 0
 
---- U2: keep the guard but throw the wrong error type (a 500 again, via the route's generic catch)
-applied
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
-    478|       expect(guard, file).toContain("await request.formData()");
-    479|       expect(guard, file).toContain('throw new UploadValidationError("…
-      Tests  1 failed | 31 passed (32)
---- reverting through Git
+--- U2 keep the guard, throw the wrong error type (a 500 again via the generic catch)
+     Test Files  1 failed (1)
+          Tests  1 failed | 31 passed (32)
+    reverted: lib/server/processingJobSubmit.ts · still modified in tree: 0
 
---- U3: remove the log line from the shared 500 helper
-applied
-   × an unclassified job error is logged before it is hidden > logs the error name and message, and still answers a vague 500 2ms
-   × an unclassified job error is logged before it is hidden > logs a non-Error throw without assuming it has .name or .message 0ms
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
-      Tests  2 failed | 4 passed (6)
---- reverting through Git
---- tree clean: 1 modified files under lib/server (0 = every mutation reverted)
+--- U3 remove the log line from the shared unclassified-500 helper
+     Test Files  1 failed (1)
+          Tests  2 failed | 4 passed (6)
+    reverted: lib/server/processingJobApi.ts · still modified in tree: 0
+
+--- after all three: tree modified files = 1 — the SAME 1 as the baseline line above
+    (an untracked-adjacent docs edit, not source); every mutated source file is back
+--- the fix is back in place: lib/server/processingJobSubmit.ts:1 lib/server/toolJobSubmit.ts:2  1 log site
+    green again:  Test Files  2 passed (2)
+    green again:       Tests  38 passed (38)

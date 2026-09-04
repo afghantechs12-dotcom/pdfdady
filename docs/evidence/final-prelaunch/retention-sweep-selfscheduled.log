@@ -1,0 +1,37 @@
+===== R19/R20 RUNTIME RETENTION OBSERVATION — start 2026-09-03T22:36:54Z =====
+Claim under test: in a DEPLOYED artifact, not a unit test, the recurring
+file-retention sweep is registered, fires on its own 15 minutes later,
+purges an expired stored_files row, and re-schedules itself.
+--- health after 1s: 200
+--- BUILD_ID: Q0Vyn2Fqoa0Yn_j5UK-H-
+--- LOG_LEVEL=debug, so the sweep's own debug line will be visible
+===== 1. a real job, so ensureWorkerReady() runs the way production runs it =====
+--- fixture: /tmp/r30/dl-deploy.pdf (149102 bytes)
+--- jobId: cmtm3uho90004uo8s56o9no9b
+--- job status after 1s: completed
+--- the worker-ready line the running server emitted:
+{"level":"info","msg":"PDF tool worker ready","ts":"2026-09-03T22:36:55.151Z","queueType":"pdf-tool","retentionType":"file-retention"}
+===== 2. force one stored_files row expired, so the next sweep must act =====
+--- newest 5 rows carrying an expiry (id, key, expiresAt, sqlite type):
+    cmtm3uhvb0005uo8sj899fcv1 jobs/cmtm3uho90004uo8s56o9no9b/output/dl-dep 1788478615414 integer
+    cmtm3uho80003uo8s0jj3ed8g tool-inputs/560d4678-f7a5-44aa-a406-5b8b3c2c 1788478615153 integer
+    cmtm35owf0005uobq2uehs822 jobs/cmtm35opb0004uobq0p30bqa3/output/manypa 1788477458126 integer
+    cmtm35opa0003uobq8ixt9s8y tool-inputs/b5d9448a-383e-418e-9755-886cf1fd 1788477457862 integer
+    cmtm35lt10005uo7vtjwrpov8 jobs/cmtm35lm30004uo7v10bs4xac/output/manypa 1788477454116 integer
+--- now (ms): 1788475016249
+--- rows genuinely expired BEFORE the forced one: 324
+--- forced expired: cmtm3uhvb0005uo8sj899fcv1 jobs/cmtm3uho90004uo8s56o9no9b/output/dl-dep
+--- stored as: integer 1788471416249 (must be integer, or the sweep never sees it)
+--- rows expired AFTER the forced one: 325
+===== 3. wait for the sweep to fire on its own (RETENTION_INTERVAL_MS = 15 min) =====
+--- waited 900s
+--- every retention line the server emitted:
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-03T22:51:55.290Z","purged":325,"intentsPruned":0}
+===== 4. did the expired row actually go? =====
+--- the forced-expired row cmtm3uhvb0005uo8sj899fcv1 is GONE (purged)
+--- rows still expired in the past: 0
+--- total stored_files: 169
+--- workspace_save_intents: 6
+--- sessions (all): 24
+--- sessions already expired and still stored: 1
+===== DONE 2026-09-03T22:51:57Z =====

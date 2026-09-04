@@ -2,7 +2,8 @@
 
 HEAD `2840bea` artifact (BUILD_ID `Q0Vyn2Fqoa0Yn_j5UK-H-`), audit host,
 2026-09-03T22:36:54Z → 22:51:57Z. Script `/tmp/audit-retention-runtime.sh`,
-log `/tmp/audit-retention-runtime.log`.
+log `/tmp/audit-retention-runtime.log`, committed here as
+`retention-sweep-selfscheduled.log`.
 
 ## Why a runtime observation and not another unit test
 

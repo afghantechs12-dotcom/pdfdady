@@ -1425,7 +1425,7 @@ runbook describes.
 ## §27 — Tests added, and the brief's R1–R30 mapped to them
 
 **A naming collision to clear first.** `finalPrelaunchRegression.test.ts` numbers its
-own 31 tests R1–R30. Those are **not** the brief's R1–R30. The file was written
+own 32 tests R1–R30 (R19b is the 32nd, added late — see §35). Those are **not** the brief's R1–R30. The file was written
 against a different list and its numbers stayed; renumbering it now would invalidate
 every mutation row that quotes an assertion by name. Where a row below cites that
 file, the brief's item is on the left and the file's own label is quoted in the cell.
@@ -1434,12 +1434,12 @@ Eleven test files are new on this branch, fourteen were extended:
 
 | New file | Tests | Written because |
 |---|---|---|
-| `finalPrelaunchRegression.test.ts` | 31 | the regression spine — name/path composition, ceilings, cookie, disclosure, capability |
+| `finalPrelaunchRegression.test.ts` | 32 | the regression spine — name/path composition, ceilings, cookie, disclosure, capability |
 | `app/seoIndexingTruth.test.ts` | 9 | R24/R25 — derives the private set from the route tree and from `sitemap()`'s own output |
 | `deploymentArtifact.test.ts` | 8 | R30 — ties the image's installed packages to the binaries readiness requires |
 | `lib/server/tempFileLifecycle.test.ts` | 11 | R17 — `cleanup.ts` and both guards around `rm` had nothing |
 | `lib/server/runCommandInjection.test.ts` | 3 | R14 — the argv seam had no gate at all |
-| `lib/server/jobErrorDisclosure.test.ts` | 3 | R12 — the 404-not-403 rule had only a source scan |
+| `lib/server/jobErrorDisclosure.test.ts` | 6 | R12 — the 404-not-403 rule had only a source scan; then R18 — an unclassified 500 left no trace |
 | `data/admin/shippedStoreSecrets.test.ts` | 2 | the P0 password hash, globbed by filename so a `.bak` sibling cannot hide |
 | `components/seo/jsonLdEscape.test.ts` | 3 | the product's only `dangerouslySetInnerHTML` |
 | `src/infrastructure/auth/LocalSessionProvider.test.ts` | 4 | R9/R19 — session pruning, against real SQLite rather than the in-memory twin |
@@ -1460,7 +1460,8 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 | R1 | every Phase 5 non-pass is classified | Gate A table, §3 — all seven | evidence + probe |
 | R2 | the canonical tool list is what the build can run | `seoIndexingTruth` *lists only tools this build can actually run*; `capability.test.ts`; §6 matrix | test + probe |
 | R3 | a missing runtime dependency cannot look available | `PdfToolWorkerHandler.test.ts` *categorizes a MissingDependencyError*; `deploymentArtifact` *installs a package for every binary readiness requires*; `readyRoute.test.ts` | test |
-| R4 | clean install and build from the lockfile | `fresh-env-final.log`, `audit-fresh-final.log` — `npm ci` 0, build 0, both legs booted | evidence |
+| R4 | clean install and build from the lockfile | `fresh-env-final.log` (at `eb8f7fa`, 155/156 on both legs) and the first attempt
+`fresh-env-first-run-2840bea.log` — `npm ci` 0, build 0, both legs booted | evidence |
 | R5 | migrations apply to a blank database | `migration-restore-drill.log` rows 1–7 (23 migrations, 42 tables); repeated in the fresh worktree | evidence |
 | R6 | migrating a populated database preserves data | `migration-restore-drill.log` rows 8–12 — row counts before/after | evidence |
 | R7 | production config refuses insecure combinations | `env.test.ts` (25); `deploymentArtifact` *supplies every variable the production gate refuses to start without* | test |
@@ -1468,15 +1469,15 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 | R9 | sessions rotate and expire | `AuthService.test.ts` (16); `LocalSessionProvider.test.ts`; §8 measured live — rotation, server-side revocation, `Max-Age=43200` | test + live |
 | R10 | CSRF and origin gates hold | `workspaceCsrfProxyOrigin.test.ts` (18) — mutation E, 9 red | test |
 | R11 | a cross-tenant read fails | `workspaceAuthorization.test.ts` (25), `workspacePageData.test.ts` (5); **runtime** in `f5-cross-tenant-final.log` — all four refusal shapes in a real browser | test + live |
-| R12 | a foreign job or result answers without disclosing | `jobErrorDisclosure.test.ts` — byte-identical to a job that does not exist; `legacy-job-ownership-probe.mjs` | test + probe |
-| R13 | hostile filenames stay inert | `finalPrelaunchRegression` *R9/R11/R29/R30*; `tempFileLifecycle` (7 of 11) | test |
+| R12 | a foreign job or result answers without disclosing | `jobErrorDisclosure.test.ts` (6) — byte-identical to a job that does not exist, **and** the vague 500 now logs name and message while an authorization refusal still logs nothing; `legacy-job-ownership-probe.mjs` | test + probe |
+| R13 | hostile filenames stay inert | `finalPrelaunchRegression` *R9/R11/R29/R30/R19b*; `tempFileLifecycle` (7 of 11); **runtime** `hostile-filename-r13.log` — five hostile names POSTed for real on both pipeline configurations | test + live |
 | R14 | processing arguments cannot become shell syntax | `runCommandInjection.test.ts` — mutation I *created a file* when the shell was let in | test |
 | R15 | a MIME/content mismatch is rejected | `finalPrelaunchRegression` *R19 a claimed extension is checked against the actual leading bytes* | test |
 | R16 | request and file ceilings are enforced | `proxy.test.ts` (26) + `finalPrelaunchRegression` *R20*; **runtime** `upload-ceiling.log` — 22 and 60 MiB parse, 101 MiB → 413 | test + live |
 | R17 | temp files are cleaned | `tempFileLifecycle.test.ts` (11) — mutations T1–T3 | test |
 | R18 | logs exclude private content | `workspacePageData.test.ts`; measured — 6 access-denied lines from a browser walk, 0 with an email, password, cookie or token | test + live |
 | R19 | save-intent retention is decided | **resolved, not deferred** — 30-day sweep (`1d36b30`), `saveIntentIdentity.test.ts`, `workerBootstrap.test.ts`, and the sweep observed firing 15 min after boot | test + live |
-| R20 | expired results are cleaned up | `audit-retention-runtime.log` — a forced-expired row purged by the sweep on its own schedule, 325 rows, then 0 still expired | live |
+| R20 | expired results are cleaned up | `retention-sweep-selfscheduled.log` — a forced-expired row purged by the sweep on its own schedule, 325 rows, then 0 still expired | live |
 | R21 | shared content survives deleting one reference | `VersionService.test.ts` (62) — mutation K went red on *keeps bytes a stored-file row outside this Workspace still points at* | test |
 | R22 | backup and restore | `migration-restore-drill.log` rows 13–16 — online `backup()`, byte-exact restore, `migrate status` on the restored file | evidence |
 | R23 | health and readiness tell the truth | `readyRoute.test.ts` (7) — mutation O; live `/api/health` 200 while `/api/health/ready` 503 `toolchain:false` | test + live |
@@ -1491,6 +1492,13 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 **Nothing here was satisfied by a source scan alone.** The two claims that once were
 — R12's 404-not-403 rule and R24's indexing gate — are the two the mutation program
 caught (G and O1/S1), and both got behavioural tests before the mutation was applied.
+
+R13 is the row that shows why the rule earns its place. Its unit coverage was real and
+green, and the sanitizer it tests is correct: every hostile name this audit threw at the
+running server came back inert. But the *live* POST reached a layer no filename test can
+see — the multipart parser itself — and one of the five names never got as far as the
+sanitizer at all. It produced an unlogged HTTP 500 (§35, fixed at `388e8af`). A source
+scan of `sanitizeBaseName` would have passed R13 with a defect sitting in front of it.
 
 ## §28 — The final audit probe, groups A–R
 
@@ -1561,8 +1569,9 @@ sessions at HEAD `b05108a`; five already had red-and-reverted evidence from earl
 groups and were not rerun, because the code they attack did not change afterwards —
 the brief's own rule. Records: `mutation-A-and-E-to-O.md` (with the brief-letter map),
 `mutation-B-legacy-save.md`, `mutation-C-deployment.md`, `mutation-D-config-truth.md`,
-`mutation-P-retention.md`, `mutation-S-indexing.md`, `mutation-results.json`
-(35 machine-readable rows in the repository's own lettering), and Gate B's own file.
+`mutation-P-retention.md`, `mutation-S-indexing.md`, `mutation-U-malformed-body.log`,
+`mutation-results.json` (35 machine-readable rows in the repository's own lettering),
+and Gate B's own file.
 
 | Brief | Mutation | Brief expects | Applied to | Observed |
 |---|---|---|---|---|
@@ -1605,6 +1614,25 @@ stayed green: the argv seam (**I**), the raw-HTML sink (**H**) and the 404-not-4
 (**G**, which had only a source scan). Their tests were written first, run green and
 committed (`2940696`, `b05108a`) *before* the mutation was applied, so the red is a
 real gate rather than a test shaped to fit a known failure.
+
+### One mutation the brief did not ask for: U, on the fix this audit shipped last
+
+The malformed-body guard (§35, `388e8af`) is product code this audit wrote, so it was
+held to the same standard as the code it audits — three mutations, each red, each
+reverted through Git (`mutation-U-malformed-body.log`):
+
+| Row | Mutation | Observed |
+|---|---|---|
+| **U1** | remove the guard from `toolJobSubmit.ts`, back to a bare `await request.formData()` | **RED** 1 failed / 31 passed |
+| **U2** | keep the guard on `processingJobSubmit.ts` but throw the wrong error type, so the generic catch answers 500 again | **RED** 1 failed / 31 passed |
+| **U3** | remove the log line from the unclassified-500 site | **RED** 2 failed / 4 passed |
+
+These three are a **rerun**. Their first pass was genuinely red, but each revert restored
+the *pre-fix* code, because the fix had not been committed yet and `git checkout --` can
+only restore what Git holds. That is worth recording rather than hiding: a mutation
+program whose subject is uncommitted silently tests the wrong baseline. The rerun above
+ran against the committed `388e8af`, and the suite is green again afterwards
+(38 passed / 38).
 
 ### What no mutation here reaches, stated rather than implied
 
@@ -1664,7 +1692,7 @@ ever taken from it.
 ## §31 — Files changed
 
 Against the baseline this branch was cut from (`651c8fa`, `phase-6-premium-ui`):
-**170 files, +19582 / −724**, of which product source under `app/`, `components/`,
+**189 files, +21884 / −727** at final HEAD `388e8af`, of which product source under `app/`, `components/`,
 `lib/`, `src/`, `prisma/`, `next.config.mjs`, `Dockerfile` and `docker-compose.yml`
 is the part that ships.
 
@@ -1684,7 +1712,9 @@ is the part that ships.
 | `app/workspaces/[workspaceId]/page.tsx` | `robots: {index:false, follow:false}` — it was the one private page a crawler could index |
 | `app/sitemap.ts`, `app/robots.ts` | the availability gate, now with its comment corrected to say it is load-bearing |
 | `src/application/services/workspacePageData.ts` | one structured, ids-only line per refused Workspace page |
-| `lib/server/toolJobSubmit.ts` | `sanitizeBaseName` no longer turns `..pdf` into `...pdf` (P3) |
+| `lib/server/toolJobSubmit.ts` | `sanitizeBaseName` no longer turns `..pdf` into `...pdf` (P3); and a body no multipart parser can read now throws `UploadValidationError` → **400**, not an unlogged 500 (P2) |
+| `lib/server/processingJobSubmit.ts` | the same guard on the unified-pipeline submit path, so both configurations answer alike |
+| `lib/server/processingJobApi.ts`, `app/api/jobs/route.ts` | the two unclassified-500 sites now log error name and message — never the filename, per R18 |
 | `app/not-found.tsx` (new), `app/workspaces/not-found.tsx` | every unknown URL gets the product's 404 rather than Next's framework page |
 | 19 `app/admin/*/page.tsx`, `app/login`, `app/register`, `app/editor` | `title.absolute` — 27 titles were branded twice |
 | `components/contact/ContactForm.tsx` | stops thanking a visitor for a message it discards (P3) |
@@ -1707,14 +1737,20 @@ than edited blind in an artifact no build on this host can verify.
 
 ## §32 — Commits and working tree
 
-Branch `final-prelaunch-audit`, **65 commits** ahead of `651c8fa`. **No remote is
+Branch `final-prelaunch-audit`, **77 commits** ahead of `651c8fa` (final HEAD
+`388e8af`). **No remote is
 configured, nothing was pushed, and `main` is untouched.** Working tree at the end of
 the audit: clean — `git status --porcelain` empty, no merge, rebase or cherry-pick in
 progress, one worktree.
 
-Roughly: 21 commits change product behaviour, 17 add or strengthen tests, 12 record
-mutation and probe evidence, 9 are probe/harness fixes, and 6 are progress
-checkpoints. The audit's own defects are committed under their own names rather than
+Classified by the highest-priority path each one touches — product source, then
+tests, then `scripts/`, then `docs/` — the 77 are: **17** that change product
+behaviour, **8** that only add or strengthen tests, **13** that only fix the audit's
+own probes and harness, and **38** docs-only (20 evidence, 10 progress checkpoints, 8
+report and ledger). One commit touches none of those paths. Counting by priority is
+why the test figure is small: most test work landed in the same commit as the fix it
+guards, which is deliberate — §29 depends on a fix being *committed* before its
+mutation runs. The audit's own defects are committed under their own names rather than
 folded into the fixes, because five of them produced a plausible, publishable, wrong
 failure:
 
@@ -1772,7 +1808,7 @@ Prisma adapter proved against real SQLite rather than only its in-memory twin, a
 `pruneExpired` made **required** on `ISessionProvider` — which surfaced five `tsc` errors
 across four doubles, and that was the point. The sweep was then watched doing it in a
 deployed artifact: 15 minutes after boot, unprompted, it purged a forced-expired row
-along with 324 others and rescheduled itself (`audit-retention-runtime.log`).
+along with 324 others and rescheduled itself (`retention-sweep-selfscheduled.log`).
 
 **No P1 is open.**
 
@@ -1786,6 +1822,7 @@ along with 324 others and rescheduled itself (`audit-retention-runtime.log`).
 | the Workspace file manager was the one private page a crawler could index — it exported no `metadata` and has no layout above it to supply one, while all three siblings declared `robots:{index:false}` | P2 | `450657d` |
 | a valid 300-page document was refused with *"may be damaged"* instead of the page ceiling it actually hit | P2 | `297c776` |
 | the cross-tenant page refusal produced **no audit line at all** — the organization guard runs before the only place that logs. Correct answer, invisible | P2 | `9389da3` |
+| an upload whose filename carries a raw `"` made the multipart body unparseable, and the `TypeError` reached the route's generic catch: HTTP **500**, no log line, on both submit paths. Found by POSTing R13's hostile filenames for real rather than reading the sanitizer | P2 | `388e8af` |
 | 27 pages branded their own titles under the root layout's `title.template` → *"Page not found — PDFDadi — PDFDadi"* | P3 | `b29f79f` |
 | `sanitizeBaseName` turned an upload named `..pdf` into a download named `...pdf` | P3 | `d84ed4a` |
 | `/contact` showed a green tick and *"we've noted your message"* with no transport behind it — no fetch, no server action, no mail provider | P3 (copy-only fix; a mail transport is feature work this audit may not add) | `f55ffca` |

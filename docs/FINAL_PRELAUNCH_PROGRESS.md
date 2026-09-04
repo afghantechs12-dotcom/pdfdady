@@ -70,9 +70,9 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | E Tool runtime matrix | `tool-matrix-FINALHEAD.{log,json}` — **29/29 exercised at final HEAD, 0 product failures** | COMPLETE — FINAL EVIDENCE VALID | no | rerun done after the ocr fix; 2 ENVIRONMENTAL (soffice), 3 NOT EXERCISED (no Office fixtures) |
 | F Core workflows | `workflow-probe-final-default.log` — **155/156 at HEAD `371f4ef`, BUILD_ID `Y8FTkWwDAOHlzSbHMICnZ`, PROCESSING_PIPELINE unset**; earlier Phase 5 probe logs; `saveToWorkspaceRoute.test.ts`; **rerun at final HEAD: `workflow-probe-FINALHEAD.log` 155/156** | COMPLETE — FINAL EVIDENCE VALID | no | **0 product failures, 0 probe failures, 1 ENVIRONMENTAL** (soffice, journey I). Two PROBE DEFECTS fixed first: N3 raced the asynchronous first-save ingestion (the 409 body's own `preparation: "processing"` was being discarded) and journey I' armed NOTHING on the shipped default — the SSE terminal frame names the mime `result.mimeType` and carries no `resultAvailable`, so the retype guard could never fire. I' now exercises the default: `rewrites=1`, Download offered, `Open in Editor` nowhere, no Workspace save, no handoff written |
 | G–J security | `audit-final.json` + `audit-static-final.log` — **at final HEAD on a clean tree, not `--offline`**: PASS 66/67 exercised, **1 PRODUCT FAILURE (I3, the advisory count)**, 2 ENVIRONMENTAL, 4 NOT EXERCISED, 12 MANUAL REVIEW REQUIRED, 85 assertions, `HARNESS_EXIT=1` | COMPLETE — FINAL EVIDENCE VALID | no | I3 resolved to reachability in `dependencies-secrets-i3.md` → **P2, not a blocker** (only `sharp` and the client `pdfjs-dist` are in the shipped artifact at all; pdf.js needs `enableScripting` + no `script-src`, and both are absent). F5 cross-tenant runtime matrix still owed by the workspace probe |
-| K Retention | `1d36b30`, `2cb2467`, **`371f4ef`**; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, **`LocalSessionProvider.test.ts`** (real SQLite), `saveIntentIdentity.test.ts` D24; `erasure-export-j3.md`; `mutation-P-retention.md` P1–P3 **+ P4–P7** | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep). **SECOND FINDING, FIXED: `sessions` was never pruned** — a row per login, removed only by an explicit logout, in an authentication table; `get` already refuses an expired token so it was unbounded growth rather than an access risk, which is why nothing surfaced it. `ISessionProvider.pruneExpired` made REQUIRED (5 tsc errors across 4 doubles — the point), riding the existing 15-min sweep. **`audit_logs` is unpruned BY DESIGN and is reported, not fixed.** P4–P7 red-and-reverted; P7 compiles clean (tsc exit 0) and only the behavioural wiring test sees it. Rerun row: the RUNTIME sweep observation is the one thing no mutation reaches — **observed: sweep fired on its own 15 min after boot, purged 325 expired rows, 0 left expired** (`audit-retention-runtime.log`)
+| K Retention | `1d36b30`, `2cb2467`, **`371f4ef`**; `PdfToolWorkerHandler.test.ts`, `workerBootstrap.test.ts`, **`LocalSessionProvider.test.ts`** (real SQLite), `saveIntentIdentity.test.ts` D24; `erasure-export-j3.md`; `mutation-P-retention.md` P1–P3 **+ P4–P7** | COMPLETE — MUST RERUN AFTER LATER CHANGES | yes | intent pruning RESOLVED (30-day horizon in the recurring sweep). **SECOND FINDING, FIXED: `sessions` was never pruned** — a row per login, removed only by an explicit logout, in an authentication table; `get` already refuses an expired token so it was unbounded growth rather than an access risk, which is why nothing surfaced it. `ISessionProvider.pruneExpired` made REQUIRED (5 tsc errors across 4 doubles — the point), riding the existing 15-min sweep. **`audit_logs` is unpruned BY DESIGN and is reported, not fixed.** P4–P7 red-and-reverted; P7 compiles clean (tsc exit 0) and only the behavioural wiring test sees it. Rerun row: the RUNTIME sweep observation is the one thing no mutation reaches — **observed: sweep fired on its own 15 min after boot, purged 325 expired rows, 0 left expired** (`retention-sweep-selfscheduled.log`)
 | L DB/backup/restore | `migration-restore-drill.log` — **16/16** (blank chain R5 + populated upgrade R6 + backup/restore R22) | COMPLETE — FINAL EVIDENCE VALID | no | none |
-| M Reliability | harness group L/M at final HEAD (L1,L2,L4,L5 PASS; L3 MANUAL REVIEW; M1,M2 PASS; M3 NOT EXERCISED); `readyRoute.test.ts` (7); `readiness-r23.log`; `audit-retention-runtime.log` | COMPLETE — FINAL EVIDENCE VALID | no | §16/§17 written. Runtime sweep observed firing on its own 15 min after boot and purging 325 expired rows |
+| M Reliability | harness group L/M at final HEAD (L1,L2,L4,L5 PASS; L3 MANUAL REVIEW; M1,M2 PASS; M3 NOT EXERCISED); `readyRoute.test.ts` (7); `readiness-r23.log`; `retention-sweep-selfscheduled.log` | COMPLETE — FINAL EVIDENCE VALID | no | §16/§17 written. Runtime sweep observed firing on its own 15 min after boot and purging 325 expired rows |
 | N Performance | `perf-load.log` + `perf-load.json` — one complete run (7 pages ×3, 6 shapes ×2, 11 fan-outs); §18 written | COMPLETE — FINAL EVIDENCE VALID | no | **P2: Workspace Editor CLS 0.212** (structural, twice the 0.1 threshold, largest payload at 921 KB); server processing ≈3 s independent of size (observation, not diagnosed — no retries in the log); three probe defects fixed before the run, all numbers post-fix |
 | O Browser + a11y | `keyboard-r28.log` (13 gates signed out + 13 signed in), `cross-browser.log` | COMPLETE — FINAL EVIDENCE VALID | no | R28 PASS with M5b NOT EXERCISED (OS file dialog); R29 Chromium exercised, Firefox ENVIRONMENTAL, WebKit + screen reader NOT EXERCISED; **§19 and §20 written**; the one engine-gated API (`EyeDropper`) is feature-detected, `navigator.clipboard` optional-chained, no `oklch`/`:has()`/`@container` anywhere |
 | P SEO/pricing | harness groups O (3/3), P (4/4), Q (3/4 + 1 MANUAL REVIEW) at final HEAD; `seoIndexingTruth.test.ts` (5) | COMPLETE — FINAL EVIDENCE VALID | no | §21/§22/§23 written; Q4 consent question is legal, not code |
@@ -319,3 +319,32 @@ No P0 and no P1 open (3 P0 + 6 P1 all fixed with commits cited in §33/§34); 6 
 with reasons in §35; 13 `LAUNCH DECISION REQUIRED` items consolidated in §37; 12
 MANUAL REVIEW REQUIRED rows in §36. Nothing was deployed, merged, pushed, or reset;
 no remote is configured.
+
+## Session 4 close-out — R13 exercised for real, and what it cost
+
+| Item | Status | Rerun needed |
+|---|---|---|
+| R13 hostile filenames, **live** on both pipeline configurations | COMPLETE — FINAL EVIDENCE VALID | no |
+| the malformed-body finding, fixed at `388e8af` | COMPLETE — FINAL EVIDENCE VALID | no |
+| mutation **U1–U3** on that fix, against the committed baseline | COMPLETE — FINAL EVIDENCE VALID | no |
+| all five runtime probes re-measured at `388e8af` | COMPLETE — FINAL EVIDENCE VALID | no |
+
+R13 was the one behavioural row still resting on unit coverage alone. Exercising it
+live (`hostile-filename-r13.log`) confirmed the inertness claim — a name carrying
+`` `id`$(whoami)&&rm -rf ~ `` became `_id_whoami_rm_-rf_-compressed.pdf`, `....//....//etc/passwd.pdf`
+became `passwd-compressed.pdf`, no storage key or path held anything hostile, and
+`/etc/passwd` was untouched — and found a **P2 the unit tests could not see**: a
+filename with a raw `"` makes the multipart body unparseable, so the `TypeError`
+reached the route's generic catch as an **unlogged HTTP 500**. Fixed at the root, in
+the two shared submit paths, reusing the `UploadValidationError` → 400 mapping the
+Workspace upload routes already had; plus a log line at each of the two
+unclassified-500 sites, carrying error name and message only — never the filename,
+per R18. Reachability is stated honestly in §35: a browser escapes the quote as `%22`
+and is unaffected, so only the public API reaches it.
+
+Two evidence citations in the report pointed at `/tmp` files that were never
+committed. Both are now filed (`retention-sweep-selfscheduled.log`,
+`fresh-env-first-run-2840bea.log`) and every evidence name cited by the report and by
+this file resolves to a committed file. `retention-sessions-postfix.log`'s
+"FINAL-HEAD ARTIFACT" heading was corrected: it records `6e09c28`, and the three files
+implementing the sweep are byte-identical there and at final HEAD.

@@ -4650,3 +4650,38 @@ see one. It and its paired ids-only row are now `NOT EXERCISED` unless
 `--dev-log-forwarding` is passed, and are counted in no total.
 
 **No migration and no schema change.**
+
+## A malformed upload body is the caller's error, and a 500 now leaves a trace
+
+Two defects in one request, found by POSTing a hostile filename at a running
+server rather than by reading code.
+
+A filename containing a raw double quote makes the `Content-Disposition` header
+ambiguous, so undici throws `TypeError: Failed to parse body as FormData.` before
+any product code sees a file. That fell through the submit route's generic `catch`
+and became **HTTP 500**, and the server log for the request was **empty**. A
+malformed request is the caller's error, and a 500 nobody records cannot be
+diagnosed after the fact.
+
+The guard already existed in this codebase — the three Workspace upload routes have
+always wrapped `request.formData()` and answered
+`400 "Malformed multipart body."`. Only the two tool submission paths lacked it. The
+fix is that same `try`/`catch` at `toolJobSubmit` and `processingJobSubmit`, throwing
+`UploadValidationError`, which both routes already map to 400: no route changed, and
+one guard covers every caller instead of one per route.
+
+Separately, both unclassified-500 sites now log — the shared `jobErrorResponse`
+helper and `/api/jobs`'s own catch. Error name and message only, never the
+filename: the response body is deliberately vague because the message may name a
+path or a command, which is exactly why the message has to go somewhere.
+
+**Reachability, stated rather than assumed.** A spec-conforming client escapes the
+quote as `%22`, and that round-trips back to the literal name, so no browser reaches
+this path — the public API does. `finalPrelaunchRegression` R19b asserts all three
+halves: that the parser really does reject the raw body (so the guard is not dead
+code), that the escaped form parses back byte-for-byte, and the guard's shape at
+both submit paths. Three cases in `jobErrorDisclosure.test.ts` cover the logging,
+including a non-`Error` throw and that classified refusals stay silent. Mutations
+U1–U3 turn them red.
+
+**No migration and no schema change.**

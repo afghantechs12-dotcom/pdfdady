@@ -1,0 +1,125 @@
+===== START 2026-09-03T22:24:26Z =====
+Group D (fresh-environment reproducibility) + Group F (core workflows) at final HEAD.
+Nothing is reused from the primary tree: new worktree, npm ci from the lockfile,
+a throwaway database, and env passed explicitly so no local .env can help.
+Preparing worktree (detached HEAD 2840bea)
+HEAD is now at 2840bea R30/Group Q: the deploy and rollback rehearsal actually ran — 8/8
+--- worktree HEAD: 2840beaf44ea75d59ae9efb4e363be15e6bf4f84
+--- node_modules present before ci: no
+--- .next present before build:     no
+--- .env present in the worktree:   no
+===== npm ci  (lockfile only, no cache from the primary tree) =====
+
+added 371 packages in 5m
+
+84 packages are looking for funding
+  run `npm fund` for details
+npm warn install-scripts 7 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @prisma/client@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @prisma/engines@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn install-scripts   fsevents@2.3.3 (install: (install scripts present))
+npm warn install-scripts   prisma@6.19.3 (preinstall: node scripts/preinstall-entry.js)
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts   esbuild@0.25.12 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm ci exit=0
+===== prisma migrate deploy (throwaway db, empty file) =====
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+  └─ 20260824010000_add_processing_job_fields/
+    └─ migration.sql
+  └─ 20260824120000_add_usage_metering/
+    └─ migration.sql
+  └─ 20260825010000_add_usage_settlements/
+    └─ migration.sql
+  └─ 20260825120000_add_billing_subscriptions/
+    └─ migration.sql
+  └─ 20260902100000_add_workspace_save_intents/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+===== npm run build  (the documented command: prisma generate && next-build) =====
+├ ƒ /tools/add-page-numbers
+├ ƒ /tools/add-watermark
+├ ƒ /tools/annotate-pdf
+├ ƒ /tools/crop-pdf
+├ ƒ /tools/delete-pdf-pages
+├ ƒ /tools/edit-pdf
+├ ƒ /tools/extract-pdf-pages
+├ ƒ /tools/fill-pdf-forms
+├ ƒ /tools/image-to-pdf
+├ ƒ /tools/jpg-to-pdf
+├ ƒ /tools/merge-pdf
+├ ƒ /tools/organize-pdf
+├ ƒ /tools/png-to-pdf
+├ ƒ /tools/remove-pdf-metadata
+├ ƒ /tools/reorder-pdf-pages
+├ ƒ /tools/rotate-pdf
+├ ƒ /tools/sign-pdf
+├ ƒ /tools/split-pdf
+├ ƒ /workspaces
+├ ƒ /workspaces/[workspaceId]
+├ ƒ /workspaces/[workspaceId]/documents/[documentId]
+└ ƒ /workspaces/[workspaceId]/settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit=0
+--- BUILD_ID: M2LPjKGnyoIDQALJp_035
+--- standalone server present: yes
+===== leg 1: the SHIPPED default (PROCESSING_PIPELINE unset) =====
+SERVER DID NOT BOOT (default leg)
+/tmp/audit-final-fresh.sh: line 44: DATABASE_URL=file:/tmp/audit-fresh-final-db.db: No such file or directory
+===== leg 2: PROCESSING_PIPELINE=on (the configuration Phase 5 measured) =====
+SERVER DID NOT BOOT (pipeline-on leg)
+/tmp/audit-final-fresh.sh: line 44: PROCESSING_PIPELINE=on: command not found
+===== DONE 2026-09-03T22:31:47Z =====
+/tmp/audit-final-fresh.sh: line 88: 48789 Terminated: 15          node scripts/tls-front.mjs --listen $FRONT --target $BACK > /tmp/audit-fresh-tls.log 2>&1
+
+===== BOOT + PROBE LEGS, RERUN 2026-09-03T22:37:01Z =====
+Run 1's two boot legs failed for a defect in this script, not in the product:
+an env-assignment prefix cannot be produced by parameter expansion —
+${1:+PROCESSING_PIPELINE=on} is parsed as a WORD, so the assignment after it
+became the command name ("DATABASE_URL=file:...: No such file or directory").
+Fixed by passing the whole environment to env(1). npm ci, the migration chain
+and the build from run 1 are VALID and are reused rather than repeated:
+  npm ci exit=0 · migrations applied on a blank db · build exit=0 · BUILD_ID M2LPjKGnyoIDQALJp_035
+--- worktree HEAD: 2840beaf44ea75d59ae9efb4e363be15e6bf4f84
+--- BUILD_ID still: M2LPjKGnyoIDQALJp_035
+===== leg 1: the SHIPPED default (PROCESSING_PIPELINE unset) =====
+--- pipeline env in the running process: unset
+--- health: 200
+--- ready:  503
+--- ready body: {"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,"checks":[{"name":"database","healthy":true}]}
+PROBE_EXIT=1
+PASS  no hydration mismatch
+
+=============== 151/156 passed ===============
+  PROBE: I': the completed job really did arrive reporting a non-PDF output — rewrites=0 panel=Skip to content | PDFDadi | Tools | Pricing | Workspace | Editor | Open Workspace | Home | Tools | Compress PDF | Compress PDF |  | Reduce PDF file size with quality presets. |  | Your fil
+  PROBE: I': `Open in Editor` is offered NOWHERE on the page — Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Open in Editor / Save to Workspace / Repair PDFRebuild and recover a damaged PDF.Processing: Secure cloud / OCR PDFMake scanned PDFs sear
+  PROBE: I': neither Save to Workspace nor the destination selector is offered for it — selects=1 chooseCopy=true labels=Skip to content / PDFDadi / Tools / Pricing / Workspace / Editor / Open Workspace / Home / Tools / Download / Start over / Open in Editor / Save to Workspace / Repair PDFRebuild and recover a damaged 
+  PRODUCT: N3: the new document downloads, and holds the same bytes that were saved — status 409 vs 31a95e2f895f60ecb836d17dc6f19648302b7d1cf1dc697248aba7df46062ed3
+  ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+===== leg 2: PROCESSING_PIPELINE=on (the configuration Phase 5 measured) =====
+--- pipeline env in the running process: PROCESSING_PIPELINE=on
+--- health: 200
+PROBE_EXIT=1
+=============== H+. nothing broke quietly while all of that happened ===============
+PASS  the server returned no 5xx during any journey
+PASS  no uncaught exception or console error surfaced in the page
+PASS  no hydration mismatch
+
+=============== 154/156 passed ===============
+  PRODUCT: N3: the new document downloads, and holds the same bytes that were saved — status 409 vs 8e7d249b17ff45e5b39951a32f06a0e6d62ca33d1b70c6be6ede72a1cd6cd88c
+  ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+===== DONE 2026-09-03T22:45:31Z =====
+/tmp/audit-final-fresh2.sh: line 76: 50911 Terminated: 15          node scripts/tls-front.mjs --listen $FRONT --target $BACK > /tmp/audit-fresh-tls.log 2>&1

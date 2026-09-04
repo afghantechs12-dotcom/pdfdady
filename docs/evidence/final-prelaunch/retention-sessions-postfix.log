@@ -1,5 +1,17 @@
-SESSION AND FILE RETENTION, OBSERVED ON THE FINAL-HEAD ARTIFACT — audit host, 2026-09-03/04
+SESSION AND FILE RETENTION, OBSERVED ON A POST-FIX ARTIFACT — audit host, 2026-09-03/04
 HEAD 6e09c28 · running artifact BUILD_ID Y8FTkWwDAOHlzSbHMICnZ · LOG_LEVEL=debug
+
+LABEL CORRECTION (2026-09-04). This file first called 6e09c28 "the final-head
+artifact", which it was when the run happened and stopped being when 9389da3
+landed. The observation itself is unaffected: the three files that implement the
+sweep and the session horizon — src/infrastructure/jobs/workerBootstrap.ts,
+src/infrastructure/jobs/PdfToolWorkerHandler.ts and
+src/infrastructure/auth/LocalSessionProvider.ts — are byte-identical at 6e09c28 and
+at final HEAD (`git diff --name-only 6e09c28..HEAD -- <those three>` is empty).
+The nine non-docs paths that did change are the cross-tenant audit line and the
+malformed-body guard, neither of which is retention. The run AT final HEAD is
+retention-finalhead-three-horizons.log, which sees all three horizons purge in one
+self-scheduled sweep; this file remains the first observation of the session horizon.
 
 Why this file exists. The earlier runtime observation (retention-r19-r20.md) was
 made on BUILD_ID Q0Vyn2Fqoa0Yn_j5UK-H-, built at bfed32f — which is BEFORE 371f4ef,
