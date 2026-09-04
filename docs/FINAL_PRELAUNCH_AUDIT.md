@@ -1492,6 +1492,66 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 — R12's 404-not-403 rule and R24's indexing gate — are the two the mutation program
 caught (G and O1/S1), and both got behavioural tests before the mutation was applied.
 
+## §28 — The final audit probe, groups A–R
+
+Two different instruments run at final HEAD `9389da3`, and the report keeps them
+apart because they answer different questions.
+
+**`scripts/final-prelaunch-audit.mjs` is a STATIC harness.** It reads source, config,
+schema, the Dockerfile and Git history. It boots nothing. An earlier version of it
+advertised "live checks" behind `--url` while its own `live()` helper was called zero
+times — fixed in `71f9bf5`, and recorded here so no line below can be mistaken for a
+runtime result. Runtime behaviour comes from the four driving probes underneath.
+
+`node scripts/final-prelaunch-audit.mjs --json …` → `HARNESS_EXIT=1`,
+**85 rows over 18 groups**, evidence `audit-static-FINALHEAD.{log,json}`:
+
+| Group | Pass | Not a pass |
+|---|---|---|
+| A Repository and build integrity | 5 | 2 MANUAL REVIEW (A3 secrets in the tree, A4 secrets in history — both need a human to confirm no *value* is a real one) |
+| B Production configuration gate | 7 | — |
+| C Deployment artifact | 6 | 2 ENVIRONMENTAL (C7 the image builds, C8 it migrates a fresh volume — no Docker daemon) |
+| D Tool inventory and capability truth | 4 | — |
+| E Authentication and session | 4 | 2 MANUAL REVIEW (E5 admin session semantics, E6 the setup route) |
+| F Tenant isolation | 4 | **1 NOT EXERCISED — F5, and by design: a static reader cannot perform a cross-tenant read.** Done at runtime instead, below |
+| G File and processing security | 5 | 1 MANUAL REVIEW (G6 hostile document fixtures — zip bomb, encrypted, malformed xref, embedded JS) |
+| H Web security and CSP | 5 | — |
+| I Dependencies | 2 | **1 PRODUCT FAILURE (I3)** + 1 MANUAL REVIEW (I4 the image's Node major) |
+| J Privacy and retention | 3 | 1 MANUAL REVIEW (J3 no account deletion, no export) |
+| K Schema and migrations | 3 | 1 MANUAL REVIEW (K3 destructive migration intent) |
+| L Reliability and lifecycle | 4 | 1 MANUAL REVIEW (L3 readiness omits storage writability) |
+| M Observability | 2 | 1 NOT EXERCISED (M3 aggregation, alerting, on-call) |
+| N Performance budget | 1 | 1 MANUAL REVIEW (N2 static-render opt-outs) + 1 NOT EXERCISED (N3 sustained load — measured by the perf probe instead, §18) |
+| O SEO and route truth | 3 | — |
+| P Commercial truth | 4 | — |
+| Q Analytics and consent | 3 | 1 MANUAL REVIEW (Q4 consent banner — a legal question, not a code one) |
+| R Accessibility and responsive layout | 1 | 1 NOT EXERCISED (R2 111 rendered-layout assertions) + 1 MANUAL REVIEW (R3 human visual acceptance) |
+
+**Separate totals — static harness:** PASS **66/67 exercised** · PRODUCT FAILURE **1** ·
+ENVIRONMENTAL **2** · NOT EXERCISED **4** · MANUAL REVIEW REQUIRED **12**.
+
+`HARNESS_EXIT=1` is entirely **I3**: nine high advisories in the *development*
+dependency tree. §12 traces every one to reachability, and the decisive measurement is
+the standalone trace — only `sharp` (server) and `pdfjs-dist` (client bundle) are in
+the shipped artifact at all, and the pdf.js advisory needs `enableScripting` plus an
+absent `script-src`. Recorded **P2**, not a blocker, and not silently downgraded: the
+harness still reports it as a failure and still exits non-zero.
+
+**Separate totals — the four runtime probes, same HEAD, same artifact
+(BUILD_ID `_DzYjfCuvno7KJhZM8SWY`):**
+
+| Probe | Result | Not a pass |
+|---|---|---|
+| `workflow-completeness-probe` — 18 core journeys | exit 0, **155/156** | 1 ENVIRONMENTAL (journey I: the 415 UNSUPPORTED_OUTPUT branch needs a non-PDF result, and every tool that makes one is `soffice`-backed) |
+| `phase1-workspace-reliability-probe` — F5/R11 | exit 0, **29/29** | 2 NOT EXERCISED (the two rows that can only read a dev server's replayed console) |
+| `tool-runtime-matrix-probe` — 34 rows for 32 tools | exit 0, **29/29 exercised**, 0 product failures | 2 ENVIRONMENTAL (`pdf-to-word`, `html-to-pdf`), 3 NOT EXERCISED (no `.docx`/`.pptx`/`.xlsx` fixture) |
+| `legacy-job-ownership-probe` — R12 | exit 0, **25/25**, 0 failed | — |
+
+**Zero product failures across all four runtime probes at final HEAD.** F5, the row the
+static harness cannot reach, is the one this audit spent the most effort on: it now
+passes end to end in a real browser, and the refusal it exercises is auditable in every
+shape (§9).
+
 ## §29 — Mutation testing: the brief's A–O
 
 Fifteen mutations, each applied singly to product source, each observed red at the
@@ -1554,6 +1614,51 @@ that is what the probe runs at HEAD do; and `P7` is the shape that matters most 
 this repository: it type-checks clean (`tsc --noEmit` exit 0) and only the behavioural
 wiring test sees it, which is the same failure mode the memory notes record from
 earlier phases.
+
+## §30 — Final verification
+
+Every gate below ran **after** the last change to shipped code, on one artifact built
+from it. The artifact is `BUILD_ID _DzYjfCuvno7KJhZM8SWY`, built at commit `9389da3`;
+every commit after that one touches `docs/**` only —
+`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths**. The commands are
+recorded verbatim in `docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`.
+
+| Gate | Command | Exit | Result |
+|---|---|---|---|
+| Build | `npm run build` | **0** | `BUILD_ID _DzYjfCuvno7KJhZM8SWY`; standalone server emitted; `.next/static` and `public` copied into it before boot |
+| Types | `npx tsc --noEmit` | **0** | 0 lines of output |
+| Lint | `npx eslint .` | **0** | 13 problems — **0 errors**, 13 warnings (unused vars not prefixed `_`) |
+| Schema | `npx prisma validate` | **0** | *The schema at prisma/schema.prisma is valid* |
+| Migrations | `npx prisma migrate status` | **0** | *Database schema is up to date!* |
+| Unit/integration suite | `npx vitest run` | **0** | **377 files, 7283 tests, 7283 passed, 0 failed** |
+| Static harness A–R | `node scripts/final-prelaunch-audit.mjs --json …` | **1** | 66/67 exercised; the non-zero exit is I3 alone (§28) |
+| Core journeys | `node scripts/workflow-completeness-probe.mjs --url …` | **0** | **155/156**; 1 ENVIRONMENTAL |
+| Workspace / F5 / R11 | `node scripts/phase1-workspace-reliability-probe.mjs …` | **0** | **29/29**; 2 NOT EXERCISED |
+| Tool matrix | `node scripts/tool-runtime-matrix-probe.mjs --url … --json …` | **0** | **29/29 exercised**, 0 product failures; 2 ENVIRONMENTAL, 3 NOT EXERCISED |
+| Job ownership / R12 | `node scripts/legacy-job-ownership-probe.mjs --url …` | **0** | **25/25**, 0 failed |
+| Export fidelity | `npm run test:export-fidelity` | **0** | **35/35 fixtures within threshold** — worst `image-low-resolution` 10.716% against a 12.0% limit |
+| Visual compare (Gate B) | `node scripts/visual-acceptance-probe.mjs --url … --auth` | **0** | **156/156 exercised**, 1 NOT EXERCISED (`19-app-error` needs a genuinely failing dependency); verdict stays **`VISUAL ACCEPTANCE PENDING`** |
+| Liveness | `GET /api/health` | — | **200** |
+| Readiness | `GET /api/health/ready` | — | **503** `{"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true}` — truthful: `soffice` is absent from this host |
+
+**The 503 is the correct answer here and is not counted as a pass.** It is the
+liveness/readiness split working: the process is alive, the toolchain is not complete,
+and the body names which subsystem is false without naming the binary.
+
+Two notes on how these numbers were produced, because both changed a result earlier in
+this audit:
+
+- Every browser probe uses `https://172.20.10.2:3051` — the TLS front — and that value
+  is also `NEXT_PUBLIC_SITE_URL`. Point a probe at `127.0.0.1` instead and the
+  CSRF/origin gate refuses every mutation, which reads as a wall of product failures.
+- Node's `fetch` rejects the front's self-signed certificate and CDP-driven Chrome
+  needs `--ignore-certificate-errors`. Two separate fixes for one certificate; missing
+  either one produced "no server answering" while `curl` worked.
+
+One harness note, recorded because it appears in the boot logs: the boot script asks
+`/api/ready`, which is a **404** — the route is `/api/health/ready`. That is the
+script's path typo, not a missing route, and no readiness evidence in this report was
+ever taken from it.
 
 ## §31 — Files changed
 
@@ -1626,111 +1731,6 @@ failure:
 The interrupted first session's work was recovered and committed intact (`438e800`),
 not rewritten: its harness, probes, fixtures and evidence are in history as they were
 found.
-
-## §28 — The final audit probe, groups A–R
-
-Two different instruments run at final HEAD `9389da3`, and the report keeps them
-apart because they answer different questions.
-
-**`scripts/final-prelaunch-audit.mjs` is a STATIC harness.** It reads source, config,
-schema, the Dockerfile and Git history. It boots nothing. An earlier version of it
-advertised "live checks" behind `--url` while its own `live()` helper was called zero
-times — fixed in `71f9bf5`, and recorded here so no line below can be mistaken for a
-runtime result. Runtime behaviour comes from the four driving probes underneath.
-
-`node scripts/final-prelaunch-audit.mjs --json …` → `HARNESS_EXIT=1`,
-**85 rows over 18 groups**, evidence `audit-static-FINALHEAD.{log,json}`:
-
-| Group | Pass | Not a pass |
-|---|---|---|
-| A Repository and build integrity | 5 | 2 MANUAL REVIEW (A3 secrets in the tree, A4 secrets in history — both need a human to confirm no *value* is a real one) |
-| B Production configuration gate | 7 | — |
-| C Deployment artifact | 6 | 2 ENVIRONMENTAL (C7 the image builds, C8 it migrates a fresh volume — no Docker daemon) |
-| D Tool inventory and capability truth | 4 | — |
-| E Authentication and session | 4 | 2 MANUAL REVIEW (E5 admin session semantics, E6 the setup route) |
-| F Tenant isolation | 4 | **1 NOT EXERCISED — F5, and by design: a static reader cannot perform a cross-tenant read.** Done at runtime instead, below |
-| G File and processing security | 5 | 1 MANUAL REVIEW (G6 hostile document fixtures — zip bomb, encrypted, malformed xref, embedded JS) |
-| H Web security and CSP | 5 | — |
-| I Dependencies | 2 | **1 PRODUCT FAILURE (I3)** + 1 MANUAL REVIEW (I4 the image's Node major) |
-| J Privacy and retention | 3 | 1 MANUAL REVIEW (J3 no account deletion, no export) |
-| K Schema and migrations | 3 | 1 MANUAL REVIEW (K3 destructive migration intent) |
-| L Reliability and lifecycle | 4 | 1 MANUAL REVIEW (L3 readiness omits storage writability) |
-| M Observability | 2 | 1 NOT EXERCISED (M3 aggregation, alerting, on-call) |
-| N Performance budget | 1 | 1 MANUAL REVIEW (N2 static-render opt-outs) + 1 NOT EXERCISED (N3 sustained load — measured by the perf probe instead, §18) |
-| O SEO and route truth | 3 | — |
-| P Commercial truth | 4 | — |
-| Q Analytics and consent | 3 | 1 MANUAL REVIEW (Q4 consent banner — a legal question, not a code one) |
-| R Accessibility and responsive layout | 1 | 1 NOT EXERCISED (R2 111 rendered-layout assertions) + 1 MANUAL REVIEW (R3 human visual acceptance) |
-
-**Separate totals — static harness:** PASS **66/67 exercised** · PRODUCT FAILURE **1** ·
-ENVIRONMENTAL **2** · NOT EXERCISED **4** · MANUAL REVIEW REQUIRED **12**.
-
-`HARNESS_EXIT=1` is entirely **I3**: nine high advisories in the *development*
-dependency tree. §12 traces every one to reachability, and the decisive measurement is
-the standalone trace — only `sharp` (server) and `pdfjs-dist` (client bundle) are in
-the shipped artifact at all, and the pdf.js advisory needs `enableScripting` plus an
-absent `script-src`. Recorded **P2**, not a blocker, and not silently downgraded: the
-harness still reports it as a failure and still exits non-zero.
-
-**Separate totals — the four runtime probes, same HEAD, same artifact
-(BUILD_ID `_DzYjfCuvno7KJhZM8SWY`):**
-
-| Probe | Result | Not a pass |
-|---|---|---|
-| `workflow-completeness-probe` — 18 core journeys | exit 0, **155/156** | 1 ENVIRONMENTAL (journey I: the 415 UNSUPPORTED_OUTPUT branch needs a non-PDF result, and every tool that makes one is `soffice`-backed) |
-| `phase1-workspace-reliability-probe` — F5/R11 | exit 0, **29/29** | 2 NOT EXERCISED (the two rows that can only read a dev server's replayed console) |
-| `tool-runtime-matrix-probe` — 34 rows for 32 tools | exit 0, **29/29 exercised**, 0 product failures | 2 ENVIRONMENTAL (`pdf-to-word`, `html-to-pdf`), 3 NOT EXERCISED (no `.docx`/`.pptx`/`.xlsx` fixture) |
-| `legacy-job-ownership-probe` — R12 | exit 0, **25/25**, 0 failed | — |
-
-**Zero product failures across all four runtime probes at final HEAD.** F5, the row the
-static harness cannot reach, is the one this audit spent the most effort on: it now
-passes end to end in a real browser, and the refusal it exercises is auditable in every
-shape (§9).
-
-## §30 — Final verification
-
-Every gate below ran **after** the last change to shipped code, on one artifact built
-from it. The artifact is `BUILD_ID _DzYjfCuvno7KJhZM8SWY`, built at commit `9389da3`;
-every commit after that one touches `docs/**` only —
-`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths**. The commands are
-recorded verbatim in `docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`.
-
-| Gate | Command | Exit | Result |
-|---|---|---|---|
-| Build | `npm run build` | **0** | `BUILD_ID _DzYjfCuvno7KJhZM8SWY`; standalone server emitted; `.next/static` and `public` copied into it before boot |
-| Types | `npx tsc --noEmit` | **0** | 0 lines of output |
-| Lint | `npx eslint .` | **0** | 13 problems — **0 errors**, 13 warnings (unused vars not prefixed `_`) |
-| Schema | `npx prisma validate` | **0** | *The schema at prisma/schema.prisma is valid* |
-| Migrations | `npx prisma migrate status` | **0** | *Database schema is up to date!* |
-| Unit/integration suite | `npx vitest run` | **0** | **377 files, 7283 tests, 7283 passed, 0 failed** |
-| Static harness A–R | `node scripts/final-prelaunch-audit.mjs --json …` | **1** | 66/67 exercised; the non-zero exit is I3 alone (§28) |
-| Core journeys | `node scripts/workflow-completeness-probe.mjs --url …` | **0** | **155/156**; 1 ENVIRONMENTAL |
-| Workspace / F5 / R11 | `node scripts/phase1-workspace-reliability-probe.mjs …` | **0** | **29/29**; 2 NOT EXERCISED |
-| Tool matrix | `node scripts/tool-runtime-matrix-probe.mjs --url … --json …` | **0** | **29/29 exercised**, 0 product failures; 2 ENVIRONMENTAL, 3 NOT EXERCISED |
-| Job ownership / R12 | `node scripts/legacy-job-ownership-probe.mjs --url …` | **0** | **25/25**, 0 failed |
-| Export fidelity | `npm run test:export-fidelity` | **0** | **35/35 fixtures within threshold** — worst `image-low-resolution` 10.716% against a 12.0% limit |
-| Visual compare (Gate B) | `node scripts/visual-acceptance-probe.mjs --url … --auth` | **0** | **156/156 exercised**, 1 NOT EXERCISED (`19-app-error` needs a genuinely failing dependency); verdict stays **`VISUAL ACCEPTANCE PENDING`** |
-| Liveness | `GET /api/health` | — | **200** |
-| Readiness | `GET /api/health/ready` | — | **503** `{"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true}` — truthful: `soffice` is absent from this host |
-
-**The 503 is the correct answer here and is not counted as a pass.** It is the
-liveness/readiness split working: the process is alive, the toolchain is not complete,
-and the body names which subsystem is false without naming the binary.
-
-Two notes on how these numbers were produced, because both changed a result earlier in
-this audit:
-
-- Every browser probe uses `https://172.20.10.2:3051` — the TLS front — and that value
-  is also `NEXT_PUBLIC_SITE_URL`. Point a probe at `127.0.0.1` instead and the
-  CSRF/origin gate refuses every mutation, which reads as a wall of product failures.
-- Node's `fetch` rejects the front's self-signed certificate and CDP-driven Chrome
-  needs `--ignore-certificate-errors`. Two separate fixes for one certificate; missing
-  either one produced "no server answering" while `curl` worked.
-
-One harness note, recorded because it appears in the boot logs: the boot script asks
-`/api/ready`, which is a **404** — the route is `/api/health/ready`. That is the
-script's path typo, not a missing route, and no readiness evidence in this report was
-ever taken from it.
 
 ## §33 — P0
 
