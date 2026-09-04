@@ -976,6 +976,32 @@ describe("S14 — forwarding-header spoof resistance", () => {
     }
     expect(statuses).toEqual([401, 401, 429]);
   });
+
+  // The case the two above cannot see, and the harm that makes it matter: if a
+  // forged header created a per-client bucket, an attacker could spend SOMEONE
+  // ELSE's budget by writing their address into it, and the victim would be the
+  // one refused. So an untrusted forwarding header must create no bucket at all —
+  // not a rotating one, not a shared one. Mutation H (trust X-Forwarded-For with
+  // no secret configured) passed the whole boundary suite without this case,
+  // because the global ceiling was still charged and hid it.
+  it("cannot spend a per-client budget it has no right to name", async () => {
+    env.UPLOAD_ANON_RATE_LIMIT_PER_MIN = "1";
+    env.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN = "100";
+    _resetConfigForTests();
+    _resetUploadLimitsForTests();
+    const body = await validBody(route);
+
+    const statuses = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      statuses.push(
+        (await call(route, body, { headers: { "x-forwarded-for": "9.9.9.9" } })).response.status,
+      );
+    }
+    // A trusted deployment would refuse the second of these on the per-client
+    // bucket. Untrusted, the header is not a key, so all three are the ordinary
+    // anonymous refusal and nobody's budget moved.
+    expect(statuses).toEqual([401, 401, 401]);
+  });
 });
 
 /**
