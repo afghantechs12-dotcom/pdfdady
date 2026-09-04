@@ -86,7 +86,13 @@ export async function submitProcessingJob(
   const metering = appContainer.resolve<UsageMeteringService>(Tokens.UsageMeteringService);
   const idempotencyKey = readIdempotencyKey(request);
 
-  const formData = await request.formData();
+  // Same guard as the legacy path: an unreadable body is a 400, not a 500.
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    throw new UploadValidationError("Malformed multipart body.");
+  }
   const files = formData.getAll("file").filter((f): f is File => f instanceof File);
   if (files.length === 0) {
     throw new UploadValidationError("No file was provided.");

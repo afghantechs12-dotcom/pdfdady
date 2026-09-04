@@ -1,0 +1,25 @@
+===== R19/R20 RUNTIME RETENTION AT FINAL HEAD — start 2026-09-04T01:27:42Z =====
+Claim under test: on the FINAL-HEAD artifact already serving (BUILD_ID _DzYjfCuvno7KJhZM8SWY,
+pid 9450), the recurring sweep purges all THREE horizons on its own: an expired
+stored_files row, an expired SESSION (the 371f4ef fix, which the earlier observation
+predates), and a save intent past the 30-day horizon.
+--- now(ms)=1788485262818  forced-expiry=1788481662818  intent-updatedAt=1785029262818 (40 days)
+--- BEFORE: expired sessions=0 expired files=0 intents=24
+--- forcing session  cmtm4lcwg0020uo77kurcxakt -> expired
+--- forcing file     cmtm8u8z9000quoail3rtm21c -> expired
+--- forcing intent   cmtkql6xc000guozo7zlv3ye8 -> updatedAt 40 days ago
+--- stored as: session integer 1788481662818 / file integer 1788481662818 / intent integer 1785029262818
+--- AFTER FORCING: expired sessions=1 expired files=1
+===== waiting for the NEXT sweep to fire on its own (sweep lines so far: 2) =====
+--- a new sweep line appeared after 822s
+--- every sweep line this final-HEAD server has emitted:
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-04T01:11:27.160Z","purged":20,"intentsPruned":0,"sessionsPruned":0}
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-04T01:26:27.160Z","purged":0,"intentsPruned":0,"sessionsPruned":0}
+{"level":"debug","msg":"Retention sweep complete","ts":"2026-09-04T01:41:27.253Z","purged":1,"intentsPruned":1,"sessionsPruned":1}
+===== did the three forced rows go? =====
+session cmtm4lcwg0020uo77kurcxakt is GONE (pruned)
+file cmtm8u8z9000quoail3rtm21c is GONE (purged)
+intent cmtkql6xc000guozo7zlv3ye8 is GONE (pruned)
+--- rows still expired in the past: sessions=0 files=0
+--- totals now: sessions=35 stored_files=233 intents=23
+===== DONE 2026-09-04T01:41:30Z =====

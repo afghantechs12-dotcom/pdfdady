@@ -15,6 +15,9 @@ import { resolveJobActor } from "@/lib/server/jobActor";
 import { jobErrorResponse, toStatusResponse } from "@/lib/server/processingJobApi";
 import { acquireSlot, TooBusyError } from "@/lib/server/concurrency";
 import { RateLimiter, clientIp } from "@/lib/server/rateLimit";
+import { appContainer } from "@/src/application/di/container";
+import { Tokens } from "@/src/application/di/tokens";
+import type { ILogger } from "@/src/application/ports/Logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -129,6 +132,14 @@ export async function POST(request: Request) {
     // never becomes a 429.
     if (err instanceof UsageLimitError) return usageLimitResponse(err);
     if (useUnifiedPipeline) return jobErrorResponse(err);
+    // Logged for the same reason as `jobErrorResponse`'s 500: the caller gets a
+    // deliberately vague message, so if nothing is written here the fault is
+    // invisible to the operator. Slug and error only — never the filename.
+    appContainer.resolve<ILogger>(Tokens.Logger).error("job.submit.unhandled", {
+      slug,
+      errorName: err instanceof Error ? err.name : typeof err,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json(
       { error: "Unexpected server error while submitting the job." },
       { status: 500 },

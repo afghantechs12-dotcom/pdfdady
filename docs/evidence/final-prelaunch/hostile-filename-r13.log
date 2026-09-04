@@ -1,0 +1,64 @@
+R13 RUNTIME — A HOSTILE FILENAME AGAINST THE RUNNING ARTIFACT
+audit host, 2026-09-04. Artifact under test: BUILD_ID _DzYjfCuvno7KJhZM8SWY
+(HEAD 9389da3), api on 127.0.0.1:3052, Origin header = NEXT_PUBLIC_SITE_URL.
+
+Why this file exists. R13 had unit tests, mutation H, and the static harness
+row G2 — but nothing had ever POSTed a hostile filename at a running server.
+The brief forbids satisfying a behavioural guarantee with source scans alone,
+so it was sent for real. Doing that found a defect the tests could not see.
+
+  ===== R13 RUNTIME: a hostile filename on the FINAL-HEAD artifact 2026-09-04T01:38:24Z =====
+  Claim under test: a filename carrying HTML, a traversal and a NUL-ish tail is
+  accepted or refused WITHOUT its bytes reaching a path or a rendered name.
+  Artifact: pid 9450, BUILD_ID _DzYjfCuvno7KJhZM8SWY. Fixture: /tmp/r30/dl-deploy.pdf
+  --- filename sent (literal): ["><img src=x onerror=alert(1)>../../../etc/passwd;rm -rf ~.pdf]
+  {"error":"Unsupported file extension. Allowed: .pdf."}
+  --- http 400
+  --- jobId: <none>
+  
+  --- the 400 above is a PROBE DEFECT: curl -F treats ';' in the value as a
+      parameter separator, so the filename it actually sent was truncated at the
+      semicolon and no longer ended in .pdf. Re-sent with the multipart body built
+      by hand (python3), filename inserted verbatim.
+  --- filename sent (literal): ["><img src=x onerror=alert(1)>../../../etc/passwd.pdf]
+  500 {"error":"Unexpected server error while submitting the job."}
+  --- filename sent (literal): [`id`$(whoami)&&rm -rf ~.pdf]
+  202 {"jobId":"cmtmacm5h00b5uoaibu3orbr7"}
+  --- filename sent (literal): [....//....//etc/passwd.pdf]
+  202 {"jobId":"cmtmacm6v00b9uoaiye7kpsby"}
+  
+  ===== what the two ACCEPTED hostile names actually became =====
+  --- job cmtmacm5h00b5uoaibu3orbr7
+      stored_files keys for it:
+      jobs/cmtmacm5h00b5uoaibu3orbr7/output/_id_whoami_rm_-rf_-compressed.pdf
+  --- job cmtmacm6v00b9uoaiye7kpsby
+      stored_files keys for it:
+      jobs/cmtmacm6v00b9uoaiye7kpsby/output/passwd-compressed.pdf
+  --- every stored_files key containing a quote, angle bracket, dotdot or backtick:
+      (nothing above = no hostile byte reached a storage key)
+  --- anything hostile on disk under DATA_DIR:
+      (nothing above = no hostile byte reached a path)
+  --- did /etc/passwd or the home dir get touched? 
+      /etc/passwd mtime: Aug 13 04:51
+
+WHAT THE NAMES BECAME — the R13 claim, measured:
+  `id`$(whoami)&&rm -rf ~.pdf   ->  jobs/<id>/output/_id_whoami_rm_-rf_-compressed.pdf
+  ....//....//etc/passwd.pdf      ->  jobs/<id>/output/passwd-compressed.pdf
+  Every backtick, $(), && and traversal segment is gone. No storage key and no
+  path under DATA_DIR contains a quote, an angle bracket, '..' or a backtick.
+  /etc/passwd was not touched. R13: PASS, live.
+
+AND ONE NEW FINDING — P2, fixed on this branch:
+  A filename containing a raw double quote makes the Content-Disposition
+  header ambiguous. undici throws TypeError "Failed to parse body as
+  FormData.", which fell through to the submit route's generic catch and
+  became HTTP 500 "Unexpected server error while submitting the job." —
+  and the server log for that request was EMPTY. A malformed request is the
+  caller's error (400), and a 500 that logs nothing cannot be diagnosed.
+  Reachability, stated honestly: a spec-conforming client escapes the quote
+  as %22 and round-trips fine (asserted in finalPrelaunchRegression R19b),
+  so no browser reaches this. The public API does.
+  The three Workspace upload routes ALREADY answered 400 "Malformed
+  multipart body." for the same input; only the two tool submit paths did
+  not. Fixed at both, with the same message, plus a log line at each of the
+  two unclassified-500 sites. Mutations U1-U3 in mutation-U-malformed-body.log.

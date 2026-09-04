@@ -4,7 +4,7 @@ import {
   PILOT_TOOL_SLUG,
   isProcessingPipelineEnabled,
 } from "@/lib/server/processingPilot";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -428,6 +428,55 @@ describe("R19..R20 upload intake", () => {
       await expect(
         validateUpload(new File([ZIP_BYTES], "notes.docx", { type: wordTool.accept[0] }), wordTool),
       ).resolves.toMatchObject({ ext: ".docx" });
+    }
+  });
+
+  it("R19b a body no multipart parser can read is the caller's error, not a 500", async () => {
+    // Found by a runtime probe, not by reading: a filename containing a raw `"`
+    // makes the Content-Disposition header ambiguous, undici's parser throws
+    // `TypeError: Failed to parse body as FormData.`, and before the guard that
+    // fell through to the submit route's generic catch — an UNLOGGED 500 for what
+    // is entirely the caller's malformed request. The Workspace upload routes
+    // already answered 400 for the same input; the tool routes did not.
+    const hostile = '"><img src=x onerror=alert(1)>../../../etc/passwd.pdf';
+    const body =
+      `--X\r\nContent-Disposition: form-data; name="file"; filename="${hostile}"\r\n` +
+      `Content-Type: application/pdf\r\n\r\n%PDF-1.4\r\n--X--\r\n`;
+    const request = () =>
+      new Request("http://x/api/jobs?slug=compress-pdf", {
+        method: "POST",
+        body,
+        headers: { "content-type": "multipart/form-data; boundary=X" },
+      });
+
+    // 1. The guard is REACHABLE: the parser really does reject this body. Without
+    //    this the try/catch could be dead code and the test would still pass.
+    await expect(request().formData()).rejects.toThrow(TypeError);
+
+    // 2. A spec-conforming client is unaffected, which is why no browser hit it:
+    //    the same name round-trips as `%22` and parses back byte-for-byte.
+    const spec = new FormData();
+    spec.append("file", new File([PDF_BYTES], hostile, { type: "application/pdf" }));
+    const encoded = new Request("http://x/", { method: "POST", body: spec });
+    const raw = await encoded.text();
+    expect(raw).toContain('filename="%22><img src=x onerror=alert(1)>../../../etc/passwd.pdf"');
+    const reparsed = await new Request("http://x/", {
+      method: "POST",
+      body: raw,
+      headers: { "content-type": encoded.headers.get("content-type")! },
+    }).formData();
+    expect((reparsed.get("file") as File).name).toBe(hostile);
+
+    // 3. Both submit paths convert the parse failure into the error their route
+    //    already maps to 400. Asserted on source because invoking either would
+    //    stand up Prisma, storage and a worker (see meteringSubmitWiring.test.ts);
+    //    the 400 itself is measured live in
+    //    docs/evidence/final-prelaunch/hostile-filename-r13.log.
+    for (const file of ["lib/server/toolJobSubmit.ts", "lib/server/processingJobSubmit.ts"]) {
+      const src = readFileSync(join(process.cwd(), file), "utf8");
+      const guard = src.slice(src.indexOf("try {"), src.indexOf("No file was provided."));
+      expect(guard, file).toContain("await request.formData()");
+      expect(guard, file).toContain('throw new UploadValidationError("Malformed multipart body.")');
     }
   });
 

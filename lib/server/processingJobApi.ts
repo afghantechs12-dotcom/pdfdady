@@ -5,6 +5,7 @@ import { Tokens } from "@/src/application/di/tokens";
 import type { IJobRepository } from "@/src/application/ports/repositories/JobRepository";
 import type { IDownloadService } from "@/src/application/ports/storage/DownloadService";
 import type { IObjectStorage } from "@/src/application/ports/storage/ObjectStorage";
+import type { ILogger } from "@/src/application/ports/Logger";
 import { resolveJobActor } from "@/lib/server/jobActor";
 import type { Job } from "@/src/domain/entities/Job";
 import {
@@ -60,7 +61,15 @@ export function jobErrorResponse(err: unknown): NextResponse {
     );
   }
   // Anything unclassified is ours, not the caller's, and its message is not
-  // safe to echo: it may name a filesystem path, a command, or a host.
+  // safe to echo: it may name a filesystem path, a command, or a host. Which is
+  // exactly why it has to be LOGGED — until this line, a 500 from here left no
+  // trace anywhere, so the one detail that could explain it was discarded at the
+  // only moment it existed. Server-side only, and no user content: the message
+  // and error name, never a filename.
+  appContainer.resolve<ILogger>(Tokens.Logger).error("job.request.unhandled", {
+    errorName: err instanceof Error ? err.name : typeof err,
+    errorMessage: err instanceof Error ? err.message : String(err),
+  });
   return NextResponse.json(
     { error: "Unexpected server error." },
     { status: 500 },
