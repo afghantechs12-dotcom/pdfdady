@@ -4612,3 +4612,41 @@ finding was found.
 
 **No migration and no schema change.** Both prunes are `deleteMany` over columns
 that already existed.
+
+## Cross-tenant refusals are now audited, not just correct
+
+`workspacePageActor` refuses a Workspace page in two shapes: the caller is not a
+member of the `organizationId` in the URL, or the membership exists with no role.
+Both already answered correctly — Next's `notFound()`, a controlled 404 page,
+nothing about the other tenant in the response. Neither wrote a line.
+
+The reason is ordering, not omission: the organization guard runs **before** any
+Workspace lookup, so `WorkspaceService.get` — the one place that logs
+`workspace.access.denied` — is never reached. A URL naming another tenant's
+`organizationId` is exactly the shape a deliberate cross-tenant probe has, and it
+was the single refusal in the system that left no trace at all.
+
+`denyOrganization()` now emits one `workspace.access.denied` line before
+`notFound()`, with the same ids-only rule as `WorkspaceService`: `operation`,
+`category` (`ORGANIZATION_NOT_FOUND` / `ORGANIZATION_ROLE_MISSING`), `stage`,
+`actorId`, `organizationId` — no email, no session token, no cookie. Behaviour for
+the caller is unchanged; only observability changed.
+
+Five tests cover it; deleting the log call turns three of them red. The ids-only
+test asserts `toHaveBeenCalledOnce()` **first**, because an absence check over an
+empty object passes with the logging gone — a green test proving nothing is the
+failure mode this repository keeps finding.
+
+Measured on the deployed artifact rather than asserted: a browser walk through
+every refusal shape left **6** `access-denied` lines in the server log — including
+the two `workspacePageActor` lines that did not exist before — and **0** containing
+an email, password, cookie or token. Record in
+`docs/evidence/final-prelaunch/f5-cross-tenant-final.log`.
+
+One probe row was wrong, and is recorded as such: "the refusals produced
+structured access-denied lines" read the **browser** console, and only `next dev`
+replays server stderr there, so against a production standalone build it can never
+see one. It and its paired ids-only row are now `NOT EXERCISED` unless
+`--dev-log-forwarding` is passed, and are counted in no total.
+
+**No migration and no schema change.**
