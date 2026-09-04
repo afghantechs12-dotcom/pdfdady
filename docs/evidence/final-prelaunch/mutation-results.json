@@ -26,7 +26,7 @@
     "passed": 28,
     "red": true,
     "failing": [
-      "R1..R3 the shipped default job shape > R1 defaults every tool to the legacy path \u2014 no flag, no pipeline",
+      "R1..R3 the shipped default job shape > R1 defaults every tool to the legacy path — no flag, no pipeline",
       "R1..R3 the shipped default job shape > R2 an operator turning the pilot ON moves exactly one tool",
       "R1..R3 the shipped default job shape > R3 every save-offering tool therefore produces a legacy job by default"
     ],
@@ -59,11 +59,11 @@
     "passed": 59,
     "red": true,
     "failing": [
-      "C1-C4 \u2014 a member of several Workspaces chooses one before anything is saved > C2 shows no selector for a result that would have no Save button at all",
+      "C1-C4 — a member of several Workspaces chooses one before anything is saved > C2 shows no selector for a result that would have no Save button at all",
       "R4..R8 the two result actions > R5 a run that REPORTED a non-PDF output overrides the capability",
       "R4..R8 the two result actions > R8 several Workspaces hold Save inert until one is chosen",
-      "T6/T7 \u2014 the actions a result offers agree with the capability record > C7 lets the RUN's MIME withdraw the Workspace action too, not only the editor",
-      "T6/T7 \u2014 the actions a result offers agree with the capability record > T6 believes the RUN's own MIME type over the tool's general one"
+      "T6/T7 — the actions a result offers agree with the capability record > C7 lets the RUN's MIME withdraw the Workspace action too, not only the editor",
+      "T6/T7 — the actions a result offers agree with the capability record > T6 believes the RUN's own MIME type over the tool's general one"
     ],
     "exit": 1
   },
@@ -79,12 +79,12 @@
     "passed": 58,
     "red": true,
     "failing": [
-      "C1-C4 \u2014 a member of several Workspaces chooses one before anything is saved > C2 holds Save inert while the choice is open, and releases it once made",
+      "C1-C4 — a member of several Workspaces chooses one before anything is saved > C2 holds Save inert while the choice is open, and releases it once made",
       "R4..R8 the two result actions > R7 a signed-out user is offered sign-in, never a save",
       "R4..R8 the two result actions > R8 several Workspaces hold Save inert until one is chosen",
-      "T20 \u2014 the auth boundary offers a route in, never a silent upload > offers no Save while the destination is unknown, and none when there is none",
-      "T20 \u2014 the auth boundary offers a route in, never a silent upload > offers sign-in instead of Save when nobody is signed in, and returns to the tool",
-      "T6/T7 \u2014 the actions a result offers agree with the capability record > C5 hides Open in Editor for a PDF the editor cannot parse, and KEEPS the Workspace"
+      "T20 — the auth boundary offers a route in, never a silent upload > offers no Save while the destination is unknown, and none when there is none",
+      "T20 — the auth boundary offers a route in, never a silent upload > offers sign-in instead of Save when nobody is signed in, and returns to the tool",
+      "T6/T7 — the actions a result offers agree with the capability record > C5 hides Open in Editor for a PDF the editor cannot parse, and KEEPS the Workspace"
     ],
     "exit": 1
   },
@@ -385,10 +385,10 @@
     "failing": [
       "R24..R27 measurement, pricing, capability truth > R26 the capability record cannot invent a tool, and answers only for real ones",
       "R4..R8 the two result actions > R4 no tool whose output is not a PDF claims either action",
-      "T1 \u2014 the inventory is complete and internally consistent > finds no cross-field disagreement",
-      "T22 \u2014 output capability matches the processors > C5 \u2014 answers the editor question and the Workspace question separately",
-      "T22 \u2014 output capability matches the processors > C5 \u2014 the inventory self-check refuses each dimension's own contradiction",
-      "T22 \u2014 output capability matches the processors > never claims an editable or saveable output for a non-PDF result"
+      "T1 — the inventory is complete and internally consistent > finds no cross-field disagreement",
+      "T22 — output capability matches the processors > C5 — answers the editor question and the Workspace question separately",
+      "T22 — output capability matches the processors > C5 — the inventory self-check refuses each dimension's own contradiction",
+      "T22 — output capability matches the processors > never claims an editable or saveable output for a non-PDF result"
     ],
     "exit": 1
   },
@@ -480,7 +480,7 @@
     "passed": 4,
     "red": true,
     "failing": [
-      "R24 \u2014 no private route is indexable > advertises a route in the sitemap or marks it noindex, with nothing in between"
+      "R24 — no private route is indexable > advertises a route in the sitemap or marks it noindex, with nothing in between"
     ],
     "exit": 1
   },
@@ -495,8 +495,8 @@
     "passed": 3,
     "red": true,
     "failing": [
-      "R25 \u2014 the sitemap tells the truth about what it advertises > lists only tools this build can actually run, at the capability's own route",
-      "R25 \u2014 the sitemap tells the truth about what it advertises > drops an unavailable slug even when the tool registry offers one"
+      "R25 — the sitemap tells the truth about what it advertises > lists only tools this build can actually run, at the capability's own route",
+      "R25 — the sitemap tells the truth about what it advertises > drops an unavailable slug even when the tool registry offers one"
     ],
     "exit": 1
   },
@@ -511,7 +511,7 @@
     "passed": 4,
     "red": true,
     "failing": [
-      "R24 \u2014 no private route is indexable > never submits a URL that robots.txt forbids crawling"
+      "R24 — no private route is indexable > never submits a URL that robots.txt forbids crawling"
     ],
     "exit": 1
   },
@@ -542,7 +542,7 @@
     "passed": 10,
     "red": true,
     "failing": [
-      "cleanupJob \u2014 the finally-block contract > removes the directory and every user file inside it"
+      "cleanupJob — the finally-block contract > removes the directory and every user file inside it"
     ],
     "exit": 1
   },
@@ -557,8 +557,57 @@
     "passed": 10,
     "red": true,
     "failing": [
-      "safeJoin \u2014 an untrusted filename becoming a path > refuses outright the two names the character filter cannot save"
+      "safeJoin — an untrusted filename becoming a path > refuses outright the two names the character filter cannot save"
     ],
     "exit": 1
+  },
+  {
+    "id": "U1",
+    "title": "the malformed-body guard is removed from the legacy submit path, back to a bare `await request.formData()`",
+    "file": "lib/server/toolJobSubmit.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 31,
+    "red": true,
+    "failing": [
+      "R19b a body no multipart parser can read is the caller's error, not a 500"
+    ],
+    "exit": 1,
+    "note": "rerun against the committed baseline 388e8af; the first pass reverted to pre-fix code because the fix was not yet committed"
+  },
+  {
+    "id": "U2",
+    "title": "the pipeline submit path keeps the guard but throws the wrong error type, so the generic catch answers 500 again",
+    "file": "lib/server/processingJobSubmit.ts",
+    "gate": [
+      "finalPrelaunchRegression.test.ts"
+    ],
+    "failed": 1,
+    "passed": 31,
+    "red": true,
+    "failing": [
+      "R19b a body no multipart parser can read is the caller's error, not a 500"
+    ],
+    "exit": 1,
+    "note": "same rerun"
+  },
+  {
+    "id": "U3",
+    "title": "the log line is removed from the unclassified-500 site, so a vague 500 leaves no trace again",
+    "file": "lib/server/processingJobApi.ts",
+    "gate": [
+      "lib/server/jobErrorDisclosure.test.ts"
+    ],
+    "failed": 2,
+    "passed": 4,
+    "red": true,
+    "failing": [
+      "an unclassified failure > logs the error name and message for an unclassified failure",
+      "an unclassified failure > logs a non-Error throw with its primitive type"
+    ],
+    "exit": 1,
+    "note": "same rerun"
   }
 ]

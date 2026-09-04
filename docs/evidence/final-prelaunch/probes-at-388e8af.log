@@ -1,0 +1,48 @@
+===== RUNTIME PROBES, RERUN AFTER THE R13 FIX 2026-09-04T01:59:00Z =====
+--- HEAD 388e8af · BUILD_ID 1nfPtJYCTsqaZBbSstXKc · server pid 31634
+
+--- 1/5 static harness (groups A-R)
+    HARNESS_EXIT=1
+      PASS 65/67 exercised
+        PRODUCT FAILURE        2
+        ENVIRONMENTAL          2   (not a pass)
+        NOT EXERCISED          4   (not a pass)
+        MANUAL REVIEW REQUIRED 12   (not a pass)
+        85 assertions recorded in total
+      
+      Product failures:
+        A1 the working tree is clean, so what is measured is what is committed
+            1 uncommitted path(s):  M docs/PDFDADI_FEATURE_LEDGER.md
+        I3 no critical or high advisory in the production dependency tree
+            9 high/critical advisories: @prisma/config (high), brace-expansion (high), deepmerge-ts (high), nanoid (high), next (high), pdfjs-dist (high), postcss (high), prisma (high)
+      
+      JSON written to /tmp/p2-audit.json
+
+--- 2/5 workflow completeness
+    exit=0
+      PASS  M: the stale session is told the document changed somewhere else  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788487412058@example.test |  | WORKFLOW PROBER'S ORGANIZATION WORKSPACE |  | quarterly-re
+      PASS  M: it asks once more, in words, before replacing anyone's work  — Skip to content | PDFDadi | W | Workflow Prober's Organization Workspace | Workspace | WORKSPACE | Home | Documents | Favorites | Recent | Archived | Trash | TOOLS | Editor | Collapse | WP | Workflow Prober | wf.1788487412058@example.test |  | WORKFLOW PROBER'S ORGANIZATION WOR
+      FAIL[ENVIRONMENTAL]  I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine  — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+      =============== 155/156 passed ===============
+        ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its binary is absent (soffice), so no genuinely non-PDF result can be PRODUCED here. The route branch is covered by saveToWorkspaceRoute.test.ts; the browser behaviour it guards is covered by journey I' above.
+
+--- 3/5 workspace reliability
+    exit=0
+      29/29 checks passed · 2 not exercised
+
+--- 4/5 tool runtime matrix
+    exit=0
+        [ENVIRONMENTAL] html-to-pdf         soffice is absent on this host (which: none), so no run is possible here
+        [PASS] html-to-pdf         reports a server-side unavailability, blames no file, leaks no path or command: "This tool is temporarily unavailable on the server. Please try again later."
+      TOOL RUNTIME MATRIX — PASS 29/29 exercised
+        PRODUCT FAILURE  0
+        ENVIRONMENTAL    2   (not a pass)
+        NOT EXERCISED    3   (not a pass)
+
+--- 5/5 legacy job ownership
+    exit=0
+      
+      ────────────────────────────────────────────────────────────────
+      checks passed: 25   failed: 0   skipped: 0
+      LEGACY JOB OWNERSHIP: PASS
+===== PROBES DONE 2026-09-04T02:12:03Z =====

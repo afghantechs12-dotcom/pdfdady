@@ -1,0 +1,40 @@
+===== FINAL-HEAD RUNTIME GATES 2026-09-04T02:13:10Z =====
+--- HEAD 388e8af · BUILD_ID 1nfPtJYCTsqaZBbSstXKc
+
+--- gate 1: export fidelity  (npm run test:export-fidelity)
+    exit=0
+        PASS  mixed-content                diff   0.358%  ink 56.8%/56.8%  (limit 4.0%)
+        PASS  signature-aspect             diff   0.133%  ink 9.0%/9.0%  (limit 1.0%)
+        PASS  image-low-resolution         diff  10.716%  ink 44.6%/44.6%  (limit 12.0%)
+        PASS  multi-page-mixed-sizes#p1    diff   0.217%  ink 16.1%/16.1%  (limit 1.0%)
+        PASS  multi-page-mixed-sizes#p2    diff   0.217%  ink 31.5%/31.5%  (limit 1.0%)
+        PASS  multi-page-mixed-sizes#p3    diff   0.224%  ink 16.6%/16.6%  (limit 1.0%)
+        PASS  page-portrait-a4             diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+        PASS  page-landscape-a4            diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+        PASS  page-unusual-size            diff   0.410%  ink 30.4%/30.4%  (limit 0.6%)
+      
+        35/35 fixtures within threshold
+      
+
+--- gate 2: Gate B visual acceptance  (--url https://172.20.10.2:3051 --auth)
+    exit=0
+      (node:52452) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+      (Use `node --trace-warnings ...` to show where the warning was created)
+      
+      manifest: docs/screenshots/final-prelaunch/visual-manifest.json (156 captures)
+      sheet: docs/evidence/final-prelaunch/visual/contact-mobile.png (69)
+      sheet: docs/evidence/final-prelaunch/visual/contact-tablet.png (35)
+      sheet: docs/evidence/final-prelaunch/visual/contact-desktop.png (52)
+      sheet: docs/evidence/final-prelaunch/visual/contact-workflow-states.png (39)
+      sheet: docs/evidence/final-prelaunch/visual/contact-editor-states.png (36)
+      
+      ══════════════════════════════════════════════════════════════════════════
+      VISUAL ACCEPTANCE — PASS 156/156 exercised
+      
+      NOT EXERCISED (1) — never counted as a pass:
+        19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+      
+      ══════════════════════════════════════════════════════════════════════════
+      VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+      Only a human can approve how they look; no approval is recorded here.
+===== GATES DONE 2026-09-04T02:18:10Z =====

@@ -79,7 +79,7 @@ Left running (not ours): `cricket-api` on 5000/5055, a `next dev` on 3000 from
 | Q Deployment/rollback | `r30-deploy-rollback.log` — **8/8 PASS**; `rollback-runbook.md`; `deploymentArtifact.test.ts`; mutation C; §26 written | COMPLETE — FINAL EVIDENCE VALID | no | standalone deploy+rollback rehearsed for real (both artifacts booted, both completed a real job); container path ENVIRONMENTAL; **PROBE DEFECT** — the first run's job smoke polled without the submitter's session and read R12's correct 404 as a deployment blocker |
 | R1–R30 (brief topics) | `finalPrelaunchRegression.test.ts` (own R1..R30) + `seoIndexingTruth.test.ts` (R24/R25), `tempFileLifecycle.test.ts` (R17) | COMPLETE — FINAL EVIDENCE VALID | no | brief R1–R30 mapped to evidence in **§27**; every topic has a named test, probe or log. No test duplicated under a new name |
 | Mutations | A–O, P1–P3, Q1–Q2, S1–S3, T1–T3 (35 rows) + N (visual) recorded RED-and-reverted | COMPLETE — FINAL EVIDENCE VALID | no | brief A–O all fifteen mapped in §29; none rerun without cause; tree clean of every mutation |
-| Final verification | `final-gates-static.log`, `final-gates-runtime.log`, `final-gates-fidelity-visual.log`, `FINAL-VERIFICATION-COMMANDS.md`, `audit-static-FINALHEAD.{log,json}`, `tool-matrix-FINALHEAD.{log,json}`, `workflow-probe-FINALHEAD.log`, `workspace-probe-FINALHEAD.log`, `job-ownership-FINALHEAD.log`, `export-fidelity-FINALHEAD.log`, `visual/gate-b-compare-FINALHEAD.log` | COMPLETE — FINAL EVIDENCE VALID | no | **at HEAD `9389da3`, BUILD_ID `_DzYjfCuvno7KJhZM8SWY`; `git diff --name-only 9389da3..HEAD` = 0 non-docs paths, so the artifact IS final HEAD.** build 0 · tsc 0 · eslint 0 errors (13 warnings) · prisma validate 0 + migrate status up to date · vitest **7283/7283** (377 files) · workflow 155/156 · workspace 29/29 (+2 not exercised) · tool matrix 29/29 exercised, 0 product failures · job ownership 25/25 · fidelity 35/35 · Gate B 156/156 compared clean, held at `VISUAL ACCEPTANCE PENDING`. Static harness `HARNESS_EXIT=1` preserved: 1 PRODUCT FAILURE (I3, a P2). **0 product failures in all four runtime probes.** Boot-script defect noted in §30: it polls `/api/ready`; the route is `/api/health/ready` (503 degraded, truthful) |
+| Final verification | `final-gates-static.log`, `final-gates-runtime.log`, `final-gates-fidelity-visual.log`, `FINAL-VERIFICATION-COMMANDS.md`, `audit-static-FINALHEAD.{log,json}`, `tool-matrix-FINALHEAD.{log,json}`, `workflow-probe-FINALHEAD.log`, `workspace-probe-FINALHEAD.log`, `job-ownership-FINALHEAD.log`, `export-fidelity-FINALHEAD.log`, `visual/gate-b-compare-FINALHEAD.log` | COMPLETE — FINAL EVIDENCE VALID | no | **RE-MEASURED at HEAD `388e8af`, BUILD_ID `1nfPtJYCTsqaZBbSstXKc`; `git diff --name-only 388e8af..HEAD` = 0 non-docs paths, so the artifact IS final HEAD.** (The first pass at `9389da3` / `_DzYjfCuvno7KJhZM8SWY` is superseded, not contradicted: every gate returned the same result at both.) build 0 · tsc 0 · eslint 0 errors (13 warnings) · prisma validate 0 + migrate status up to date · vitest **7287/7287** (377 files) · workflow 155/156 · workspace 29/29 (+2 not exercised) · tool matrix 29/29 exercised, 0 product failures · job ownership 25/25 · fidelity 35/35 · Gate B 156/156 compared clean, held at `VISUAL ACCEPTANCE PENDING`. Static harness `HARNESS_EXIT=1` preserved: 1 PRODUCT FAILURE (I3, a P2). **0 product failures in all four runtime probes.** Boot-script defect FIXED: it polled `/api/ready`; it now asks `/api/health/ready` (503 degraded, truthful). Evidence at this HEAD: `audit-static-at-388e8af.{log,json}`, `probes-at-388e8af.log`, `gates-at-388e8af.log`, `export-fidelity-at-388e8af.log`, `gate-b-visual-at-388e8af.log` |
 
 ## Known findings so far
 
@@ -348,3 +348,26 @@ committed. Both are now filed (`retention-sweep-selfscheduled.log`,
 this file resolves to a committed file. `retention-sessions-postfix.log`'s
 "FINAL-HEAD ARTIFACT" heading was corrected: it records `6e09c28`, and the three files
 implementing the sweep are byte-identical there and at final HEAD.
+
+### Every gate, re-measured at `388e8af`
+
+| Gate | Exit | Result at `388e8af` | Same as `9389da3`? |
+|---|---|---|---|
+| build | 0 | `BUILD_ID 1nfPtJYCTsqaZBbSstXKc`, both new guard strings present in the standalone chunks | new artifact |
+| `tsc --noEmit` | 0 | 0 lines | yes |
+| `eslint .` | 0 | 13 warnings, **0 errors**, none in the touched files | yes |
+| `prisma validate` / `migrate status` | 0 | valid · up to date | yes |
+| `vitest run` | 0 | 377 files, **7287** tests | +4 (R19b and three disclosure cases) |
+| static harness, networked | 1 | **66/67**, 85 rows, 1 PRODUCT FAILURE = I3 alone | yes |
+| static harness, `--offline` | 0 | 66/66 — I3 downgrades to ENVIRONMENTAL with no network, which is why the networked run is the one published | new note |
+| workflow completeness | 0 | **155/156**, 1 ENVIRONMENTAL | yes |
+| workspace reliability / F5 | 0 | **29/29**, 2 NOT EXERCISED | yes |
+| tool runtime matrix | 0 | **29/29** exercised, 0 product failures, 2 ENVIRONMENTAL, 3 NOT EXERCISED | yes |
+| legacy job ownership / R12 | 0 | **25/25**, 0 failed | yes |
+| export fidelity | 0 | **35/35** within threshold, worst `image-low-resolution` 10.716% vs a 12.0% limit | yes |
+| Gate B visual | 0 | **156/156** exercised, 1 NOT EXERCISED (`19-app-error`), verdict held at **`VISUAL ACCEPTANCE PENDING`** | yes |
+| liveness / readiness | — | 200 · 503 `degraded` `toolchain:false` | yes |
+
+The fix touched the two submit paths and two 500 sites and moved nothing else — which
+is the point of re-running all thirteen rather than the four that looked related.
+Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**.

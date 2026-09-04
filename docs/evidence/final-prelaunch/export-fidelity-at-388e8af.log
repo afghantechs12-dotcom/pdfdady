@@ -1,0 +1,49 @@
+
+> pdfdadi@0.1.0 test:export-fidelity
+> tsx scripts/export-fidelity-probe.mts
+
+<clipPath /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.
+<clipPath /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.
+<clipPath /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.
+
+  preview-vs-export raster diff  (diff = share of differing pixels;
+  ink = share the side actually painted, so a blank-vs-blank match cannot pass)
+
+  PASS  image-upright                diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-rot-90                 diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-rot-180                diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-rot-270                diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-rot-37                 diff   0.191%  ink 16.2%/16.2%  (limit 2.0%)
+  PASS  image-flip-h                 diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-flip-v                 diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-flip-both              diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-flip-h-rot-90          diff   0.217%  ink 16.1%/16.1%  (limit 0.4%)
+  PASS  image-crop                   diff   0.286%  ink 16.1%/16.1%  (limit 0.6%)
+  PASS  image-crop-rot-90            diff   0.286%  ink 16.1%/16.1%  (limit 0.6%)
+  PASS  image-crop-flip-v            diff   0.286%  ink 16.1%/16.1%  (limit 0.6%)
+  PASS  image-opacity-40             diff   0.000%  ink 16.1%/16.1%  (limit 0.6%)
+  PASS  image-scaled-nonuniform      diff   0.176%  ink 18.0%/18.0%  (limit 0.6%)
+  PASS  overlapping-z-order          diff   0.202%  ink 40.4%/40.4%  (limit 1.0%)
+  PASS  shapes-and-stroke-width      diff   0.017%  ink 50.6%/50.6%  (limit 2.0%)
+  PASS  transparency-stack           diff   0.000%  ink 46.5%/46.5%  (limit 2.0%)
+  PASS  highlight                    diff   0.000%  ink 25.4%/25.4%  (limit 2.0%)
+  PASS  annotation-note              diff   0.089%  ink 10.9%/10.9%  (limit 2.0%)
+  PASS  annotation-transparent       diff   0.109%  ink 0.3%/0.3%  (limit 2.0%)
+  PASS  annotation-pointer           diff   0.594%  ink 8.9%/8.9%  (limit 2.0%)
+  PASS  freehand-drawing             diff   0.025%  ink 4.2%/4.2%  (limit 3.0%)
+  PASS  text-block                   diff   1.845%  ink 3.5%/3.5%  (limit 8.0%)
+  PASS  text-alignment               diff   0.592%  ink 2.6%/2.6%  (limit 8.0%)
+  PASS  text-metrics                 diff   1.815%  ink 3.9%/3.9%  (limit 8.0%)
+  PASS  text-colour                  diff   0.456%  ink 2.2%/2.2%  (limit 8.0%)
+  PASS  mixed-content                diff   0.358%  ink 56.8%/56.8%  (limit 4.0%)
+  PASS  signature-aspect             diff   0.133%  ink 9.0%/9.0%  (limit 1.0%)
+  PASS  image-low-resolution         diff  10.716%  ink 44.6%/44.6%  (limit 12.0%)
+  PASS  multi-page-mixed-sizes#p1    diff   0.217%  ink 16.1%/16.1%  (limit 1.0%)
+  PASS  multi-page-mixed-sizes#p2    diff   0.217%  ink 31.5%/31.5%  (limit 1.0%)
+  PASS  multi-page-mixed-sizes#p3    diff   0.224%  ink 16.6%/16.6%  (limit 1.0%)
+  PASS  page-portrait-a4             diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+  PASS  page-landscape-a4            diff   0.058%  ink 4.3%/4.3%  (limit 0.4%)
+  PASS  page-unusual-size            diff   0.410%  ink 30.4%/30.4%  (limit 0.6%)
+
+  35/35 fixtures within threshold
+

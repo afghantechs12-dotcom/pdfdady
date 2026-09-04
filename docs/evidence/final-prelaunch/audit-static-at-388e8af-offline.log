@@ -1,0 +1,167 @@
+
+────────────────────────────────────────────────────────────────────────
+A. Repository and build integrity
+────────────────────────────────────────────────────────────────────────
+  ✓ A1 the working tree is clean, so what is measured is what is committed
+  ✓ A2 the lockfile is present and matches package.json's name
+  ? A3 no secret value is committed anywhere in the current tree — 2 match(es) in sha256-pinned synthetic fixtures, read and confirmed not live: src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe live secret key; src/infrastructure/billing/stripeProbeSecretHygiene.test.ts: Stripe webhook secret. Any edit to that file makes these red again.
+  ? A4 no secret value is reachable anywhere in local Git history — 1642 historical blobs scanned; 2 match(es) confined to the path-acknowledged redaction fixture (src/infrastructure/billing/stripeProbeSecretHygiene.test.ts), whose current contents A3 pins by sha256. No other path matched in any revision.
+  ✓ A5 no database file or user upload is committed
+  ✓ A6 the build ignores what the deploy must not carry
+  ✓ A7 the repository has no configured remote, so nothing has been published
+
+────────────────────────────────────────────────────────────────────────
+B. Production configuration gate
+────────────────────────────────────────────────────────────────────────
+  ✓ B1 a production start without DATABASE_URL, ADMIN_SECRET or a site URL is refused
+  ✓ B2 the gate refuses a DATABASE_URL the shipped Prisma provider cannot open
+  ✓ B3 the gate refuses a relative SQLite path, which a container deploy deletes
+  ✓ B4 the gate refuses the public dev fallback secret and a short one
+  ✓ B5 `next build` is exempt, so CI compiles without deployment secrets
+  ✓ B6 the boot summary reports a derived engine label, never the URL
+  ✓ B7 half-configured object storage is refused rather than silently local
+
+────────────────────────────────────────────────────────────────────────
+C. Deployment artifact
+────────────────────────────────────────────────────────────────────────
+  ✓ C1 every COPY source in the Dockerfile exists, so the image can build
+  ✓ C2 the image carries the migration toolchain it needs on a no-egress network
+  ✓ C3 all stages run one supported Node major
+  ✓ C4 the compose file supplies every variable the gate requires
+  ✓ C5 the database and the stored documents live on declared volumes
+  ✓ C6 the runtime writes only where the image has given its user ownership
+  ~ C7 the image actually builds — no Docker daemon on this machine — C1..C6 are static truths about the same file, and none of them substitutes for a build
+  ~ C8 the built image migrates a fresh volume and serves — no Docker daemon — the boot, the migration and the mount are UNVERIFIED at runtime
+
+────────────────────────────────────────────────────────────────────────
+D. Tool inventory and capability truth
+────────────────────────────────────────────────────────────────────────
+  ✓ D1 the registry, the capability records and the tool pages agree on one inventory
+  ✓ D2 every functional tool has a page that renders it — 18 client tools have own pages; 14 server tools resolve a config through [slug]
+  ✓ D3 no tool whose output is an archive or an office document offers a Workspace save
+  ✓ D4 the save route accepts the job shape every save-offering tool produces
+
+────────────────────────────────────────────────────────────────────────
+E. Authentication and session
+────────────────────────────────────────────────────────────────────────
+  ✓ E1 a user session cookie is httpOnly, sameSite and secure in production
+  ✓ E2 a user session is a stored record, so logout revokes it server-side
+  ✓ E3 login rotates the session token, closing session fixation
+  ✓ E4 password verification does not distinguish an unknown email from a wrong password
+  ? E5 admin session semantics are recorded as they are, not as one would wish — admin session is a stateless HMAC (max age 1000 * 60 * 60 * 24 * 7), so an individual token cannot be revoked; rotating ADMIN_SECRET invalidates all of them. Accept or schedule.
+  ? E6 no default admin password ships, and an initialized deployment cannot be re-setup — verify by hand that no password hash is seeded in the shipped store
+
+────────────────────────────────────────────────────────────────────────
+F. Tenant isolation
+────────────────────────────────────────────────────────────────────────
+  ✓ F1 every Workspace API route resolves the actor server-side
+  ✓ F2 no Workspace route trusts an organization id from the client without re-resolving it
+  ✓ F3 every mutating Workspace route enforces same-origin
+  ✓ F4 the job routes authorize per job, not per session — via resolveJobActor or legacyJobAccessDenied/processingResultStream/processingResultRedirect
+  · F5 a cross-tenant read is refused end-to-end — this harness is static; needs two provisioned accounts — run scripts/phase1-workspace-reliability-probe.mjs with --auth for the runtime matrix
+
+────────────────────────────────────────────────────────────────────────
+G. File and processing security
+────────────────────────────────────────────────────────────────────────
+  ✓ G1 no external binary is invoked through a shell
+  ✓ G2 a hostile filename survives neither the filesystem path nor the display name
+  ✓ G3 the request body is bounded before it is buffered
+  ✓ G4 the concurrency limiter actually blocks past its ceiling, and both upload routes release in a finally
+  ✓ G5 job output expires, and the sweep reschedules itself
+  ? G6 hostile document fixtures (zip bomb, encrypted, malformed xref, embedded JS) — must run against controlled fixtures only; the brief forbids executing unsafe payloads outside them
+
+────────────────────────────────────────────────────────────────────────
+H. Web security and CSP
+────────────────────────────────────────────────────────────────────────
+  ✓ H1 the static security headers are all present
+  ✓ H2 the CSP is enforced, not report-only
+  ✓ H3 the production policy has no wildcard, no unsafe-eval, and pins the legacy vectors to none — dev adds unsafe-eval/inline for HMR only
+  ✓ H4 the mutating API surface is same-origin gated
+  ✓ H5 a CSP violation has somewhere to land
+
+────────────────────────────────────────────────────────────────────────
+I. Dependencies
+────────────────────────────────────────────────────────────────────────
+  ✓ I1 the lockfile is in sync with package.json
+  ✓ I2 no dependency is pinned to a git URL or a local path
+  ~ I3 npm audit — known advisories — skipped by --offline; the registry is not reachable in this run
+  ? I4 the runtime engine the image ships is the one package.json asks for — package.json declares no engines.node
+
+────────────────────────────────────────────────────────────────────────
+J. Privacy and retention
+────────────────────────────────────────────────────────────────────────
+  ✓ J1 a public run keeps nothing: the sweep deletes stored input and output
+  ✓ J2 the privacy copy on the site is the copy the code can keep
+  ? J3 no account deletion and no data export exist anywhere in the tree — grep for deleteAccount/exportData across app, src and lib returns nothing. Whether a launch may ship without a self-service erasure and portability path is a question for qualified legal review against the launch jurisdictions; this audit does not answer it.
+  ✓ J4 the log line for a document names it, never carries it
+
+────────────────────────────────────────────────────────────────────────
+K. Schema and migrations
+────────────────────────────────────────────────────────────────────────
+  ✓ K1 the migration lock, the schema and the gate name one engine
+  ✓ K2 every migration is applied by one ordered directory set with no gaps — 23 migrations
+  ? K3 no migration is destructive without an explicit statement of intent — data-losing DDL to confirm against production data: 20260802175053_autosave_snapshot_metadata: DROP COLUMN, so this migration
+  ✓ K4 prisma validate accepts the schema
+
+────────────────────────────────────────────────────────────────────────
+L. Reliability and lifecycle
+────────────────────────────────────────────────────────────────────────
+  ✓ L1 liveness is static and readiness touches the database
+  ✓ L2 readiness reveals whether, never why
+  ? L3 readiness requires all seven binaries, and omits storage writability — toolchainOk is Object.values(deps).every(Boolean) over soffice/gs/qpdf/pdftoppm/pdfinfo/tesseract/ocrmypdf. All seven back shipping tools, and the Dockerfile installs all seven, so the container path is satisfiable. But a host missing one binary answers 503 forever while 30 of 32 tools work, and the Dockerfile HEALTHCHECK hits /api/health (static), so the container still reports healthy. Readiness also never writes to the storage volume, so a full or read-only disk is ready. Operator decision: accept, or split per-subsystem readiness.
+  ✓ L4 the worker is started by the app, not by an operator remembering to
+  ✓ L5 a job that dies mid-flight is retried or failed, never left running forever
+
+────────────────────────────────────────────────────────────────────────
+M. Observability
+────────────────────────────────────────────────────────────────────────
+  ✓ M1 the startup gate prints what it accepted, on one line, before traffic
+  ✓ M2 a request failure is logged with a correlation id
+  · M3 log aggregation, alerting and an on-call route — no aggregation target is configured in this tree; a single-container deployment logs to stdout only. Not a code defect — an operations decision this audit cannot exercise.
+
+────────────────────────────────────────────────────────────────────────
+N. Performance budget
+────────────────────────────────────────────────────────────────────────
+  ✓ N1 the standalone build output exists to be measured
+  ? N2 no route opts out of static rendering without a reason to — marketing pages opting out of static rendering: app/(marketing)/server-status/page.tsx, app/(marketing)/tools/[slug]/page.tsx, app/login/page.tsx, app/register/page.tsx, app/signup/page.tsx
+  · N3 sustained load, cold-start latency and memory ceiling under concurrency — the brief forbids destructive load against production, and no load-test environment exists in this tree
+
+────────────────────────────────────────────────────────────────────────
+O. SEO and route truth
+────────────────────────────────────────────────────────────────────────
+  ✓ O1 robots keeps crawlers out of the admin surface and the API
+  ✓ O2 every route the sitemap advertises is a route that exists — 8 static routes + tool and blog [slug] pages
+  ✓ O3 a tool the sitemap advertises is a tool a user can run
+
+────────────────────────────────────────────────────────────────────────
+P. Commercial truth
+────────────────────────────────────────────────────────────────────────
+  ✓ P1 Business is non-purchasable by domain law, not by copy
+  ✓ P2 a deployment that cannot take money says so instead of half-selling
+  ✓ P3 the static pricing copy is the fallback for a deployment that cannot charge
+  ✓ P4 entitlement moves only behind a signature check
+
+────────────────────────────────────────────────────────────────────────
+Q. Analytics and consent
+────────────────────────────────────────────────────────────────────────
+  ✓ Q1 no third-party analytics script is loaded
+  ✓ Q2 the CSP would block a third-party beacon even if one were added
+  ✓ Q3 an analytics event carries a tool name, never a document
+  ? Q4 whether first-party measurement needs a consent banner in the launch jurisdictions — measurement is first-party and self-hosted (POST /api/analytics/events) with no third-party script and no cross-site identifier, and the only cookie is the session cookie. Whether that is 'strictly necessary' under the applicable rules is a question for qualified legal review, and the brief forbids inventing a consent system without confirmed launch requirements.
+
+────────────────────────────────────────────────────────────────────────
+R. Accessibility and responsive layout
+────────────────────────────────────────────────────────────────────────
+  ✓ R1 the Phase 6 layout probe exists and is runnable
+  · R2 111 rendered-layout assertions across 9 viewports — delegated: the Phase 6 probe owns this and needs a running server. Run it separately and report its own count; folding its result in here would double-count the same evidence under a second number.
+  ? R3 visual acceptance of the rendered screenshots by a human — Entry Gate B requires human approval of the contact sheets. Self-generated screenshots are not approval.
+
+────────────────────────────────────────────────────────────────────────
+PASS 66/66 exercised
+  PRODUCT FAILURE        0
+  ENVIRONMENTAL          3   (not a pass)
+  NOT EXERCISED          4   (not a pass)
+  MANUAL REVIEW REQUIRED 12   (not a pass)
+  85 assertions recorded in total
+
+JSON written to /tmp/audit-static-cleantree.json

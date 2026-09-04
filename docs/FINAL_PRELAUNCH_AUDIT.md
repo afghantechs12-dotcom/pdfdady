@@ -1502,8 +1502,11 @@ scan of `sanitizeBaseName` would have passed R13 with a defect sitting in front 
 
 ## §28 — The final audit probe, groups A–R
 
-Two different instruments run at final HEAD `9389da3`, and the report keeps them
-apart because they answer different questions.
+Two different instruments run at final HEAD `388e8af`, and the report keeps them
+apart because they answer different questions. Every number below was re-measured at
+that HEAD on a clean tree after the R13 fix landed; all of them came back identical to
+the run at `9389da3`, which is itself the useful result — a fix to the submit paths
+moved nothing else.
 
 **`scripts/final-prelaunch-audit.mjs` is a STATIC harness.** It reads source, config,
 schema, the Dockerfile and Git history. It boots nothing. An earlier version of it
@@ -1512,7 +1515,8 @@ times — fixed in `71f9bf5`, and recorded here so no line below can be mistaken
 runtime result. Runtime behaviour comes from the four driving probes underneath.
 
 `node scripts/final-prelaunch-audit.mjs --json …` → `HARNESS_EXIT=1`,
-**85 rows over 18 groups**, evidence `audit-static-FINALHEAD.{log,json}`:
+**85 rows over 18 groups**, evidence `audit-static-at-388e8af.{log,json}` (and
+`audit-static-FINALHEAD.{log,json}` from the earlier HEAD):
 
 | Group | Pass | Not a pass |
 |---|---|---|
@@ -1545,8 +1549,16 @@ the shipped artifact at all, and the pdf.js advisory needs `enableScripting` plu
 absent `script-src`. Recorded **P2**, not a blocker, and not silently downgraded: the
 harness still reports it as a failure and still exits non-zero.
 
+**The same harness gives two different totals, and the difference is worth naming.**
+Run with `--offline` it reports **66/66 exercised, 0 product failures,
+`HARNESS_EXIT=0`** (`audit-static-at-388e8af-offline.log`), because `npm audit` cannot
+run without a network and I3 downgrades itself to ENVIRONMENTAL rather than passing.
+The networked run is the one this report quotes. An offline harness cannot see the
+only failure the harness has, so `--offline` is a convenience for iterating, never the
+number to publish.
+
 **Separate totals — the four runtime probes, same HEAD, same artifact
-(BUILD_ID `_DzYjfCuvno7KJhZM8SWY`):**
+(BUILD_ID `1nfPtJYCTsqaZBbSstXKc`), evidence `probes-at-388e8af.log`:**
 
 | Probe | Result | Not a pass |
 |---|---|---|
@@ -1570,7 +1582,7 @@ groups and were not rerun, because the code they attack did not change afterward
 the brief's own rule. Records: `mutation-A-and-E-to-O.md` (with the brief-letter map),
 `mutation-B-legacy-save.md`, `mutation-C-deployment.md`, `mutation-D-config-truth.md`,
 `mutation-P-retention.md`, `mutation-S-indexing.md`, `mutation-U-malformed-body.log`,
-`mutation-results.json` (35 machine-readable rows in the repository's own lettering),
+`mutation-results.json` (38 machine-readable rows in the repository's own lettering),
 and Gate B's own file.
 
 | Brief | Mutation | Brief expects | Applied to | Observed |
@@ -1646,21 +1658,29 @@ earlier phases.
 ## §30 — Final verification
 
 Every gate below ran **after** the last change to shipped code, on one artifact built
-from it. The artifact is `BUILD_ID _DzYjfCuvno7KJhZM8SWY`, built at commit `9389da3`;
-every commit after that one touches `docs/**` only —
-`git diff --name-only 9389da3..HEAD` lists **0 non-docs paths** — re-checked at each
-later HEAD, including the last one; every commit after the build is `docs/**` only. The commands are
-recorded verbatim in `docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`.
+from it. The artifact is `BUILD_ID 1nfPtJYCTsqaZBbSstXKc`, built at commit `388e8af` — the
+commit that carries the last change to shipped code, the R13 malformed-body fix (§35).
+Every commit after it touches `docs/**` only: `git diff --name-only 388e8af..HEAD`
+lists **0 non-docs paths**, re-checked at each later HEAD including the last. The
+commands are recorded verbatim in
+`docs/evidence/final-prelaunch/FINAL-VERIFICATION-COMMANDS.md`, and the runs
+themselves in `probes-at-388e8af.log`, `gates-at-388e8af.log` and
+`audit-static-at-388e8af.log`.
+
+An earlier full pass of this same table ran at `9389da3` /
+`BUILD_ID _DzYjfCuvno7KJhZM8SWY` and is kept in the evidence directory. It is
+superseded, not contradicted: **every gate returned the same result at both**, and the
+only figures that moved are the four unit tests the fix added.
 
 | Gate | Command | Exit | Result |
 |---|---|---|---|
-| Build | `npm run build` | **0** | `BUILD_ID _DzYjfCuvno7KJhZM8SWY`; standalone server emitted; `.next/static` and `public` copied into it before boot |
+| Build | `npm run build` | **0** | `BUILD_ID 1nfPtJYCTsqaZBbSstXKc`; standalone server emitted; `.next/static` and `public` copied into it before boot; both new guard strings confirmed present in `.next/standalone/.next/server/chunks` |
 | Types | `npx tsc --noEmit` | **0** | 0 lines of output |
 | Lint | `npx eslint .` | **0** | 13 problems — **0 errors**, 13 warnings (unused vars not prefixed `_`) |
 | Schema | `npx prisma validate` | **0** | *The schema at prisma/schema.prisma is valid* |
 | Migrations | `npx prisma migrate status` | **0** | *Database schema is up to date!* |
-| Unit/integration suite | `npx vitest run` | **0** | **377 files, 7283 tests, 7283 passed, 0 failed** |
-| Static harness A–R | `node scripts/final-prelaunch-audit.mjs --json …` | **1** | 66/67 exercised; the non-zero exit is I3 alone (§28) |
+| Unit/integration suite | `npx vitest run` | **0** | **377 files, 7287 tests, 7287 passed, 0 failed** |
+| Static harness A–R | `node scripts/final-prelaunch-audit.mjs --json …` | **1** | 66/67 exercised, 85 rows; the non-zero exit is I3 alone (§28) |
 | Core journeys | `node scripts/workflow-completeness-probe.mjs --url …` | **0** | **155/156**; 1 ENVIRONMENTAL |
 | Workspace / F5 / R11 | `node scripts/phase1-workspace-reliability-probe.mjs …` | **0** | **29/29**; 2 NOT EXERCISED |
 | Tool matrix | `node scripts/tool-runtime-matrix-probe.mjs --url … --json …` | **0** | **29/29 exercised**, 0 product failures; 2 ENVIRONMENTAL, 3 NOT EXERCISED |
@@ -1684,10 +1704,18 @@ this audit:
   needs `--ignore-certificate-errors`. Two separate fixes for one certificate; missing
   either one produced "no server answering" while `curl` worked.
 
-One harness note, recorded because it appears in the boot logs: the boot script asks
-`/api/ready`, which is a **404** — the route is `/api/health/ready`. That is the
-script's path typo, not a missing route, and no readiness evidence in this report was
-ever taken from it.
+One harness note, recorded because it appears in the older boot logs: the boot script
+used to ask `/api/ready`, which is a **404** — the route is `/api/health/ready`. That
+was the script's path typo, not a missing route; no readiness evidence in this report
+was ever taken from it, and the script asks the real path now, which is where the
+`503 degraded` row above comes from.
+
+**One live re-measurement belongs in this table but does not fit a row.** The defect
+fixed at `388e8af` was checked against this artifact rather than only in unit tests: a
+hand-built multipart POST whose filename carries a raw `"` now answers
+**`400 {"error":"Malformed multipart body."}`** on the shipped default *and* on a
+`PROCESSING_PIPELINE=on` leg — it answered an unlogged `500` on both before. Evidence:
+`hostile-filename-r13.log`.
 
 ## §31 — Files changed
 
@@ -1888,10 +1916,10 @@ banner in the launch jurisdictions (a legal question) · `R3` the visual accepta
 
 ### What the code earned
 
-At final HEAD `9389da3` (`BUILD_ID _DzYjfCuvno7KJhZM8SWY`, and
-`git diff --name-only 9389da3..HEAD` lists 0 non-docs paths, so the artifact measured
+At final HEAD `388e8af` (`BUILD_ID 1nfPtJYCTsqaZBbSstXKc`, and
+`git diff --name-only 388e8af..HEAD` lists 0 non-docs paths, so the artifact measured
 below *is* the artifact this branch ships): build 0 · `tsc --noEmit` 0 · `eslint .` 0
-errors · `prisma validate` 0 and `migrate status` up to date · **7283/7283** unit tests ·
+errors · `prisma validate` 0 and `migrate status` up to date · **7287/7287** unit tests ·
 workflow completeness 155/156 · workspace and tenancy 29/29 · tool matrix 29/29
 exercised with 0 product failures · job ownership 25/25 · export fidelity 35/35 ·
 Gate B 156/156 captures compared clean. **Zero product failures in all four runtime
@@ -1900,8 +1928,9 @@ blank database, migrations, build, boot, probe) reached the same result. Deploy 
 rollback were rehearsed for real on the standalone path: both artifacts booted and both
 completed a real job. The brief's fifteen mutations (A-O) were applied one at a time, each turned a gate
 red, each was reverted through Git, and the gate came back green. The audit ran
-more than the brief asked: 35 machine-readable rows in its own lettering
-(`mutation-results.json`) plus Gate B's screenshot mutation.
+more than the brief asked: **38** machine-readable rows in its own lettering
+(`mutation-results.json`) plus Gate B's screenshot mutation. The last three of those
+attack a fix this audit wrote itself (§29, row U).
 
 Three P0 findings and six P1 findings were opened by this audit and **all nine are
 fixed**, each with the commit recorded in §33 and §34. No P0 and no P1 is open. Six P2

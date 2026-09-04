@@ -1,12 +1,14 @@
 # Final-HEAD verification — the commands, verbatim
 
-HEAD 21bb4dab2a0d4bfdc373c8f14c65037f38abd1b7 · BUILD_ID _DzYjfCuvno7KJhZM8SWY · 2026-09-04T01:07:03Z
+HEAD 388e8af (artifact) · BUILD_ID 1nfPtJYCTsqaZBbSstXKc · re-run 2026-09-04T01:59Z-02:18Z
+Superseded first pass: HEAD 21bb4dab2a0d4bfdc373c8f14c65037f38abd1b7 · BUILD_ID _DzYjfCuvno7KJhZM8SWY · 2026-09-04T01:07:03Z
+Every gate returned the same result at both HEADs; only the unit-test count moved (7283 -> 7287).
 Origin used by every browser probe: https://172.20.10.2:3051 (TLS front) -> 127.0.0.1:3052
 NEXT_PUBLIC_SITE_URL is that same origin; a mismatch makes the CSRF/origin gate refuse every mutation.
 Node fetch needs NODE_TLS_REJECT_UNAUTHORIZED=0 for the self-signed front; CDP Chrome needs --ignore-certificate-errors.
 
 ```
-npm run build                       # BUILD_ID _DzYjfCuvno7KJhZM8SWY
+npm run build                       # BUILD_ID 1nfPtJYCTsqaZBbSstXKc
 npx tsc --noEmit
 npx eslint .
 npx prisma validate && npx prisma migrate status
