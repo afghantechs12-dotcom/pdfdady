@@ -1,0 +1,41 @@
+===== FINAL RUNTIME PROBES  2026-09-04T00:55:45Z =====
+--- HEAD: 9389da3756bca47ff89cdf61fc40fdf0cf9da629   BUILD_ID: _DzYjfCuvno7KJhZM8SWY
+
+=== PROBE 1: workflow-completeness (core journeys) ===
+exit=0
+=============== 155/156 passed ===============
+  ENVIRONMENTAL: I: the SERVER's own 415 UNSUPPORTED_OUTPUT branch is unreachable on this machine — every non-PDF-output tool is server-run and its bi
+
+=== PROBE 2: workspace reliability (F5 / R11) ===
+exit=0
+29/29 checks passed · 2 not exercised
+
+=== PROBE 3: tool runtime matrix (E / R2 / R3) ===
+exit=0
+  [ENVIRONMENTAL] html-to-pdf         soffice is absent on this host (which: none), so no run is possible here
+  [PASS] html-to-pdf         reports a server-side unavailability, blames no file, leaks no path or command: "This tool is temporarily unavailable on the server. Please try again later."
+  [NOT ] word-to-pdf         no .docx fixture in the repository; its dependency was checked anyway (soffice=absent)
+  [NOT ] powerpoint-to-pdf   no .pptx fixture in the repository; its dependency was checked anyway (soffice=absent)
+  [NOT ] excel-to-pdf        no .xlsx fixture in the repository; its dependency was checked anyway (soffice=absent)
+
+────────────────────────────────────────────────────────────────────────
+TOOL RUNTIME MATRIX — PASS 29/29 exercised
+  PRODUCT FAILURE  0
+  ENVIRONMENTAL    2   (not a pass)
+  NOT EXERCISED    3   (not a pass)
+  34 rows for 32 tools
+
+JSON written to /tmp/p-toolmatrix.json
+
+=== PROBE 4: legacy job ownership (R12) ===
+exit=0
+  ok   owner download returns 302 to a signed URL
+  ok   the redirect carries a signed storage location
+  ok   the redirect names a download file
+  ok   following the owner's signed URL yields a real PDF
+
+────────────────────────────────────────────────────────────────
+checks passed: 25   failed: 0   skipped: 0
+LEGACY JOB OWNERSHIP: PASS
+
+===== RUNTIME PROBES DONE 2026-09-04T01:04:17Z =====

@@ -1,0 +1,31 @@
+===== FINAL STATIC GATES  2026-09-04T00:46:01Z =====
+--- HEAD: 9389da3756bca47ff89cdf61fc40fdf0cf9da629
+--- tree clean: 0 changed paths
+
+=== GATE 1: tsc --noEmit ===
+exit=0
+output lines: 0
+
+=== GATE 2: eslint . ===
+exit=0
+output lines: 35
+  17:3  warning  'PROCESSING_JOB_TYPE' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 13 problems (0 errors, 13 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
+
+=== GATE 3: prisma validate + migrate status ===
+validate exit=0
+status exit=0
+The schema at prisma/schema.prisma is valid 🚀
+Database schema is up to date!
+
+=== GATE 4: vitest run (full suite) ===
+exit=0
+ Test Files  377 passed (377)
+      Tests  7283 passed (7283)
+   Duration  10.05s (transform 7.05s, setup 0ms, collect 29.82s, tests 64.56s, environment 33ms, prepare 13.16s)
+failure-ish lines: 0
+
+===== STATIC GATES DONE 2026-09-04T00:46:19Z =====

@@ -1,0 +1,48 @@
+(node:10671) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+32-TOOL RUNTIME MATRIX against https://172.20.10.2:3051
+host binaries: gs=present qpdf=present pdftoppm=present pdfinfo=present tesseract=present ocrmypdf=present soffice=absent
+
+  [PASS] merge-pdf           5460 bytes, starts "%PDF", named multipage-fixture-and-second-fixture-merged.pdf
+  [PASS] split-pdf           4888 bytes, starts "%PDF", named multipage-fixture-split_1-12.pdf
+  [PASS] extract-pdf-pages   4888 bytes, starts "%PDF", named multipage-fixture-split_1-12.pdf
+  [PASS] organize-pdf        4890 bytes, starts "%PDF", named multipage-fixture-edited.pdf
+  [PASS] rotate-pdf          4890 bytes, starts "%PDF", named multipage-fixture-edited.pdf
+  [PASS] delete-pdf-pages    4890 bytes, starts "%PDF", named multipage-fixture-edited.pdf
+  [PASS] reorder-pdf-pages   4890 bytes, starts "%PDF", named multipage-fixture-edited.pdf
+  [PASS] edit-pdf            4890 bytes, starts "%PDF", named multipage-fixture-edited.pdf
+  [PASS] crop-pdf            4911 bytes, starts "%PDF", named multipage-fixture-cropped.pdf
+  [PASS] add-page-numbers    7327 bytes, starts "%PDF", named multipage-fixture-numbered.pdf
+  [PASS] add-watermark       8048 bytes, starts "%PDF", named multipage-fixture-watermarked.pdf
+  [PASS] remove-pdf-metadata 4847 bytes, starts "%PDF", named multipage-fixture-cleaned.pdf
+  [PASS] jpg-to-pdf          69210 bytes, starts "%PDF", named image-fixture-images.pdf
+  [PASS] png-to-pdf          57032 bytes, starts "%PDF", named probe-small-images.pdf
+  [PASS] image-to-pdf        69210 bytes, starts "%PDF", named image-fixture-images.pdf
+  [PASS] annotate-pdf        5295 bytes, starts "%PDF", named multipage-fixture-annotated.pdf
+  [PASS] fill-pdf-forms      3585 bytes, starts "%PDF", named form-fixture-filled.pdf
+  [PASS] sign-pdf            61515 bytes, starts "%PDF", named multipage-fixture-signed.pdf
+  [PASS] compress-pdf        8219 bytes, starts "%PDF", named multipage-fixture-compressed.pdf (via gs)
+  [PASS] repair-pdf          8083 bytes, starts "%PDF", named multipage-fixture-repaired.pdf (via qpdf+gs)
+  [PASS] pdf-to-pdfa         14697 bytes, starts "%PDF", named multipage-fixture-pdfa.pdf (via gs)
+  [PASS] flatten-pdf         4917 bytes, starts "%PDF", named multipage-fixture-flattened.pdf (via qpdf)
+  [PASS] protect-pdf         5915 bytes, starts "%PDF", named multipage-fixture-protected.pdf (via qpdf)
+  [PASS] unlock-pdf          5021 bytes, starts "%PDF", named encrypted-fixture-unlocked.pdf (via qpdf)
+  [PASS] pdf-to-jpg          145795 bytes, starts "PK..", named multipage-fixture-jpeg.zip (via pdftoppm+pdfinfo)
+  [PASS] pdf-to-png          220867 bytes, starts "PK..", named multipage-fixture-png.zip (via pdftoppm+pdfinfo)
+  [PASS] ocr-pdf             56236 bytes, starts "%PDF", named multipage-fixture-ocr.pdf (via ocrmypdf+tesseract)
+  [ENVIRONMENTAL] pdf-to-word         soffice is absent on this host (which: none), so no run is possible here
+  [PASS] pdf-to-word         reports a server-side unavailability, blames no file, leaks no path or command: "This tool is temporarily unavailable on the server. Please try again later."
+  [ENVIRONMENTAL] html-to-pdf         soffice is absent on this host (which: none), so no run is possible here
+  [PASS] html-to-pdf         reports a server-side unavailability, blames no file, leaks no path or command: "This tool is temporarily unavailable on the server. Please try again later."
+  [NOT ] word-to-pdf         no .docx fixture in the repository; its dependency was checked anyway (soffice=absent)
+  [NOT ] powerpoint-to-pdf   no .pptx fixture in the repository; its dependency was checked anyway (soffice=absent)
+  [NOT ] excel-to-pdf        no .xlsx fixture in the repository; its dependency was checked anyway (soffice=absent)
+
+────────────────────────────────────────────────────────────────────────
+TOOL RUNTIME MATRIX — PASS 29/29 exercised
+  PRODUCT FAILURE  0
+  ENVIRONMENTAL    2   (not a pass)
+  NOT EXERCISED    3   (not a pass)
+  34 rows for 32 tools
+
+JSON written to /tmp/p-toolmatrix.json
