@@ -1,0 +1,82 @@
+
+artifact under test: http://127.0.0.1:3052 (also via https://10.161.164.42:3051)
+origin header:      https://10.161.164.42:3051
+rows at run start:  {"document_records":136,"document_versions":375,"attachment_records":1,"audit_logs":597,"stored_files":438,"document_ingestions":135,"workspace_save_intents":18,"storageFiles":428}
+server RSS at start: 135.3 MiB
+
+throwaway account ready: workspace cmtnjwhyu0003uowt546n6k01, document cmtnjwhzj0009uowt7nj5dbd7
+
+PASS  L0 control: a signed-in 8 MiB upload IS parsed, so it answers only after the last chunk
+      201 in 5405ms, sent 8.00/8.00 MiB — the whole body had to arrive first, at 64 KiB every 40ms
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (attachments, direct)
+      401 in 4ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (documents/upload, direct)
+      401 in 2ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (versions/upload, direct)
+      401 in 4ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+(node:72480) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (attachments, TLS front)
+      401 in 10ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (documents/upload, TLS front)
+      401 in 3ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+PASS  L1 anonymous 8 MiB -> 401 with the body still arriving (versions/upload, TLS front)
+      401 in 3ms, sent 0.06/8.00 MiB · "Authentication is required." · cache-control no-store
+PASS  L2 declared 200 MiB -> 413 before the body (attachments)
+      413 in 1ms · "This attachment is too large." · cache-control no-store
+PASS  L2 declared 200 MiB -> 413 before the body (documents/upload)
+      413 in 1ms · "Upload too large." · cache-control no-store
+PASS  L2 declared 200 MiB -> 413 before the body (versions/upload)
+      413 in 1ms · "Upload too large." · cache-control no-store
+PASS  L5 foreign origin -> 403 with the body still arriving (attachments)
+      403 in 1ms, sent 0.06/8.00 MiB · "CSRF_ORIGIN_REJECTED" · cache-control no-store
+PASS  L5 foreign origin -> 403 with the body still arriving (documents/upload)
+      403 in 1ms, sent 0.06/8.00 MiB · "CSRF_ORIGIN_REJECTED" · cache-control no-store
+PASS  L5 foreign origin -> 403 with the body still arriving (versions/upload)
+      403 in 1ms, sent 0.06/8.00 MiB · "CSRF_ORIGIN_REJECTED" · cache-control no-store
+PASS  L6 application/json -> 415 (attachments)
+      415 · "Expected a multipart/form-data upload." · cache-control no-store
+PASS  L6 application/json -> 415 (documents/upload)
+      415 · "Expected a multipart/form-data upload." · cache-control no-store
+PASS  L6 application/json -> 415 (versions/upload)
+      415 · "Expected a multipart/form-data upload." · cache-control no-store
+PASS  L11 8 concurrent anonymous 8 MiB (64 MiB offered) -> all 401, RSS bounded
+      statuses 401 · sent 0.5 of 64.0 MiB · RSS 205.4 -> peak 205.4 -> 205.6 MiB
+PASS  L12 Expect: 100-continue on an over-ceiling declared length
+      100 Continue after 1ms (by the runtime, not the route) · final 413 in 3ms · "PAYLOAD_TOO_LARGE"
+PASS  L13 no storage, database, ingestion, version or audit row from any anonymous request
+      all 8 counters unchanged: {"document_records":138,"document_versions":377,"attachment_records":1,"audit_logs":600,"stored_files":440,"document_ingestions":137,"workspace_save_intents":18,"storageFiles":430}
+PASS  L3 authenticated, chunked 26 MiB, NO Content-Length -> 413 from the stream, RSS bounded
+      413 in 1589ms, sent 25.50/26.00 MiB · "This attachment is too large." · RSS 205.6 -> peak 205.6 MiB
+PASS  L4 authenticated, declares 1 KiB and sends 26 MiB -> never served
+      0 in 4ms · "" · the framing layer reads only the declared 1024 bytes, so understating buys a truncated body, not a bigger parse
+PASS  L7 a raw quote in the filename -> 400 MALFORMED_MULTIPART (attachments)
+      400 · {"code":"MALFORMED_MULTIPART","message":"Malformed multipart body."} · cache-control no-store
+PASS  L7 a raw quote in the filename -> 400 MALFORMED_MULTIPART (documents/upload)
+      400 · {"code":"MALFORMED_MULTIPART","message":"Malformed multipart body."} · cache-control no-store
+PASS  L7 a raw quote in the filename -> 400 MALFORMED_MULTIPART (versions/upload)
+      400 · {"code":"MALFORMED_MULTIPART","message":"Malformed multipart body."} · cache-control no-store
+PASS  L7b all three routes answer the same bytes identically (the old 422-vs-400 split)
+      400 MALFORMED_MULTIPART Malformed multipart body.
+PASS  L10 a signed-in 64 KiB upload succeeds and the stored bytes match (attachments)
+      201 in 7ms · sha256 547769484f7c… found in stored_files, size 65580 = sent 65580 · cache-control (absent)
+PASS  L10 a signed-in 64 KiB upload succeeds and the stored bytes match (documents/upload)
+      201 in 7ms · sha256 7455e64ab5a2… found in stored_files, size 65580 = sent 65580 · cache-control no-store
+PASS  L10 a signed-in 64 KiB upload succeeds and the stored bytes match (versions/upload)
+      201 in 5ms · sha256 dd22ce956daa… found in stored_files, size 65580 = sent 65580 · cache-control no-store
+PASS  L8 anonymous flood -> 429 with a truthful Retry-After
+      429 on attempt 227 · Retry-After 58 (window 60s, +1ms honesty margin => 61 is the ceiling) · "Too many uploads. Please wait and try again." · cache-control no-store
+PASS  L8b an 8 MiB body offered while rate limited is refused unread
+      429 in 0ms, sent 0.06/8.00 MiB
+PASS  L8c a signed-in caller is unaffected by the anonymous flood (separate bucket)
+      201 · "accepted"
+      (waiting 58s — exactly the Retry-After the server named)
+PASS  L9 obeying Retry-After to the second is enough: the next attempt is not 429
+      401 after 58s · "UNAUTHORIZED"
+
+rows at run end: {"document_records":140,"document_versions":380,"attachment_records":2,"audit_logs":603,"stored_files":444,"document_ingestions":139,"workspace_save_intents":18,"storageFiles":434}
+whole-run delta: {"document_records":4,"document_versions":5,"attachment_records":1,"audit_logs":6,"stored_files":6,"document_ingestions":4,"storageFiles":6} (the throwaway account's own uploads)
+server RSS at end: 169.3 MiB
+
+32/32 checks passed
+wrote docs/evidence/final-prelaunch/upload-abuse-live-FINALTIP.json

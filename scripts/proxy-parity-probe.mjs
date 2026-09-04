@@ -231,6 +231,31 @@ async function run() {
   // ── X6/X7: mixed case and percent-encoding DO re-enter the matcher (the literal
   // segments are case-sensitive in the regex, and the decoded form is tried second).
   // Re-entering costs the pre-parse refusal on that spelling; it must not cost policy.
+  //
+  // X7 ORIGINALLY asserted "answers exactly what the canonical spelling answers" and was
+  // RED on all four rows against a correct build. The premise was wrong, and measuring it
+  // is what showed why: re-entering the MATCHER is not reaching the same ROUTE. Next's App
+  // Router resolves the RAW pathname against the file tree, case-sensitively and without
+  // percent-decoding, so
+  //   /api/workspaces/<w>/documents/UPLOAD     -> the [documentId] route, which has no POST -> 405
+  //   /api/workspaces/<w>/documents/%75pload   -> the same, %75pload as a document id       -> 405
+  //   /api/JOBS  and  /api/%6Aobs              -> no route at all                           -> 404
+  // (Confirmed: GET on /documents/UPLOAD answers 401 UNAUTHORIZED, identical to GET on an
+  // arbitrary document id, while GET on the canonical /documents/upload answers 405 — the
+  // two spellings are served by two different files.) Equal statuses were never reachable.
+  //
+  // So the assertion is now the property that actually matters, and it is measured, not
+  // assumed: a re-entrant spelling must NOT become an upload path that skips the gate. It
+  // must answer "no handler here" — 404 or 405 — never 2xx and never 5xx. 8 MiB streamed
+  // at each of the four wrote nothing: zero rows across document_records,
+  // document_versions, attachment_records, stored_files and document_ingestions, and zero
+  // new files under the storage root (docs/evidence/final-prelaunch/reentrant-spelling-cost.log).
+  // What re-entering does cost is the buffered body — the full 8 MiB, versus the canonical
+  // spelling's refusal partway through — which is exactly what every one of these paths
+  // cost before the exclusion existed, bounded by `proxyClientMaxBodySize`.
+  //
+  // X7b is the control that stops this from passing vacuously: if the canonical spelling
+  // ALSO answered 404/405, the product would be broken and X7 alone would still be green.
   const REENTRANT = [
     { id: "case/jobs", path: "/api/JOBS", canonical: "/api/jobs" },
     { id: "case/upload", path: "/api/workspaces/cku1abc/documents/UPLOAD", canonical: "/api/workspaces/cku1abc/documents/upload" },
@@ -257,13 +282,17 @@ async function run() {
       missing.length === 0 && wrong.length === 0,
       `status ${res.status}; missing [${missing}]; wrong [${wrong}]`,
     );
-    // The status is the policy. Same refusal as the canonical spelling means the handler
-    // decided, not the matcher — a 200 here, or a 5xx, would be the real finding.
     record(
       `X7.${id}`,
-      "and answers exactly what the canonical spelling answers",
-      res.status === canon.status && res.status < 500,
-      `${path} → ${res.status}; ${canonical} → ${canon.status}`,
+      "reaches no upload handler at all: 404/405, never 2xx and never 5xx",
+      res.status === 404 || res.status === 405,
+      `${path} → ${res.status} (route resolution is raw and case-sensitive, so this is a different file)`,
+    );
+    record(
+      `X7b.${id}`,
+      "control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere",
+      canon.status !== 404 && canon.status !== 405 && canon.status < 500,
+      `${canonical} → ${canon.status}`,
     );
   }
 

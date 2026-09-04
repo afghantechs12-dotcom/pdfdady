@@ -1,0 +1,42 @@
+### prisma validate
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+The schema at prisma/schema.prisma is valid 🚀
+EXIT=0
+
+### prisma generate
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 70ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+EXIT=0
+
+### prisma migrate status
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./prisma/dev.db"
+
+23 migrations found in prisma/migrations
+
+Database schema is up to date!
+EXIT=0
+
+### prisma format --check equivalent (validate covers)
+
+### prisma version
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+prisma                  : 6.19.3
+@prisma/client          : 6.19.3
+Computed binaryTarget   : darwin-arm64

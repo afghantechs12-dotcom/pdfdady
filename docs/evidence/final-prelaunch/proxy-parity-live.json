@@ -1,0 +1,229 @@
+{
+  "target": "https://10.161.164.42:3051",
+  "direct": "http://127.0.0.1:3052",
+  "front": "https://10.161.164.42:3051",
+  "rows": [
+    {
+      "id": "X1",
+      "label": "control: a matcher-MATCHED path carries the six headers and a per-request nonce",
+      "pass": true,
+      "detail": "status 200; missing []; wrong []; nonce present"
+    },
+    {
+      "id": "X2.canonical/jobs",
+      "label": "excluded path still carries the six security headers",
+      "pass": true,
+      "detail": "status 400; missing []; wrong []"
+    },
+    {
+      "id": "X3.canonical/jobs",
+      "label": "its CSP is the build-time one — present, and with no nonce to lose",
+      "pass": true,
+      "detail": "csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…"
+    },
+    {
+      "id": "X4.canonical/jobs",
+      "label": "the request id it was given comes back (workspace routes) or is not part of the shape",
+      "pass": true,
+      "detail": "echoed n/a; body {\"error\":\"Missing `slug` query parameter.\"}"
+    },
+    {
+      "id": "X2.canonical/tools",
+      "label": "excluded path still carries the six security headers",
+      "pass": true,
+      "detail": "status 404; missing []; wrong []"
+    },
+    {
+      "id": "X3.canonical/tools",
+      "label": "its CSP is the build-time one — present, and with no nonce to lose",
+      "pass": true,
+      "detail": "csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…"
+    },
+    {
+      "id": "X4.canonical/tools",
+      "label": "the request id it was given comes back (workspace routes) or is not part of the shape",
+      "pass": true,
+      "detail": "echoed n/a; body {\"error\":\"This tool does not support server processing.\"}"
+    },
+    {
+      "id": "X2.canonical/upload",
+      "label": "excluded path still carries the six security headers",
+      "pass": true,
+      "detail": "status 403; missing []; wrong []"
+    },
+    {
+      "id": "X3.canonical/upload",
+      "label": "its CSP is the build-time one — present, and with no nonce to lose",
+      "pass": true,
+      "detail": "csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…"
+    },
+    {
+      "id": "X4.canonical/upload",
+      "label": "the request id it was given comes back (workspace routes) or is not part of the shape",
+      "pass": true,
+      "detail": "echoed parity-canonical-upload; body {\"error\":{\"code\":\"CSRF_ORIGIN_REQUIRED\",\"message\":\"A same-origin request is required.\",\"requestId\":\"parity-canonical-upl"
+    },
+    {
+      "id": "X2.canonical/version",
+      "label": "excluded path still carries the six security headers",
+      "pass": true,
+      "detail": "status 403; missing []; wrong []"
+    },
+    {
+      "id": "X3.canonical/version",
+      "label": "its CSP is the build-time one — present, and with no nonce to lose",
+      "pass": true,
+      "detail": "csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…"
+    },
+    {
+      "id": "X4.canonical/version",
+      "label": "the request id it was given comes back (workspace routes) or is not part of the shape",
+      "pass": true,
+      "detail": "echoed parity-canonical-version; body {\"error\":{\"code\":\"CSRF_ORIGIN_REQUIRED\",\"message\":\"A same-origin request is required.\",\"requestId\":\"parity-canonical-ver"
+    },
+    {
+      "id": "X2.canonical/attach",
+      "label": "excluded path still carries the six security headers",
+      "pass": true,
+      "detail": "status 403; missing []; wrong []"
+    },
+    {
+      "id": "X3.canonical/attach",
+      "label": "its CSP is the build-time one — present, and with no nonce to lose",
+      "pass": true,
+      "detail": "csp default-src 'self'; base-uri 'self'; object-src 'none'; fram…"
+    },
+    {
+      "id": "X4.canonical/attach",
+      "label": "the request id it was given comes back (workspace routes) or is not part of the shape",
+      "pass": true,
+      "detail": "echoed parity-canonical-attach; body {\"error\":{\"code\":\"CSRF_ORIGIN_REQUIRED\",\"message\":\"A same-origin request is required.\",\"requestId\":\"parity-canonical-att"
+    },
+    {
+      "id": "X5.canonical/jobs",
+      "label": "trailing slash is redirected before middleware, so it cannot re-enter the matcher",
+      "pass": true,
+      "detail": "status 308; location /api/jobs"
+    },
+    {
+      "id": "X5.canonical/tools",
+      "label": "trailing slash is redirected before middleware, so it cannot re-enter the matcher",
+      "pass": true,
+      "detail": "status 308; location /api/tools/merge-pdf"
+    },
+    {
+      "id": "X5.canonical/upload",
+      "label": "trailing slash is redirected before middleware, so it cannot re-enter the matcher",
+      "pass": true,
+      "detail": "status 308; location /api/workspaces/cku1abc/documents/upload"
+    },
+    {
+      "id": "X5.canonical/version",
+      "label": "trailing slash is redirected before middleware, so it cannot re-enter the matcher",
+      "pass": true,
+      "detail": "status 308; location /api/workspaces/cku1abc/documents/cku2def/versions/upload"
+    },
+    {
+      "id": "X5.canonical/attach",
+      "label": "trailing slash is redirected before middleware, so it cannot re-enter the matcher",
+      "pass": true,
+      "detail": "status 308; location /api/workspaces/cku1abc/documents/cku2def/attachments"
+    },
+    {
+      "id": "X6.case/jobs",
+      "label": "a re-entrant spelling keeps every security header",
+      "pass": true,
+      "detail": "status 404; missing []; wrong []"
+    },
+    {
+      "id": "X7.case/jobs",
+      "label": "reaches no upload handler at all: 404/405, never 2xx and never 5xx",
+      "pass": true,
+      "detail": "/api/JOBS → 404 (route resolution is raw and case-sensitive, so this is a different file)"
+    },
+    {
+      "id": "X7b.case/jobs",
+      "label": "control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere",
+      "pass": true,
+      "detail": "/api/jobs → 400"
+    },
+    {
+      "id": "X6.case/upload",
+      "label": "a re-entrant spelling keeps every security header",
+      "pass": true,
+      "detail": "status 405; missing []; wrong []"
+    },
+    {
+      "id": "X7.case/upload",
+      "label": "reaches no upload handler at all: 404/405, never 2xx and never 5xx",
+      "pass": true,
+      "detail": "/api/workspaces/cku1abc/documents/UPLOAD → 405 (route resolution is raw and case-sensitive, so this is a different file)"
+    },
+    {
+      "id": "X7b.case/upload",
+      "label": "control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere",
+      "pass": true,
+      "detail": "/api/workspaces/cku1abc/documents/upload → 403"
+    },
+    {
+      "id": "X6.encoded/jobs",
+      "label": "a re-entrant spelling keeps every security header",
+      "pass": true,
+      "detail": "status 404; missing []; wrong []"
+    },
+    {
+      "id": "X7.encoded/jobs",
+      "label": "reaches no upload handler at all: 404/405, never 2xx and never 5xx",
+      "pass": true,
+      "detail": "/api/%6Aobs → 404 (route resolution is raw and case-sensitive, so this is a different file)"
+    },
+    {
+      "id": "X7b.encoded/jobs",
+      "label": "control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere",
+      "pass": true,
+      "detail": "/api/jobs → 400"
+    },
+    {
+      "id": "X6.encoded/upload",
+      "label": "a re-entrant spelling keeps every security header",
+      "pass": true,
+      "detail": "status 405; missing []; wrong []"
+    },
+    {
+      "id": "X7.encoded/upload",
+      "label": "reaches no upload handler at all: 404/405, never 2xx and never 5xx",
+      "pass": true,
+      "detail": "/api/workspaces/cku1abc/documents/%75pload → 405 (route resolution is raw and case-sensitive, so this is a different file)"
+    },
+    {
+      "id": "X7b.encoded/upload",
+      "label": "control: the canonical spelling DOES reach its handler, so 404/405 is not the answer everywhere",
+      "pass": true,
+      "detail": "/api/workspaces/cku1abc/documents/upload → 403"
+    },
+    {
+      "id": "X8.canonical/upload",
+      "label": "refused before the body was read, with the matcher no longer involved",
+      "pass": true,
+      "detail": "status 401; 0.06 of 8 MiB sent when the answer arrived; 2ms"
+    },
+    {
+      "id": "X8.canonical/version",
+      "label": "refused before the body was read, with the matcher no longer involved",
+      "pass": true,
+      "detail": "status 401; 0.06 of 8 MiB sent when the answer arrived; 3ms"
+    },
+    {
+      "id": "X8.canonical/attach",
+      "label": "refused before the body was read, with the matcher no longer involved",
+      "pass": true,
+      "detail": "status 401; 0.06 of 8 MiB sent when the answer arrived; 3ms"
+    },
+    {
+      "id": "X9",
+      "label": "the /_next/data prefix form is a miss, not a crash",
+      "pass": true,
+      "detail": "status 404"
+    }
+  ]
+}

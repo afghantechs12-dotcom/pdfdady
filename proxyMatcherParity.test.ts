@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 // Next's own build-time matcher compiler and its runtime matcher, so these tests
@@ -106,6 +107,16 @@ const { getMiddlewareMatchers } = pageStaticInfo as unknown as {
 /** The compiled matcher, straight out of Next's build pipeline. */
 const MATCHERS = getMiddlewareMatchers(config.matcher as string[], defaultConfig);
 const COMPILED = MATCHERS[0].regexp;
+
+/**
+ * The cold production artifact's own copy of the compiled matcher. `.next/` is not
+ * committed, so the one test that reads it is skipped when the tree has never been built.
+ * That skip cannot hide a relocation of Next's output: it is keyed on the FILE being
+ * absent, and a built tree whose matcher moved elsewhere fails the length assertion
+ * instead. In this repo the suite runs after the production build, so it is exercised.
+ */
+const BUILT_MANIFEST = join(process.cwd(), ".next", "server", "functions-config-manifest.json");
+const built = existsSync(BUILT_MANIFEST);
 const matchOne = getMiddlewareRouteMatcher(MATCHERS);
 const matches = (pathname: string) =>
   matchOne(pathname, {} as never, {} as never);
@@ -205,6 +216,25 @@ describe("R9 — the matcher Next actually compiles", () => {
     ];
     const disagreements = probes.filter((p) => naive.test(p) !== matches(p));
     expect(disagreements).toEqual([]);
+  });
+
+  it.skipIf(!built)("is the regexp the cold production build actually shipped", () => {
+    // Everything else in R9 compiles `config.matcher` with `getMiddlewareMatchers` in
+    // THIS process. That is Next's real compiler, but it is not proof that the build
+    // shipped the result: `next.config.mjs` and the build pipeline sit between them.
+    // So the compiled string is compared against the artifact on disk.
+    //
+    // Read from `functions-config-manifest.json`, NOT `middleware-manifest.json`. In
+    // Next 16 the latter is `{"middleware":{},"sortedMiddleware":[],"functions":{}}` for
+    // a `proxy.ts` build — present, parsable, and empty. A check written against it
+    // would pass with the exclusion deleted, so the manifest choice is the assertion.
+    const shipped = JSON.parse(readFileSync(BUILT_MANIFEST, "utf8")) as {
+      functions?: Record<string, { matchers?: { regexp: string; originalSource: string }[] }>;
+    };
+    const matchers = shipped.functions?.["/_middleware"]?.matchers ?? [];
+    expect(matchers, "the build shipped no proxy matcher at all").toHaveLength(1);
+    expect(matchers[0].originalSource).toBe(config.matcher[0]);
+    expect(matchers[0].regexp).toBe(COMPILED);
   });
 
   it("is applied to the raw pathname OR its decoded form, which is why R10 tests both", () => {
@@ -370,25 +400,59 @@ describe("R10 — the two dimensions the matcher does not have", () => {
     }
   });
 
-  it("case: a literal segment is case-sensitive here and case-INSENSITIVE in routing", () => {
+  it("case: a literal segment re-enters the matcher, and resolves to a different file", () => {
     // The regex is compiled without `i`, so only the segments written as `[^/]+` are
     // case-agnostic — the slug is, the words `jobs`, `upload` and `attachments` are not.
     expect(runtimeMatches("/api/tools/MERGE-PDF")).toBe(false);
-    for (const path of [
+    const RECASED = [
       "/api/JOBS",
       "/api/Jobs",
       "/api/workspaces/cku1abc/documents/UPLOAD",
       "/api/workspaces/cku1abc/documents/cku2def/versions/Upload",
       "/api/workspaces/cku1abc/documents/cku2def/ATTACHMENTS",
-    ]) {
-      expect(runtimeMatches(path), `${path} is matched`).toBe(true);
-    }
-    // And those spellings still reach the handler, because Next's route matching is
-    // case-insensitive unless told otherwise — which is why this is a re-entrant
-    // spelling rather than a 404. Same disposition as percent-encoding: buffered, then
-    // refused by the handler's own gate.
+    ];
+    for (const path of RECASED) expect(runtimeMatches(path), `${path} is matched`).toBe(true);
+
+    // What re-entering the matcher does NOT do is reach the same handler. This said the
+    // opposite until the live probe measured it: `caseSensitiveRoutes` defaults to false,
+    // from which this file inferred that a recased path still reaches the route. It does
+    // not. On the cold 16.3.4 artifact `/api/JOBS` answers 404 and
+    // `/api/workspaces/<w>/documents/UPLOAD` answers 405 — the latter served by the
+    // `[documentId]` route, whose GET answers the same 401 as any other document id.
+    // App Router resolution walks the file tree, and a literal segment IS a directory
+    // name, so its case is the filesystem's business and not this flag's. The flag is
+    // still pinned, because setting it would change the disposition — but as a record of
+    // an untouched knob, no longer as evidence about routing.
     expect(defaultConfig.experimental.caseSensitiveRoutes).toBe(false);
     expect(nextConfig.experimental).not.toHaveProperty("caseSensitiveRoutes");
+
+    // The static half, asserted against the route manifest rather than the filesystem.
+    // `existsSync("app/api/JOBS")` is TRUE on this machine — APFS is case-insensitive by
+    // default — and the recased path still 404s, which is the proof that resolution is not
+    // a filesystem probe at request time. It is an exact-key lookup in the manifest the
+    // build emits, so the manifest is where the case-sensitivity actually lives.
+    //
+    // X7/X7b in scripts/proxy-parity-probe.mjs are the live half: 404/405, never 2xx, and
+    // 8 MiB streamed at each recased spelling stored nothing.
+    if (built) {
+      const keys = new Set(
+        Object.keys(
+          JSON.parse(readFileSync(join(process.cwd(), ".next", "server", "app-paths-manifest.json"), "utf8")),
+        ),
+      );
+      expect(keys.size, "the route manifest was not readable").toBeGreaterThan(100);
+      // Ids become their dynamic segment names in manifest keys, in order.
+      const asKey = (path: string) => {
+        let seen = 0;
+        return `${path.replace(/cku[0-9a-z]+/g, () => (seen++ === 0 ? "[workspaceId]" : "[documentId]"))}/route`;
+      };
+      for (const path of RECASED) {
+        const recased = asKey(path);
+        const canonical = recased.replace(/JOBS|Jobs|UPLOAD|Upload|ATTACHMENTS/g, (w) => w.toLowerCase());
+        expect(keys.has(canonical), `${canonical} is the real route, and must exist`).toBe(true);
+        expect(keys.has(recased), `${recased} must NOT exist, or the recased path would route`).toBe(false);
+      }
+    }
   });
 });
 

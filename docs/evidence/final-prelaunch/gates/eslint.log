@@ -1,0 +1,35 @@
+
+/Users/faisalarifi/Downloads/pdfmaster/.billing-backup-20260825-163010/src/application/services/BillingService.test.ts
+    1:10  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u                           @typescript-eslint/no-unused-vars
+  291:7   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/Users/faisalarifi/Downloads/pdfmaster/app/api/csp-report/route.ts
+  5:3  warning  'MAX_REPORTS_PER_REQUEST' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/components/editor/EditorCanvas.tsx
+  83:3  warning  'compose' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  85:3  warning  'makeScale' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  86:3  warning  'makeTranslate' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/components/editor/EditorWorkspace.tsx
+  53:3  warning  'REPLACE_FLUSH_ATTEMPTS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/lib/editor/loadPdf.ts
+  80:7  warning  'MAX_PAGE_DIM' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/scripts/editor-final-visual-probe.mjs
+  282:9  warning  'click' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/scripts/final-prelaunch-audit.mjs
+  1:29  warning  'fetch' is defined but never used  @typescript-eslint/no-unused-vars
+  1:36  warning  'URL' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/src/application/services/UsageMeteringService.test.ts
+  1:10  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/meteringPipeline.test.ts
+  17:3  warning  'PROCESSING_JOB_TYPE' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 13 problems (0 errors, 13 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

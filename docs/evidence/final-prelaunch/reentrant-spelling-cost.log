@@ -1,0 +1,10 @@
+8 MiB streamed at each spelling, anonymous:
+
+canonical  /documents/upload       -> 401  accepted 4.13 MiB  15ms  allow=-  cc=no-store
+re-entrant /documents/UPLOAD       -> 405  accepted 8 MiB  17ms  allow=-  cc=-
+re-entrant /documents/%75pload     -> 405  accepted 8 MiB  14ms  allow=-  cc=-
+re-entrant /api/JOBS               -> 404  accepted 8 MiB  19ms  allow=-  cc=private, no-cache, no-store, max-age=0, must-revalidate
+re-entrant /api/%6Aobs             -> 404  accepted 8 MiB  14ms  allow=-  cc=private, no-cache, no-store, max-age=0, must-revalidate
+
+row/file delta across all five: {}
+NOTHING was stored or recorded by any spelling.
