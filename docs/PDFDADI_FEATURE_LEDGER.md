@@ -4685,3 +4685,82 @@ including a non-`Error` throw and that classified refusals stay silent. Mutation
 U1–U3 turn them red.
 
 **No migration and no schema change.**
+
+## One upload boundary: authenticate before parsing, and bound the parse
+
+The previous entry closed a malformed-body 500 by wrapping the two tool submit paths in the
+same guard the three Workspace upload routes already had. Listing all five call sites to prove
+that fix had no unguarded sibling is what exposed this one: on the three **private** upload
+routes the only thing ahead of `request.formData()` was `requireSameOrigin`, so an
+**unauthenticated** caller's 8 MiB multipart body was buffered and parsed before any
+authentication ran — and unlike the *public* tool route, none of the private ones had a rate
+limit. Bounded per request, unbounded in request count. Reclassified **P2 → P1** and closed.
+
+### What was built
+
+**`lib/server/multipart.ts` — the only `request.formData()` in shipped code.** One reader, one
+taxonomy. `readMultipart` wraps `request.body` in a counting stream that **errors instead of
+enqueueing** the chunk that would cross the ceiling, so peak cost is the ceiling plus one
+chunk and the bound does not depend on `Content-Length`; the rebuilt Request uses
+`duplex: "half"`. `parseOrThrow` walks `cause` to recover the ceiling from undici's TypeError,
+which is what keeps a streamed 413 from arriving as a 400. `MultipartTooLargeError` →
+413 `PAYLOAD_TOO_LARGE`, `MalformedMultipartError` → 400 `MALFORMED_MULTIPART`. The old
+`422 "A multipart upload is required."` for an unreadable body is gone: a multipart upload
+*was* supplied, it just could not be read. 422 keeps its correct use — a well-formed body with
+invalid fields.
+
+**`lib/server/workspaceUploadGate.ts` — the boundary the three private routes share.** In
+executed order: origin/CSRF → declared length → media type → session lookup → rate limit →
+401 → bounded parse. Nothing above the parse touches `request.body`, and every refusal carries
+`Cache-Control: no-store` — the 403 and the 401 included.
+
+Two orderings are deliberate and are documented in the file so they are not "tidied" later.
+The **session lookup runs before the limiter while the 401 is returned after it**, because
+keying an authenticated caller `user:<id>` requires knowing who they are; an anonymous flood
+therefore costs one session lookup, never a parse. And **organization authorization stays
+after the parse**: the organization id is a *form field*, so hoisting it would authorize
+against an unknown organization and would make a foreign Workspace distinguishable from a
+missing one.
+
+**`lib/server/uploadRateLimit.ts` — pre-parse abuse control on the same `RateLimiter` the six
+already-protected routes use.** 120/min keyed `user:<id>`, 20/min per trusted client, 240/min
+global, 60 s window, all three overridable (`UPLOAD_RATE_LIMIT_PER_MIN`,
+`UPLOAD_ANON_RATE_LIMIT_PER_MIN`, `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN`) and each an invalid value
+away from a **fatal** config error rather than a silent default. Forwarding headers are read
+only when the request presents `x-pdfdadi-proxy-secret` matching `TRUSTED_PROXY_SECRET`
+(sha256 + `timingSafeEqual`); default is unset, so they are not read at all. Unauthenticated
+traffic always charges the unspoofable global bucket and a trusted bucket refuses *earlier,
+never instead*, so a rotated forgery escapes nothing. The limiter **fails closed**.
+`Retry-After` is the time left in the caller's own window, never a constant.
+
+**`proxy.ts` — the five multipart endpoints are excluded from the middleware matcher.** A
+matched path waits for the last byte before the handler runs, which is why a 1 ms gate refusal
+still arrived only after 8 MiB. `/api/nope` with no route at all waited 2616 ms for a 200 MiB
+body; `/api/nope.txt`, excluded, answered in 3 ms. `$`-anchored so every descendant route stays
+matched.
+
+### Tests, and why they measure instead of arguing
+
+`uploadBoundary.test.ts`, S1–S18. Each request is sent through a stream that counts bytes
+written **at the instant the response arrives**, so "refused before the parse" is a number.
+S1 fails if a sixth `.formData()` appears anywhere in shipped code. S9/S10 cover absent,
+understated, conflicting and unparseable `Content-Length` plus chunked. S13/S14 run both
+topologies and every forwarding-header shape. S15 re-measures the non-disclosure invariants
+that moving authentication earlier could have broken. S16 plants strings in filenames, field
+values and body bytes and asserts none reaches a log, an audit row, a rate-limit key or a
+refusal body.
+
+Eleven mutations, each alone, intended test red, reverted with a verified-clean tree. Two of
+them changed product code rather than tests: a forged header could name a bucket, and
+"earlier, never instead" was unpinned — both green under mutation, both now pinned.
+
+Live against a rebuilt artifact: anonymous 8 MiB → **401 in 1–10 ms with 0.06 of 8.00 MiB
+sent**, on all three routes, direct and through a TLS front; 8 concurrent anonymous 8 MiB
+(64 MiB offered) → all 401 with RSS 377.3 → 377.8 MiB; chunked 26 MiB with no
+`Content-Length` → 413 after 25.5 MiB; 429 with a `Retry-After` that was obeyed to the second
+and honoured. 32/32.
+
+**No migration and no schema change.** Optional env only: `TRUSTED_PROXY_SECRET` and the three
+`UPLOAD_*_PER_MIN` overrides. The limiter is process-local, like every other limiter here, so
+behind N instances the request ceiling is N × the number — the per-request **byte** ceiling is
+unaffected.

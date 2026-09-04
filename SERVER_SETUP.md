@@ -68,6 +68,14 @@ reports a failed container rather than a running one that 500s.
   disk and vanish on redeploy — data loss presenting as a typo. Set all four, or
   none to use local storage deliberately. The error names the missing ones.
 
+**Also refused: an unusable upload limit.** `UPLOAD_RATE_LIMIT_PER_MIN`,
+`UPLOAD_ANON_RATE_LIMIT_PER_MIN` and `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN` must each be a
+positive integer, and `TRUSTED_PROXY_SECRET` — if set at all — must be ≥16 characters. A
+bad value fails the whole config parse instead of reverting to a default, because an abuse
+control that quietly disables itself is worse than none: nothing announces that it is gone.
+All four are **optional**; the three limits have working defaults (120 / 20 / 240 per
+minute) and the secret defaults to unset, which means forwarding headers are not read.
+
 **Optional features stay optional.** Absent Stripe config disables billing
 (checkout/portal answer 503 `BILLING_NOT_CONFIGURED`), absent R2 credentials
 select local storage, and an absent `REDIS_URL` selects the in-memory queue.
@@ -258,12 +266,34 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
 - Original filenames are never trusted for filesystem paths (path-traversal safe).
 - File type, extension and size are validated before processing; total request
   body size is capped (`TOOLS_MAX_BODY_BYTES`) and checked from `Content-Length`
-  before the multipart body is buffered into memory.
+  before the multipart body is buffered into memory. `Content-Length` is only the
+  *cheap* check: every multipart read goes through `lib/server/multipart.ts`, whose
+  counting stream errors on the chunk that would cross the ceiling, so a chunked or
+  understated body cannot get more parsed than an honest one. **No reverse proxy is
+  required for this bound** — the app enforces it.
 - External binaries are invoked with `execFile` and **argument arrays** — user
   input is never interpolated into a shell string.
 - Each job has a processing timeout; the concurrency slot is acquired *before*
   buffering so the memory-heavy parse phase is also bounded.
 - The public tool API is per-IP rate-limited (`TOOLS_RATE_LIMIT_PER_MIN`).
+- **Every multipart upload route is rate-limited before it parses anything**, and the
+  three private Workspace upload routes **authenticate before they parse** — an
+  anonymous caller gets 401 after roughly 64 KiB of an 8 MiB body has arrived, not
+  after all of it. Defaults: 120 uploads/min per signed-in user
+  (`UPLOAD_RATE_LIMIT_PER_MIN`), 20/min per trusted client address
+  (`UPLOAD_ANON_RATE_LIMIT_PER_MIN`), 240/min per process overall
+  (`UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN`), 60-second window. An invalid value is a
+  **fatal** configuration error, not a silent fallback.
+- **Forwarding headers are not trusted by default.** `X-Forwarded-For` and
+  `X-Real-IP` are read *only* when the request carries `x-pdfdadi-proxy-secret`
+  matching `TRUSTED_PROXY_SECRET` (≥16 characters). Without it every unauthenticated
+  caller is counted in one global bucket, which is exactly the bucket a spoofed or
+  rotated header cannot escape. If you deploy behind a proxy, set the secret **and**
+  configure the proxy to send it; if you do not, change nothing.
+- **The upload limiter is process-local**, like every other limiter here. Behind N
+  instances the request ceiling is N × the configured number; the per-request byte
+  ceiling is unaffected. Multi-instance deployments should add a shared limit at the
+  load balancer.
 - The temp directory is deleted in a `finally` block after every request.
 - **A public tool run keeps nothing.** No database row, no stored file, no
   history: the temp directory is deleted in a `finally` block and a server tool's

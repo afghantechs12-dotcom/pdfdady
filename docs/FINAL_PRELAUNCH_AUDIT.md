@@ -1561,6 +1561,19 @@ the shipped artifact at all, and the pdf.js advisory needs `enableScripting` plu
 absent `script-src`. Recorded **P2**, not a blocker, and not silently downgraded: the
 harness still reports it as a failure and still exits non-zero.
 
+> **Two harness corrections were made on `upload-abuse-closeout`, in harness code only.**
+> Both were found by the closeout, and neither changes a product line.
+> **F3** ("every mutating Workspace route enforces same-origin") scanned each route file for
+> `requireSameOrigin` by name. The three upload routes stopped containing that call when the
+> gate absorbed it, so a *correct* refactor would have turned F3 red. It now accepts
+> `workspaceUploadGate` transitively — but **only while** `lib/server/workspaceUploadGate.ts`
+> itself still contains `requireSameOrigin`, so the check cannot be satisfied by a file that
+> merely has the right import name.
+> **I3** did `metadata.vulnerabilities ?? 0`, which silently reported *zero advisories* when
+> `npm audit --json` produced no vulnerability block at all — a missing measurement rendered
+> as a clean one. It now returns ENVIRONMENTAL: an absent count is an absent measurement, not
+> a pass.
+
 **The same harness gives two different totals, and the difference is worth naming.**
 Run with `--offline` it reports **66/66 exercised, 0 product failures,
 `HARNESS_EXIT=0`** (`audit-static-at-388e8af-offline.log`), because `npm audit` cannot
@@ -1838,7 +1851,8 @@ or in the static harness's 85 rows is a P0.
 
 ## §34 — P1
 
-**Six P1 defects were found. All six are fixed.**
+**Six P1 defects were found during the audit. All six are fixed.** A seventh was opened
+*after* the audit closed, by reclassifying P2-7 upward — see §38.
 
 | # | Defect | Effect on a real user | Fixed |
 |---|---|---|---|
@@ -1857,7 +1871,8 @@ across four doubles, and that was the point. The sweep was then watched doing it
 deployed artifact: 15 minutes after boot, unprompted, it purged a forced-expired row
 along with 324 others and rescheduled itself (`retention-sweep-selfscheduled.log`).
 
-**No P1 is open.**
+**No P1 from the audit is open.** The one opened afterwards, P1-7 (the reclassified
+P2-7), is closed too — with its own evidence, tests and live measurements in §38.
 
 ## §35 — P2 and below
 
@@ -1890,6 +1905,19 @@ along with 324 others and rescheduled itself (`retention-sweep-selfscheduled.log
 (P2-1, P2-5, P2-7) were already true at the baseline; per the brief they are not downgraded
 for that reason, and equally they are not promoted to blockers because this audit noticed them.
 
+> **P2-7 IS RECLASSIFIED P2 → P1-7 AND CLOSED.** The row above is the original
+> classification and stays exactly as it was written; this is the correction, not a
+> replacement. **Why the severity was wrong:** the row weighed the finding as *bounded
+> per-request parse work* and treated the missing rate limit as a capacity decision. It is
+> more than that. An **unauthenticated** caller could make the server buffer and parse a
+> multipart body — up to 25 MiB on the attachments route — before any authentication ran,
+> and nothing bounded how many times. Unauthenticated resource consumption ahead of
+> authentication, with no throttle, is a launch-hardening defect rather than a scheduled
+> item, however cheap one request is. **What was still right:** no access control was
+> bypassed, nothing was disclosed, and the per-request ceiling did hold — that part of the
+> original analysis survived every re-measurement. Closed on branch
+> `upload-abuse-closeout`; §38 has the fix, the tests, the mutations and the live numbers.
+
 **One open P3, from the same pass as P2-7.** The identical unparseable body answers `422
 "A multipart upload is required."` from the attachments route and `400 "Malformed multipart
 body."` from its two siblings. 422 is the wrong status for a body that cannot be parsed, and
@@ -1897,6 +1925,12 @@ the message misdescribes the cause — a multipart upload *was* supplied, it jus
 read. Left unchanged for the same reason as P2-7: shipped code cannot move without
 invalidating the artifact all thirteen gates in §30 were measured against. Evidence for both:
 `docs/evidence/final-prelaunch/anonymous-parse-workspace-uploads.log`.
+
+> **THAT P3 IS CLOSED.** All three routes now answer one unparseable body identically:
+> `400 {"code":"MALFORMED_MULTIPART","message":"Malformed multipart body."}`, from one
+> taxonomy in `lib/server/multipart.ts`. Measured live on all three (L7, L7b in
+> `upload-abuse-live.json`). The 422 is retained for its correct use — a **well-formed**
+> body whose fields are invalid.
 
 **How both were found.** Not by reading. The R13 fix at `388e8af` guarded two `formData()`
 call sites, so the root-cause question — *does this fix have an unguarded sibling?* —
@@ -1927,7 +1961,8 @@ something a machine cannot decide, stated so it cannot be mistaken for a green c
 | X-3 | 111 rendered-layout assertions across 9 viewports (harness R2) | the static harness cannot render; the visual and responsive probes cover the same surfaces by pixel instead |
 | X-4 | `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` | no `.docx`, `.pptx` or `.xlsx` fixture exists in the repository. Their dependency was still checked (`soffice` = absent) |
 | X-5 | two workspace-probe observability rows | server logs are not replayed into the browser console outside `next dev`. The same property was measured directly from the server's log instead: 6 access-denied lines, 0 containing an email, password, cookie or token |
-| X-6 | keyboard row M5b — the OS file dialog | no CDP client can drive it. The other 26 keyboard gates pass, signed out and signed in |
+| X-6 | ~~keyboard row M5b — the OS file dialog~~ **NOW EXERCISED, and the reason above was wrong** | M5b drives the *destination `<select>`* in `ResultWorkflowActions`, not a file dialog. What blocked it is a macOS platform fact, measured in isolation rather than assumed: a **closed** native `<select>` routes `ArrowDown` to a browser-process popup that CDP cannot reach — neither `keyDown` nor `rawKeyDown` moves the selection — while **type-ahead of an option's first character does** change the value and fire `change`. The harness gesture now tries `ArrowDown` and falls back to type-ahead (`scripts/premium-ui-ux-probe.mjs`), and the gate detail reports which gesture actually moved it. Result at the frozen artifact: **125 pass, 0 product failures, 0 environmental, 0 not exercised** — product code untouched |
+| X-12 | the `PROCESSING_PIPELINE=on` `compress-pdf` row of the tool-runtime matrix | the probe can only observe a **blob** download; the pipeline runner deliberately *navigates* to a signed URL (`scripts/tool-runtime-matrix-probe.mjs:178-208`, `hooks/useProcessingJob.ts:263`, `components/tools/runners/PipelineToolRunner.tsx:25-27`), so there is no blob to see. P3 and **harness-side**: the same delivery was then measured at the HTTP layer instead — 202 → `completed` 8219 → 302 with `content-disposition` + `no-store` → 200, 8219 bytes, `%PDF-1.5`. The default-config row passes on its own (8218 bytes via `gs`). Nothing was edited to make a row go green: `docs/evidence/final-prelaunch/pipeline-flag-compress-download.log` |
 | X-7 | **WebKit and a screen reader** | `safaridriver` refuses without `safaridriver --enable`; no screen reader was driven. Chromium is the one engine measured |
 | X-8 | log aggregation, alerting, an on-call route (harness M3) | none exists to exercise — see P2-3 and P2-4 |
 | X-9 | sustained load, cold-start latency, memory ceiling under concurrency (harness N3) | the perf probe measures page and workflow latency and a fan-out capacity table; a sustained soak was not run |
@@ -2011,10 +2046,12 @@ none is invented here.
 | 12 | Who authorizes a restore that loses data | R22 restores to a point in time; the loss window needs an owner |
 | 13 | SQLite now, or PostgreSQL before launch | SQLite is correct for one host and is the ceiling on the next one |
 | 14 | Rate limits on the Workspace upload routes — and whether a limiter in one process is the right layer at all | the *public* tool route is limited; the three *private* upload routes are not, and each will parse an anonymous 25 MiB body (P2-7). The values (requests per IP per window, and whether the limit belongs in the app or in front of it) are a capacity and cost choice, not a defect |
+| 14 (resolved in code) | *superseded* — the app-layer limit now exists and is on by default: `UPLOAD_RATE_LIMIT_PER_MIN` 120 / `UPLOAD_ANON_RATE_LIMIT_PER_MIN` 20 / `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN` 240, 60 s window (§38). What remains a decision is only the **numbers** and whether a second limit belongs in front of the app for multi-instance deployments — not whether any limit exists |
 
 Items 1–8 are carried from `LAUNCH-PROFILE.md`; 9–13 were opened by later sections, and 14
-by the last check this audit ran (§35, P2-7). Twelve further rows need a human eye rather
-than a decision, and are listed in §36.
+by the last check this audit ran (§35, P2-7) — and 14 is now a *tuning* decision rather
+than a *whether* decision, because §38 shipped the limiter. Twelve further rows need a human
+eye rather than a decision, and are listed in §36.
 
 ### Verdict
 
@@ -2023,3 +2060,197 @@ reproducible from a clean checkout. What is missing is not code: it is human vis
 acceptance, a container build, a real production environment and fourteen decisions.
 
 **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**
+
+---
+
+## §38 — Upload-abuse closeout (postdates the audit)
+
+Branch `upload-abuse-closeout`, cut from the audit HEAD `1640b12`. Everything above this
+line is the audit as it stood; nothing above was rewritten. §37's verdict was the audit's
+verdict and is left as written.
+
+**The correction, stated once.** P2-7 was reclassified **P2 → P1** and then closed. The
+original row weighed it as bounded per-request parse work whose missing rate limit was a
+capacity decision. That undersold it: an **unauthenticated** caller could make the server
+buffer and parse up to 25 MiB before authentication ran, and nothing bounded the number of
+such requests. Unauthenticated resource consumption ahead of authentication, unthrottled, is
+launch hardening, not maintenance. The part of the original analysis that was right — no
+access-control bypass, no disclosure, a per-request ceiling that does hold — survived
+re-measurement and is unchanged. The original evidence file is untouched.
+
+### 1 — Route inventory
+
+`grep -rn '\.formData()' app/ lib/ src/ components/ --include='*.ts' --include='*.tsx' | grep -v '\.test\.'`
+now returns **one** shipped line: `lib/server/multipart.ts:113`, inside `readMultipart`. The
+five upload entry points reach it through two shared functions, and S1 fails if a sixth
+appears anywhere else:
+
+| Entry point | Via | Ceiling |
+|---|---|---|
+| `POST /api/workspaces/[workspaceId]/documents/upload` | `workspaceUploadGate` | 100 MiB |
+| `POST /api/workspaces/[workspaceId]/documents/[documentId]/versions/upload` | `workspaceUploadGate` | 100 MiB |
+| `POST /api/workspaces/[workspaceId]/documents/[documentId]/attachments` | `workspaceUploadGate` | 25 MiB + 64 KiB |
+| `POST /api/tools/[slug]` | `submitToolJob` | 110 MiB |
+| `POST /api/jobs?slug=…` | `submitToolJob` / `submitProcessingJob` | 110 MiB |
+
+### 2 — Request-gate ordering
+
+Full nine-stage table for all five sites, with the measurement behind every row:
+`docs/evidence/final-prelaunch/upload-gate-ordering.md`. The three private routes, in
+executed order: **origin/CSRF → declared size → media type → session lookup → rate limit →
+401 → bounded parse → field validation → tenant authorization → storage.** Nothing above the
+parse touches `request.body`.
+
+Two orderings are deliberate. The **session lookup precedes the limiter while the 401
+follows it**, because keying an authenticated caller `user:<id>` requires knowing who they
+are; an anonymous flood therefore costs one session lookup, never a parse. And **tenant
+authorization stays after the parse**, because the organization id is a form field: hoisting
+it would authorize against an unknown organization and would make a foreign Workspace
+distinguishable from a missing one. S15 measures that it still is not.
+
+The two public tool routes have no CSRF, authentication or tenant stage — they are the
+anonymous public endpoints and always were. They do have the limiter and the declared-size
+check ahead of everything heavy, which is what the private three lacked.
+
+### 3 — Size-limit ownership
+
+The app owns it, not a proxy. `declaredLengthExceeds` is a cheap pre-check on a *claim*; the
+authority is the counting stream in `readMultipart`, which **errors instead of enqueueing**
+the chunk that would cross the ceiling (peak = ceiling + one chunk) and rebuilds the Request
+with `duplex: "half"`. Measured: absent `Content-Length` (chunked) 26 MiB → 413 after 25.5 MiB
+with RSS 377.8 → 378.1 MiB; understated `Content-Length` buys a truncated body, not a bigger
+parse; conflicting and unparseable values are refused or treated as no declaration.
+**No reverse proxy is a dependency of this fix**, which is why no absent-proxy assumption is
+being leaned on.
+
+### 4 — Rate limits: defaults, overrides, failure
+
+`lib/server/uploadRateLimit.ts`, on the same `RateLimiter` the six already-protected routes
+use. No route-local counter.
+
+| Bucket | Default | Override | Key |
+|---|---|---|---|
+| authenticated | 120 / 60 s | `UPLOAD_RATE_LIMIT_PER_MIN` | `user:<id>`, server-derived |
+| per trusted client | 20 / 60 s | `UPLOAD_ANON_RATE_LIMIT_PER_MIN` | the forwarded address, **only** behind the configured proxy |
+| global | 240 / 60 s | `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN` | the literal `global` — always charged for unauthenticated traffic |
+
+Invalid configuration is **fatal**, not defaulted: each value is
+`z.coerce.number().int().positive()`, and `TRUSTED_PROXY_SECRET` is `z.string().min(16)`. An
+abuse control that quietly disables itself is worse than none, because nothing announces it
+is gone. The limiter **fails closed**: if it throws, the answer is
+`{limited: true, retryAfterSeconds: 60, bucket: "unavailable"}`. `Retry-After` is the time
+left in the caller's own window, minimum 1 s, `+1 ms` so the boundary instant is not refused
+again — live: `Retry-After: 58`, obeyed to the second, next attempt not 429.
+
+### 5 — Trusted proxy, and why a spoof cannot be rotated
+
+`trustedClientAddress` returns `null` unless the request presents
+`x-pdfdadi-proxy-secret` matching `TRUSTED_PROXY_SECRET`, compared as sha256 digests through
+`timingSafeEqual`. Only then is the first `x-forwarded-for` hop (else `x-real-ip`) read.
+**Default is `null`: forwarding headers are not read at all.** Unauthenticated traffic is
+therefore always charged to the unspoofable `global` bucket, and a trusted per-client bucket
+refuses *earlier, never instead* — so rotating a forged header changes nothing it can escape
+by. Mutation H found "never instead" unpinned; S14 pins it now, in both topologies.
+
+### 6 — Multi-instance behaviour, stated as a limitation
+
+Limiter state is a `Map` in this process, exactly like the six pre-existing limiters. Behind
+N instances the effective request ceiling is N × the configured number. The **byte** ceiling
+is unaffected — the bounded reader is per request. A shared limiter (Redis, or the load
+balancer) is the multi-instance answer and is not in this repository; §37 decision 14 keeps
+that as a tuning decision rather than a "whether" decision.
+
+### 7 — Error taxonomy, one table, one implementation
+
+| Condition | Status | Body |
+|---|---|---|
+| foreign / absent origin | 403 | the existing `CSRF_ORIGIN_REJECTED` security response |
+| declared or streamed oversize | 413 | `PAYLOAD_TOO_LARGE` + the route's own message |
+| not `multipart/form-data` | 415 | `INVALID_INPUT` — "Expected a multipart/form-data upload." |
+| over the request limit | 429 | `RATE_LIMITED` + truthful `Retry-After` |
+| no session | 401 | the existing non-disclosing `UNAUTHORIZED` |
+| multipart, syntactically invalid | 400 | `MALFORMED_MULTIPART` — "Malformed multipart body." |
+| well-formed, invalid fields | 422 | `INVALID_INPUT` with the field message |
+| no membership / no such Workspace | unchanged | the existing indistinguishable answer |
+
+Every refusal carries `Cache-Control: no-store`, including the 403 and the 401. The old
+`422 "A multipart upload is required."` for an unparseable body is gone: a multipart upload
+*was* supplied, it just could not be read — which closes the P3 in §35.
+
+### 8 — Live measurements against a rebuilt artifact
+
+BUILD_ID `VWgZdjW1LEZvaUo6nwJJi` built at `f6f0fa8`, `node .next/standalone/server.js` on
+`127.0.0.1:3052` with the TLS front on `172.20.10.2:3051`.
+`node scripts/upload-abuse-probe.mjs` → **32/32**, full detail in
+`docs/evidence/final-prelaunch/upload-abuse-live.json`. The load-bearing rows:
+
+| Row | Measurement |
+|---|---|
+| L0 control | a signed-in 8 MiB upload **is** parsed: 201 after 5307 ms, 8.00/8.00 MiB sent — so the probe can tell a consumed body from an unread one |
+| L1 ×6 | anonymous 8 MiB → **401 in 1–10 ms, 0.06/8.00 MiB sent**, all three routes, direct **and** through the TLS front |
+| L2 ×3 | declared 200 MiB → 413 in 1–2 ms, before the body |
+| L5 ×3 | foreign origin → 403 in 1 ms, 0.06/8.00 MiB |
+| L6 ×3 | `application/json` → 415 |
+| L3 | authenticated chunked 26 MiB, no `Content-Length` → 413 after 25.50 MiB, RSS 377.8 → peak 378.1 MiB |
+| L4 | declares 1 KiB, sends 26 MiB → never served |
+| L8 / L8b / L8c / L9 | 429 at attempt 227 with `Retry-After: 58`; an 8 MiB body offered while limited is read 0.06 MiB; a signed-in caller is unaffected; obeying the header to the second is enough |
+| L11 | 8 concurrent anonymous 8 MiB (64 MiB offered) → all 401, 0.5 MiB read, RSS 377.3 → 377.3 → 377.8 MiB |
+| L12 | `Expect: 100-continue` over the ceiling: `100 Continue` comes from the **Node runtime, not route code**, then 413 in 4 ms — reported that way rather than claimed as a route behaviour |
+| L13 | after every anonymous attempt, all eight side-effect counters unchanged |
+| L10 ×3 | a signed-in 64 KiB upload still succeeds and the stored sha256 and byte count match what was sent |
+
+### 9 — Tests
+
+`uploadBoundary.test.ts`, 1417 lines, S1–S18. They **observe** rather than argue: the body is
+sent through a stream that counts bytes written at the instant the response arrives, so
+"refused before the parse" is a number, not a reading of the source. S16 plants strings in
+filenames, field values and body bytes and asserts none reaches a log line, an audit record,
+a rate-limit key or a refusal body. S15 re-measures the non-disclosure invariants that moving
+authentication earlier could have broken.
+
+### 10 — Mutations
+
+Eleven, each applied alone, the intended test verified red, reverted, and the revert verified
+by an empty `git status --porcelain`:
+`docs/evidence/final-prelaunch/mutations-upload-boundary.log`. All eleven intended tests went
+red; all eleven reverts left a clean tree; the full suite was re-run green after the tenth
+(7374 tests) and after the eleventh.
+
+Two of them changed the code rather than only the tests. **H** ("X-Forwarded-For trusted with
+no proxy secret") and **J** ("a trusted bucket *replaces* the global ceiling") both stayed
+green — the property was real but unpinned — which is what `9d46606` and `434adc1` fixed.
+
+### 11 — The finding the live run made, and the matcher
+
+The first live run showed the 401 arriving only after the client had sent every byte, on a
+gate whose own refusal takes 1 ms. The cause was **Next's middleware matcher**: a matched path
+waits for the last byte before the handler runs. Measured, not inferred — `/api/nope` (no
+route, no application code, matcher **included**) waited 2616 ms for a 200 MiB body while
+`/api/nope.txt` (matcher **excluded**) answered in 3 ms, and a single refused 200 MiB upload
+grew RSS by ~30–85 MiB on a matched path versus ~1 MiB on an excluded one. `f6f0fa8` excludes
+exactly the five upload paths, `$`-anchored so every descendant (`/api/jobs/<id>/download`,
+`/api/workspaces/<ws>/documents/<doc>`, …) stays matched; all five are POST-only JSON handlers
+that render no script, so no CSP nonce is consumed and their responses still carry the full
+header set. Mutation K restores the old matcher and turns the exclusion test red.
+
+### 12 — Deployment requirements
+
+Nothing new is *required*. Optional, and only for multi-instance or behind-a-proxy
+deployments: `TRUSTED_PROXY_SECRET` (≥16 chars, and the proxy must send it in
+`x-pdfdadi-proxy-secret`) plus the three `UPLOAD_*_PER_MIN` overrides. Three operational
+facts about the standalone artifact were confirmed the hard way this session and belong with
+the deploy steps: `server.js` **chdirs into `.next/standalone`**, so `.next/static` must be
+copied in before boot, `STORAGE_LOCAL_ROOT` resolves to `.next/standalone/.storage/local`,
+and the admin store is `.next/standalone/data/admin/store.json`. Production config refuses to
+boot with a relative SQLite `DATABASE_URL`.
+
+### 13 — Remaining limitations
+
+1. The limiter is **process-local** (item 6).
+2. Paths still matched by the middleware matcher still buffer their bodies before their
+   handler runs. That is pre-existing behaviour for non-upload routes, unchanged here, and now
+   recorded with measurements in `proxy.ts`.
+3. `Expect: 100-continue` is answered by the Node runtime, so route code cannot refuse *at*
+   the expectation — only immediately after (L12).
+4. An authenticated caller can still spend its own 100 MiB ceiling 120 times a minute. That
+   is a capacity choice, and it is what the overrides are for.

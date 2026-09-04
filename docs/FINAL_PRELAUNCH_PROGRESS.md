@@ -401,3 +401,68 @@ thirteen → **fourteen**. Citation check re-run after the new file landed: **57
 missing** in the report, **41 / 0** in this file.
 
 Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**
+
+## Session 5 — the upload-abuse closeout, and the reclassification that started it
+
+The audit closed P2-7 as "recorded, not fixed". A separate brief reopened it: an
+**unauthenticated** caller could make the server buffer and parse up to 25 MiB before
+authentication ran, and nothing bounded how many times. That is **P1**, not P2 — see the
+annotation on P2-7 in §35 and the closeout in **§38**. The original row and its evidence file
+are untouched; the correction is written next to them.
+
+Branch `upload-abuse-closeout` from the audit HEAD `1640b12`. Six commits:
+
+| Commit | What |
+|---|---|
+| `5fdfe26` | one multipart reader + one error taxonomy — five call sites had five opinions |
+| `29db752` | upload rate limiting, keyed by something the caller cannot write |
+| `a8bf82e` | authenticate before parsing: one gate, three private upload routes |
+| `b42bd1b` | S1–S18 — observe whether the body was consumed, do not argue it |
+| `9d46606` + `434adc1` | two gaps the mutation exercise found: a forged header named a bucket, and "earlier, never instead" was unpinned |
+| `f6f0fa8` | the gate could not refuse before the body — the **proxy matcher** was why |
+
+### What the live run found that no test could
+
+At the first live run the 401 arrived only after every byte had been sent, from a gate whose
+own refusal takes 1 ms. Next's middleware matcher waits for the last byte before the handler
+runs. Measured: `/api/nope` (no route at all, matcher **included**) waited 2616 ms for a
+200 MiB body; `/api/nope.txt` (matcher **excluded**) answered in 3 ms. `f6f0fa8` excludes the
+five upload paths, `$`-anchored so every descendant stays matched. Mutation K restores the old
+matcher and the exclusion test goes red.
+
+### The four outstanding phase gates, re-run at the new artifact
+
+BUILD_ID `VWgZdjW1LEZvaUo6nwJJi` at `f6f0fa8`. All four had a red or unexercised row; **all
+four were harness-side**, and the product artifact was not touched to fix any of them.
+
+| Gate | Was | Cause | Now |
+|---|---|---|---|
+| Phase 2 save-state | exit 1, `locks: false`, all-null UI reads | no `--ignore-certificate-errors`, so the self-signed origin was not a secure context and `navigator.locks` did not exist | **80/80**, exit 0 |
+| Phase 3 round-trip | `ERR_MODULE_NOT_FOUND '@/src'` | run under plain `node`; the script's own header documents `npx tsx` | **91/91**, exit 0 |
+| Phase 4 capability | 48/49, H4 red | the probe wrote `process.cwd()/data/admin/store.json`, but `server.js` **chdirs into `.next/standalone`** — so H1/H2/H3/H5/H6 were vacuous and the legitimate rename never rendered | **49/49**, exit 0, stores md5-identical after |
+| Phase 6 premium UI | M5b PRODUCT FAILURE | a **closed** native macOS `<select>` routes ArrowDown to a browser-process popup CDP cannot drive; type-ahead of an option's first character does move it and does fire `change` | **125 pass, 0 product failures, 0 environmental, 0 not exercised** — and M5b exercised for the first time |
+
+X-6 in §36 said M5b was blocked by "the OS file dialog". That attribution was wrong — the row
+drives the destination `<select>` — and §36 now says so with the isolated measurement.
+
+### Two harness corrections, in harness code only
+
+**F3** matched `requireSameOrigin` by name per route file, so absorbing that call into the
+shared gate would have turned a *correct* refactor red; it now accepts `workspaceUploadGate`
+transitively, but only while that file still contains `requireSameOrigin`. **I3** did
+`metadata.vulnerabilities ?? 0`, reporting zero advisories when `npm audit --json` produced no
+vulnerability block at all — a missing measurement rendered as a clean one; it now returns
+ENVIRONMENTAL.
+
+### The pipeline row, characterized rather than excused
+
+With `PROCESSING_PIPELINE=on`, the `compress-pdf` matrix row cannot pass: the probe watches
+for a **blob** download and the pipeline runner deliberately **navigates** to a signed URL. P3,
+harness-side, and the delivery was measured at the HTTP layer instead — 202 → `completed` 8219
+→ 302 (`content-disposition`, `no-store`) → 200, 8219 bytes, `%PDF-1.5`. Recorded as X-12.
+`docs/evidence/final-prelaunch/pipeline-flag-compress-download.log`.
+
+Live acceptance: `scripts/upload-abuse-probe.mjs` → **32/32**
+(`upload-abuse-live.json`). Mutations: **11/11** red then reverted clean
+(`mutations-upload-boundary.log`). Gate ordering for all five call sites:
+`upload-gate-ordering.md`.
