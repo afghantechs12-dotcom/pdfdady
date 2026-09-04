@@ -1420,3 +1420,73 @@ no `prisma migrate deploy` inside a container, no load balancer observed drainin
 the 503. Zero downtime was not attempted — this rehearsal stops the server, swaps the
 artifact and starts it again, an outage window of a few seconds, which is what the
 runbook describes.
+
+## §27 — Tests added, and the brief's R1–R30 mapped to them
+
+**A naming collision to clear first.** `finalPrelaunchRegression.test.ts` numbers its
+own 31 tests R1–R30. Those are **not** the brief's R1–R30. The file was written
+against a different list and its numbers stayed; renumbering it now would invalidate
+every mutation row that quotes an assertion by name. Where a row below cites that
+file, the brief's item is on the left and the file's own label is quoted in the cell.
+
+Eleven test files are new on this branch, fourteen were extended:
+
+| New file | Tests | Written because |
+|---|---|---|
+| `finalPrelaunchRegression.test.ts` | 31 | the regression spine — name/path composition, ceilings, cookie, disclosure, capability |
+| `app/seoIndexingTruth.test.ts` | 9 | R24/R25 — derives the private set from the route tree and from `sitemap()`'s own output |
+| `deploymentArtifact.test.ts` | 8 | R30 — ties the image's installed packages to the binaries readiness requires |
+| `lib/server/tempFileLifecycle.test.ts` | 11 | R17 — `cleanup.ts` and both guards around `rm` had nothing |
+| `lib/server/runCommandInjection.test.ts` | 3 | R14 — the argv seam had no gate at all |
+| `lib/server/jobErrorDisclosure.test.ts` | 3 | R12 — the 404-not-403 rule had only a source scan |
+| `data/admin/shippedStoreSecrets.test.ts` | 2 | the P0 password hash, globbed by filename so a `.bak` sibling cannot hide |
+| `components/seo/jsonLdEscape.test.ts` | 3 | the product's only `dangerouslySetInnerHTML` |
+| `src/infrastructure/auth/LocalSessionProvider.test.ts` | 4 | R9/R19 — session pruning, against real SQLite rather than the in-memory twin |
+| `src/infrastructure/jobs/workerBootstrap.test.ts` | 3 | R19/R20 — nothing asserted the retention sweep is *registered* |
+| `src/application/services/workspacePageData.test.ts` | 5 | R11/R18 — the cross-tenant page refusal logged nothing |
+
+Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
+`documentLoadState.test.ts`, `data/pricing.test.ts`, `instrumentation.test.ts`,
+`loadWorkspaceDocument.test.ts`, `toolProcessing.test.ts`, `proxy.test.ts`,
+`AuthService.test.ts`, `saveIntentIdentity.test.ts`,
+`usageObservationRetention.test.ts`, `workspaceCsrfProxyOrigin.test.ts`,
+`env.test.ts`, `PdfToolWorkerHandler.test.ts`.
+
+### The map
+
+| Brief | Claim | Covered by | Kind |
+|---|---|---|---|
+| R1 | every Phase 5 non-pass is classified | Gate A table, §3 — all seven | evidence + probe |
+| R2 | the canonical tool list is what the build can run | `seoIndexingTruth` *lists only tools this build can actually run*; `capability.test.ts`; §6 matrix | test + probe |
+| R3 | a missing runtime dependency cannot look available | `PdfToolWorkerHandler.test.ts` *categorizes a MissingDependencyError*; `deploymentArtifact` *installs a package for every binary readiness requires*; `readyRoute.test.ts` | test |
+| R4 | clean install and build from the lockfile | `fresh-env-final.log`, `audit-fresh-final.log` — `npm ci` 0, build 0, both legs booted | evidence |
+| R5 | migrations apply to a blank database | `migration-restore-drill.log` rows 1–7 (23 migrations, 42 tables); repeated in the fresh worktree | evidence |
+| R6 | migrating a populated database preserves data | `migration-restore-drill.log` rows 8–12 — row counts before/after | evidence |
+| R7 | production config refuses insecure combinations | `env.test.ts` (25); `deploymentArtifact` *supplies every variable the production gate refuses to start without* | test |
+| R8 | the login `next` parameter cannot redirect off-site | `components/auth/returnTo.test.ts` + `authValidation.test.ts` — mutation D, 5 red | test |
+| R9 | sessions rotate and expire | `AuthService.test.ts` (16); `LocalSessionProvider.test.ts`; §8 measured live — rotation, server-side revocation, `Max-Age=43200` | test + live |
+| R10 | CSRF and origin gates hold | `workspaceCsrfProxyOrigin.test.ts` (18) — mutation E, 9 red | test |
+| R11 | a cross-tenant read fails | `workspaceAuthorization.test.ts` (25), `workspacePageData.test.ts` (5); **runtime** in `f5-cross-tenant-final.log` — all four refusal shapes in a real browser | test + live |
+| R12 | a foreign job or result answers without disclosing | `jobErrorDisclosure.test.ts` — byte-identical to a job that does not exist; `legacy-job-ownership-probe.mjs` | test + probe |
+| R13 | hostile filenames stay inert | `finalPrelaunchRegression` *R9/R11/R29/R30*; `tempFileLifecycle` (7 of 11) | test |
+| R14 | processing arguments cannot become shell syntax | `runCommandInjection.test.ts` — mutation I *created a file* when the shell was let in | test |
+| R15 | a MIME/content mismatch is rejected | `finalPrelaunchRegression` *R19 a claimed extension is checked against the actual leading bytes* | test |
+| R16 | request and file ceilings are enforced | `proxy.test.ts` (26) + `finalPrelaunchRegression` *R20*; **runtime** `upload-ceiling.log` — 22 and 60 MiB parse, 101 MiB → 413 | test + live |
+| R17 | temp files are cleaned | `tempFileLifecycle.test.ts` (11) — mutations T1–T3 | test |
+| R18 | logs exclude private content | `workspacePageData.test.ts`; measured — 6 access-denied lines from a browser walk, 0 with an email, password, cookie or token | test + live |
+| R19 | save-intent retention is decided | **resolved, not deferred** — 30-day sweep (`1d36b30`), `saveIntentIdentity.test.ts`, `workerBootstrap.test.ts`, and the sweep observed firing 15 min after boot | test + live |
+| R20 | expired results are cleaned up | `audit-retention-runtime.log` — a forced-expired row purged by the sweep on its own schedule, 325 rows, then 0 still expired | live |
+| R21 | shared content survives deleting one reference | `VersionService.test.ts` (62) — mutation K went red on *keeps bytes a stored-file row outside this Workspace still points at* | test |
+| R22 | backup and restore | `migration-restore-drill.log` rows 13–16 — online `backup()`, byte-exact restore, `migrate status` on the restored file | evidence |
+| R23 | health and readiness tell the truth | `readyRoute.test.ts` (7) — mutation O; live `/api/health` 200 while `/api/health/ready` 503 `toolchain:false` | test + live |
+| R24 | private routes are not indexed | `seoIndexingTruth.test.ts` — found the one indexable private page, mutation S1 | test |
+| R25 | the sitemap is registry-derived | `seoIndexingTruth.test.ts` — mutations S2/S3; the availability gate keeps 13 unavailable slugs out | test |
+| R26 | Pricing matches what can actually be bought | `data/pricing.test.ts` (15) — mutation O2/brief M, 2 red | test |
+| R27 | screenshot baselines exist and compare | `GATE-B-VISUAL-ACCEPTANCE.md` — 156 captures over 18 surfaces, mutation N caught at 23–36% of pixels | evidence |
+| R28 | a keyboard-only workflow completes | `keyboard-r28.log` — 13 gates signed out, 13 signed in, one row NOT EXERCISED (the OS file dialog) | live |
+| R29 | Firefox and WebKit exercised, or explicitly not | `cross-browser.log` — Chromium exercised; Firefox ENVIRONMENTAL; WebKit and screen reader NOT EXERCISED | live |
+| R30 | deployment and rollback smoke | `r30-deploy-rollback.log` — 8/8, both artifacts booted, both completed a real job | live |
+
+**Nothing here was satisfied by a source scan alone.** The two claims that once were
+— R12's 404-not-403 rule and R24's indexing gate — are the two the mutation program
+caught (G and O1/S1), and both got behavioural tests before the mutation was applied.
