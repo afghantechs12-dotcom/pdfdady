@@ -121,6 +121,29 @@ describe("checkUploadLimit — whose budget is spent", () => {
     expect(from("2.2.2.2").limited).toBe(false);
   });
 
+  // "Refuses earlier, NEVER instead." A trusted proxy makes the per-client key
+  // honest, not unlimited: the aggregate ceiling is still charged on every
+  // unauthenticated attempt, so a botnet of distinct real addresses cannot
+  // multiply the instance's total upload budget by its size. Mutation J — charging
+  // the global bucket only when no client bucket applies — passed the suite
+  // without this case.
+  it("charges the global ceiling even when a trusted per-client bucket applies", () => {
+    env.TRUSTED_PROXY_SECRET = SECRET;
+    env.UPLOAD_ANON_RATE_LIMIT_PER_MIN = "50";
+    env.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN = "3";
+    const from = (ip: string) =>
+      checkUploadLimit({
+        request: req({ "x-forwarded-for": ip, [PROXY_SECRET_HEADER]: SECRET }),
+        userId: null,
+      });
+    for (const ip of ["1.1.1.1", "2.2.2.2", "3.3.3.3"]) {
+      expect(from(ip), ip).toMatchObject({ limited: false });
+    }
+    // A fourth address, well inside its own per-client budget, is refused by the
+    // bucket it cannot rotate away from.
+    expect(from("4.4.4.4")).toMatchObject({ limited: true, bucket: "global" });
+  });
+
   it("recovers after the window elapses, and Retry-After is how long that takes", () => {
     env.UPLOAD_RATE_LIMIT_PER_MIN = "1";
     const t0 = 1_000_000;
