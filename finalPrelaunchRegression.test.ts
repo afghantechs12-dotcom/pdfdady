@@ -4,7 +4,7 @@ import {
   PILOT_TOOL_SLUG,
   isProcessingPipelineEnabled,
 } from "@/lib/server/processingPilot";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -17,6 +17,11 @@ import type { DocumentVersion, DocumentVersionManifest } from "@/src/domain/enti
 import { LocalFileStorage } from "@/src/infrastructure/storage/LocalFileStorage";
 import { sanitizeBaseName } from "@/lib/server/toolJobSubmit";
 import { UploadValidationError, validateUpload } from "@/lib/server/validateUpload";
+import {
+  MalformedMultipartError,
+  multipartFailure,
+  readMultipart,
+} from "@/lib/server/multipart";
 import { serverToolConfig } from "@/data/serverToolConfig";
 import { clearedSessionCookieOptions, sessionCookieOptions } from "@/src/application/services/authHttp";
 import { mapWorkspaceError } from "@/src/application/services/workspaceHttp";
@@ -467,17 +472,37 @@ describe("R19..R20 upload intake", () => {
     }).formData();
     expect((reparsed.get("file") as File).name).toBe(hostile);
 
-    // 3. Both submit paths convert the parse failure into the error their route
-    //    already maps to 400. Asserted on source because invoking either would
-    //    stand up Prisma, storage and a worker (see meteringSubmitWiring.test.ts);
-    //    the 400 itself is measured live in
+    // 3. The shared reader BOTH submit paths now call — and all three Workspace
+    //    upload routes with them — turns that failure into the 400 taxonomy.
+    //    Exercised rather than read: invoking a submit path itself would stand up
+    //    Prisma, storage and a worker (see meteringSubmitWiring.test.ts), but the
+    //    reader is the whole of the behaviour under test. The 400 as a live HTTP
+    //    answer is measured in
     //    docs/evidence/final-prelaunch/hostile-filename-r13.log.
-    for (const file of ["lib/server/toolJobSubmit.ts", "lib/server/processingJobSubmit.ts"]) {
-      const src = readFileSync(join(process.cwd(), file), "utf8");
-      const guard = src.slice(src.indexOf("try {"), src.indexOf("No file was provided."));
-      expect(guard, file).toContain("await request.formData()");
-      expect(guard, file).toContain('throw new UploadValidationError("Malformed multipart body.")');
-    }
+    await expect(readMultipart(request(), 110 * 1024 * 1024)).rejects.toThrow(
+      MalformedMultipartError,
+    );
+    expect(multipartFailure(new MalformedMultipartError())).toMatchObject({
+      status: 400,
+      code: "MALFORMED_MULTIPART",
+    });
+
+    // 4. The NEGATIVE form, which is what makes this a guard rather than a wall:
+    //    the same hostile name, encoded the way a conforming client encodes it,
+    //    still parses through the same reader and arrives with its name intact.
+    const parsed = await readMultipart(
+      new Request("http://x/", {
+        method: "POST",
+        body: raw,
+        headers: { "content-type": encoded.headers.get("content-type")! },
+      }),
+      110 * 1024 * 1024,
+    );
+    expect((parsed.get("file") as File).name).toBe(hostile);
+
+    // The inventory — that NO other shipped code reads a multipart body — is S1 in
+    // uploadBoundary.test.ts, which is where the absence of a sibling call site can
+    // be asserted as an absence.
   });
 
   it("R20 the intake's four ceilings are enforced where the file arrives", async () => {

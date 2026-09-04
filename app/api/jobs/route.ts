@@ -14,6 +14,7 @@ import { isProcessingPipelineEnabled } from "@/lib/server/processingPilot";
 import { resolveJobActor } from "@/lib/server/jobActor";
 import { jobErrorResponse, toStatusResponse } from "@/lib/server/processingJobApi";
 import { acquireSlot, TooBusyError } from "@/lib/server/concurrency";
+import { multipartToolResponse } from "@/lib/server/multipart";
 import { RateLimiter, clientIp } from "@/lib/server/rateLimit";
 import { appContainer } from "@/src/application/di/container";
 import { Tokens } from "@/src/application/di/tokens";
@@ -118,6 +119,11 @@ export async function POST(request: Request) {
     const { job } = await submitToolJob({ slug, config, request, actor });
     return NextResponse.json({ jobId: job.id }, { status: 202 });
   } catch (err) {
+    // The shared multipart boundary: 400 for a body that cannot be parsed, 413 for
+    // one that exceeded the ceiling mid-stream. First, because both are the
+    // client's error and neither is a malfunction to log.
+    const multipart = multipartToolResponse(err);
+    if (multipart) return multipart;
     if (err instanceof TooBusyError) {
       return NextResponse.json(
         { error: err.message },

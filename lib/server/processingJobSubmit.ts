@@ -19,7 +19,10 @@ import {
 import { executionModeForSlug } from "@/lib/tools/executionPolicy";
 import { ensureWorkerReady } from "@/src/infrastructure/jobs/workerBootstrap";
 
+import { getConfig } from "@/src/infrastructure/config/env";
+
 import { validateUpload, UploadValidationError } from "./validateUpload";
+import { readMultipart } from "./multipart";
 import { bufferToWebStream, collectOptions, sanitizeBaseName } from "./toolJobSubmit";
 
 export interface SubmitProcessingJobInput {
@@ -86,13 +89,10 @@ export async function submitProcessingJob(
   const metering = appContainer.resolve<UsageMeteringService>(Tokens.UsageMeteringService);
   const idempotencyKey = readIdempotencyKey(request);
 
-  // Same guard as the legacy path: an unreadable body is a 400, not a 500.
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    throw new UploadValidationError("Malformed multipart body.");
-  }
+  // Same shared reader as the legacy path: an unreadable body is a 400 and an
+  // oversized one a 413, neither a 500, and the ceiling holds whatever the request
+  // declared.
+  const formData = await readMultipart(request, getConfig().toolsMaxBodyBytes);
   const files = formData.getAll("file").filter((f): f is File => f instanceof File);
   if (files.length === 0) {
     throw new UploadValidationError("No file was provided.");

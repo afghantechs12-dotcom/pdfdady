@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { Readable } from "node:stream";
 
+import { getConfig } from "@/src/infrastructure/config/env";
+
 import { appContainer } from "@/src/application/di/container";
 import { Tokens } from "@/src/application/di/tokens";
 import type { IUploadService } from "@/src/application/ports/storage/UploadService";
@@ -24,6 +26,7 @@ import {
   validateUpload,
   UploadValidationError,
 } from "./validateUpload";
+import { readMultipart } from "./multipart";
 import {
   isBatchEligible,
   TOOLS_BATCH_MAX_FILES,
@@ -97,9 +100,9 @@ export interface SubmittedToolJob {
  * both paths pass through, so it is the only place a legacy server tool can be
  * admitted — and there is no fifteenth per-tool call site to forget.
  *
- * The caller is responsible for rate limiting, body-size pre-check, and
- * concurrency slot acquisition (the slot must be held BEFORE this call so the
- * formData parse is bounded).
+ * The caller is responsible for rate limiting, the declared body-size pre-check,
+ * and concurrency slot acquisition (the slot must be held BEFORE this call so the
+ * number of concurrent parses is bounded; the SIZE of each is bounded here).
  */
 export async function submitToolJob(
   input: SubmitToolJobInput,
@@ -119,19 +122,15 @@ export async function submitToolJob(
     Tokens.UsageMeteringService,
   );
 
-  // A body the parser cannot read is the CLIENT's error, not ours. Without this
-  // the TypeError undici throws ("Failed to parse body as FormData.") fell through
-  // to the route's generic catch and became a 500 — and any filename containing a
-  // raw `"` produces exactly that body. The Workspace upload routes already answer
-  // 400 "Malformed multipart body." for the same input; this is the same answer on
-  // the tool routes. `UploadValidationError` is what both submit routes already map
-  // to 400, so no route needs to change.
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    throw new UploadValidationError("Malformed multipart body.");
-  }
+  // The ONE reader, shared with the Workspace upload routes. It is what makes a
+  // body the parser cannot read the CLIENT's error rather than ours: the TypeError
+  // undici throws ("Failed to parse body as FormData.") used to fall through to the
+  // route's generic catch and become a 500, and any filename containing a raw `"`
+  // produces exactly that body. It also bounds the read at the SAME ceiling the
+  // route checked the declared length against, so a chunked or understated body
+  // cannot get more parsed than an honest one. Both errors are the routes' job to
+  // map — `multipartToolResponse` does it in one line each.
+  const formData = await readMultipart(request, getConfig().toolsMaxBodyBytes);
   // `getAll` so a batch upload (multiple `file` parts) is handled in one parse.
   const files = formData.getAll("file").filter((f): f is File => f instanceof File);
   if (files.length === 0) {
