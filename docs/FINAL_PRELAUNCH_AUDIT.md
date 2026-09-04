@@ -1732,9 +1732,12 @@ hand-built multipart POST whose filename carries a raw `"` now answers
 ## §31 — Files changed
 
 Against the baseline this branch was cut from (`651c8fa`, `phase-6-premium-ui`):
-**189 files, +21884 / −727** at final HEAD `388e8af`, of which product source under `app/`, `components/`,
-`lib/`, `src/`, `prisma/`, `next.config.mjs`, `Dockerfile` and `docker-compose.yml`
-is the part that ships.
+**189 files, +21884 / −727** at the artifact commit `388e8af`, of which product source under `app/`,
+`components/`, `lib/`, `src/`, `prisma/`, `next.config.mjs`, `Dockerfile` and `docker-compose.yml`
+is the part that ships. At the branch tip that carries this report the figure is **199 files,
++23608 / −727**; the whole difference is this document, the progress file and evidence files
+written after the artifact was frozen — `git diff --name-only 388e8af..HEAD` still lists
+0 non-docs paths.
 
 **Behaviour changed (the fixes):**
 
@@ -1777,8 +1780,11 @@ than edited blind in an artifact no build on this host can verify.
 
 ## §32 — Commits and working tree
 
-Branch `final-prelaunch-audit`, **77 commits** ahead of `651c8fa` (final HEAD
-`388e8af`). **No remote is
+Branch `final-prelaunch-audit`, **77 commits** ahead of `651c8fa` at the artifact commit
+`388e8af`, and **80** at the branch tip that carries this report — the extra three are
+documentation and evidence only, which is why the artifact is still final HEAD for every
+gate. (`651c8fa` is the audit's own baseline, not the branch point: this branch already
+carried 18 Phase 6 commits before the audit opened.) **No remote is
 configured, nothing was pushed, and `main` is untouched.** Working tree at the end of
 the audit: clean — `git status --porcelain` empty, no merge, rebase or cherry-pick in
 progress, one worktree.
@@ -1787,7 +1793,8 @@ Classified by the highest-priority path each one touches — product source, the
 tests, then `scripts/`, then `docs/` — the 77 are: **17** that change product
 behaviour, **8** that only add or strengthen tests, **13** that only fix the audit's
 own probes and harness, and **38** docs-only (20 evidence, 10 progress checkpoints, 8
-report and ledger). One commit touches none of those paths. Counting by priority is
+report and ledger). One commit touches none of those paths. At the branch tip the only
+figure that moves is docs-only, 38 → **41**: 17 / 8 / 13 / 41 / 1 = 80. Counting by priority is
 why the test figure is small: most test work landed in the same commit as the fix it
 guards, which is deliberate — §29 depends on a fix being *committed* before its
 mutation runs. The audit's own defects are committed under their own names rather than
