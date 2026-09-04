@@ -1845,3 +1845,74 @@ image ships · `J3` no account deletion and no export exist anywhere in the tree
 `K3` destructive-migration intent · `L3` readiness omits storage writability ·
 `N2` static-render opt-outs · `Q4` whether first-party measurement needs a consent
 banner in the launch jurisdictions (a legal question) · `R3` the visual acceptance above.
+
+## §37 — Release decision
+
+### What the code earned
+
+At final HEAD `9389da3` (`BUILD_ID _DzYjfCuvno7KJhZM8SWY`, and
+`git diff --name-only 9389da3..HEAD` lists 0 non-docs paths, so the artifact measured
+below *is* the artifact this branch ships): build 0 · `tsc --noEmit` 0 · `eslint .` 0
+errors · `prisma validate` 0 and `migrate status` up to date · **7283/7283** unit tests ·
+workflow completeness 155/156 · workspace and tenancy 29/29 · tool matrix 29/29
+exercised with 0 product failures · job ownership 25/25 · export fidelity 35/35 ·
+Gate B 156/156 captures compared clean. **Zero product failures in all four runtime
+probes.** A clean-machine reproduction (`npm ci` from the lockfile into a fresh worktree,
+blank database, migrations, build, boot, probe) reached the same result. Deploy and
+rollback were rehearsed for real on the standalone path: both artifacts booted and both
+completed a real job. Fifteen mutations were applied one at a time, each turned a gate
+red, each was reverted through Git, and the gate came back green.
+
+Three P0 findings and six P1 findings were opened by this audit and **all nine are
+fixed**, each with the commit recorded in §33 and §34. No P0 and no P1 is open. Six P2
+items remain open and are listed in §35; none of them is a launch blocker, and none is
+inflated into one here.
+
+### Why that is not the same as launch-ready
+
+Four things cannot be settled by this repository on this host, and §36 records them as
+what they are rather than as passes:
+
+1. **No human has approved how it looks.** The gate can see a real spacing regression —
+   mutation N proved that — but 156 self-generated captures are not visual acceptance.
+   **`VISUAL ACCEPTANCE PENDING`**.
+2. **No container image was ever built.** There is no Docker daemon here, so C7, C8, the
+   image digest, an in-container `migrate deploy` and the container rollback are all
+   unexercised. What is proven is the standalone path.
+3. **Two tools cannot run at all here** (`soffice` absent), which is also why readiness
+   correctly answers 503 `toolchain:false`. On a host with LibreOffice installed that
+   turns green; nothing here demonstrates it.
+4. **Nothing ran against production** — no production credentials, no production
+   environment, no real domain or certificate, one browser engine, no soak.
+
+### Thirteen decisions this audit will not make for you
+
+Each is a business or operations choice, not a defect. The code supports either answer;
+none is invented here.
+
+| # | Decision | Both answers are supported — the difference |
+|---|---|---|
+| 1 | Does the free tier stay free? | copy deliberately says "$0 today" |
+| 2 | Are Stripe keys set at launch? | three environment variables separate free-only from paid |
+| 3 | Launch without password recovery? | there is no reset flow; an operator can reset a hash |
+| 4 | Domain, DNS, TLS provisioning | `https://pdfdadi.com` is configured intent only |
+| 5 | Markets, languages, currency | one language, `$` implied, no stated market |
+| 6 | Where stdout is collected and for how long | decides whether "was there an error last Tuesday" is answerable |
+| 7 | Backup schedule and an off-host copy | the *procedure* is proven (R22), the *policy* does not exist |
+| 8 | Is the single support inbox monitored? | it is the entire support plan |
+| 9 | Account erasure and data export (J3) | neither exists in the tree; whether that is required is jurisdictional |
+| 10 | `audit_logs` retention | the only table with no expiry and deliberate append-only growth |
+| 11 | Image and artifact retention for rollback | how far back a rollback must be able to reach |
+| 12 | Who authorizes a restore that loses data | R22 restores to a point in time; the loss window needs an owner |
+| 13 | SQLite now, or PostgreSQL before launch | SQLite is correct for one host and is the ceiling on the next one |
+
+Items 1–8 are carried from `LAUNCH-PROFILE.md`; 9–13 were opened by later sections.
+Twelve further rows need a human eye rather than a decision, and are listed in §36.
+
+### Verdict
+
+The product is complete, internally consistent, tenancy-safe on every path probed, and
+reproducible from a clean checkout. What is missing is not code: it is human visual
+acceptance, a container build, a real production environment and thirteen decisions.
+
+**PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**
