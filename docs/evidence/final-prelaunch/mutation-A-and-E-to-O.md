@@ -81,9 +81,13 @@ already honest, and the 24th found one that was not.
 
 The rows above use this file's lettering, which grew with the audit and does not
 line up with the launch brief's mutation list. Mapping by *behaviour* instead of
-by letter, the brief's fourteen items resolve like this: C, J, L, M and N already
-had red-and-reverted evidence (brief M is row `O2` here, brief L is in
-`mutation-C-deployment.md`), brief H's filename half is row `H1` here, and the
+by letter, the brief's fifteen items (A-O) resolve like this: C, J, L, M and N already
+had red-and-reverted evidence (brief M is row `O2` here; brief L is mutation **S2** in
+`mutation-S-indexing.md`, whose finding is precisely brief L's claim — the
+availability gate is the only thing keeping 13 unavailable slugs out of the
+sitemap; brief C is the four `env.ts` rows in `mutation-D-config-truth.md`;
+brief J is rows `H2`, `J1`, `K1` and `K2` above; brief N is Gate B's screenshot
+mutation), brief H's filename half is row `H1` here, and the
 remaining ten were executed below. Same protocol: applied singly to the named
 file, gate run, reverted with `git checkout -- <file>`, tree confirmed clean, and
 `--reporter=verbose` kept so the row can name the assertion that went red rather

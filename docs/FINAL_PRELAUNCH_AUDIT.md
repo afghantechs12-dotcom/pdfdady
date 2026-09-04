@@ -1490,3 +1490,66 @@ Extended: `readyRoute.test.ts`, `saveToWorkspaceRoute.test.ts`,
 **Nothing here was satisfied by a source scan alone.** The two claims that once were
 — R12's 404-not-403 rule and R24's indexing gate — are the two the mutation program
 caught (G and O1/S1), and both got behavioural tests before the mutation was applied.
+
+## §29 — Mutation testing: the brief's A–O
+
+Fifteen mutations, each applied singly to product source, each observed red at the
+gate the brief names, each reverted through Git with the tree confirmed clean by
+`git status --porcelain` before the next. Ten were executed in this audit's later
+sessions at HEAD `b05108a`; five already had red-and-reverted evidence from earlier
+groups and were not rerun, because the code they attack did not change afterwards —
+the brief's own rule. Records: `mutation-A-and-E-to-O.md` (with the brief-letter map),
+`mutation-B-legacy-save.md`, `mutation-C-deployment.md`, `mutation-D-config-truth.md`,
+`mutation-P-retention.md`, `mutation-S-indexing.md`, `mutation-results.json`
+(35 machine-readable rows in the repository's own lettering), and Gate B's own file.
+
+| Brief | Mutation | Brief expects | Applied to | Observed |
+|---|---|---|---|---|
+| **A** | a Phase 5 product failure reads as environmental — reintroduce `--psm`, which `ocrmypdf` rejects | R1 | `lib/server/toolProcessing.ts` | **RED** 2 failed / 10 passed |
+| **B** | advertise a tool whose binary is absent — a `MissingDependencyError` becomes an ordinary processing failure | R2/R3 | `PdfToolWorkerHandler.ts` | **RED** 1 failed / 12 passed |
+| **C** | accept an unsafe production default — delete the gate's wrong-provider and relative-path refusals | R7 | `src/infrastructure/config/env.ts`, `prisma/schema.prisma` | **RED** ×4 rows (D1–D4), 1 failed each |
+| **D** | allow an external login redirect — `safeRedirectPath` hands back absolute and scheme-relative candidates | R8 | `authValidation.ts` | **RED** 5 failed / 39 passed |
+| **E** | remove one CSRF/origin check — `requireSameOrigin` never objects | R10 | `workspaceCsrf.ts` | **RED** 9 failed / 4 passed |
+| **F** | remove a Workspace membership check — `get` grants `editor` to anyone naming an existing Workspace | R11 | `WorkspaceService.ts` | **RED** 8 failed / 35 passed |
+| **G** | expose whether a foreign job exists — 403 "Not your job." instead of 404 | R12 | `processingJobApi.ts` | **RED** 4 failed / 24 passed |
+| **H** | render an HTML-like filename unsafely — drop the `<` escape from the only raw-HTML sink | R13 | `components/seo/JsonLd.tsx` (+ row `H1`, the staged name) | **RED** 2 failed / 1 passed |
+| **I** | pass a filename through shell syntax — `runCommand` with `shell: true` | R14 | `lib/server/runCommand.ts` | **RED** 3 failed / 0 passed, and the run **created** `/tmp/pdfdadi-should-not-exist` |
+| **J** | trust the extension without content validation — accept any extension, drop the leading-byte sniff | R15 | `lib/server/validateUpload.ts` | **RED** ×4 rows (`H2`, `J1`, `K1`, `K2`) |
+| **K** | delete shared bytes while another document still references them | R21 | `VersionService.ts` | **RED** 1 failed / 61 passed |
+| **L** | a CMS-only tool reaches the sitemap | R25 | `app/sitemap.ts` (row `S2`) | **RED** — and it found that the gate is not belt-and-braces: 13 unavailable slugs enter without it |
+| **M** | a price and checkout for a plan that cannot be bought | R26 | `data/pricing.ts` (row `O2`) | **RED** 2 failed / 41 passed |
+| **N** | a visible spacing regression — homepage `<h1> mt-4 → mt-16`, built and served | R27 / visual | `app/page.tsx` | **RED** `PASS 0/9`, 23–36% of pixels differing against a 0.1% threshold |
+| **O** | readiness green while a required dependency is absent — `some` instead of `every` | R23 | `app/api/health/ready/route.ts` (+ `Q1`/`Q2`) | **RED** 1 failed / 6 passed |
+
+After the ten reverts, the combined gate rerun at `f75aac1` was **15 files, 288 tests,
+all passing** (`/tmp/mut-gate-rerun.log`), and the full suite at final HEAD is green
+(§30). **No mutation is left applied**: the tree is clean, and `store.json.bak` —
+mutation A2's gitignored subject, the one row `git status` could never verify — is
+absent.
+
+### What the program actually found
+
+Two of the fifteen were not confirmations. **Brief L / S1–S2** found the Workspace
+file manager indexable and the sitemap's availability gate load-bearing. **Row O1**
+(the analytics allowlist) came back **green** on the first attempt: deleting
+`if (!allowed.has(key)) continue;` left 50 passed / 0 failed, because every property
+either test fed it was already caught by one of the two other filters. The allowlist —
+the thing that stops an undeclared dimension reaching an analytics vendor — was pinned
+by nothing. R24 now sends `pageCount`, `orgSeats` and `stackFrame`, which only the
+taxonomy can drop; O1 is red at R24 alone, and `events.test.ts` still passes with the
+allowlist deleted, which is worth knowing about that file.
+
+Three of the ten executed rows had **no behavioural gate at all** and would have
+stayed green: the argv seam (**I**), the raw-HTML sink (**H**) and the 404-not-403 rule
+(**G**, which had only a source scan). Their tests were written first, run green and
+committed (`2940696`, `b05108a`) *before* the mutation was applied, so the red is a
+real gate rather than a test shaped to fit a known failure.
+
+### What no mutation here reaches, stated rather than implied
+
+Source mutation cannot move the Gate A rows that are probe or host facts; it cannot
+prove *wiring* (a route calling the right service, a worker reading the right flag) —
+that is what the probe runs at HEAD do; and `P7` is the shape that matters most for
+this repository: it type-checks clean (`tsc --noEmit` exit 0) and only the behavioural
+wiring test sees it, which is the same failure mode the memory notes record from
+earlier phases.
