@@ -293,6 +293,15 @@ async function main() {
 
   // Everything from here to the L13 check is ANONYMOUS. The row counts either
   // side of it are the evidence that none of it created anything.
+  //
+  // Sampled after a settle, not on L0's 201. The control upload above IS parsed and
+  // stored, and part of its write lands after the response is flushed — so a sample
+  // taken the instant the 201 arrives can attribute L0's own `document_versions` row
+  // to the anonymous traffic below. That is what L13 reported once during Stage 8 of
+  // production acceptance (`CHANGED: {"document_versions":1}` on a run whose every
+  // anonymous request was refused 401/413/415, and clean on the next run). A refused
+  // request cannot write a version row; a late-committing control upload can.
+  await sleep(1000);
   const anonBefore = sideEffects();
 
   // ── L1 · an anonymous 8 MiB well-formed upload, both entry points ───────

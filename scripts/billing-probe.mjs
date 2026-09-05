@@ -253,6 +253,19 @@ const cookieHeader = (store) => [...store.entries()].map(([k, v]) => `${k}=${v}`
  * from one fixed address, so "no interference" never quietly becomes "the limiter
  * is dead".
  */
+/**
+ * The secret that makes the address above real.
+ *
+ * `nextIp()` was inert without it: `X-Forwarded-For` is only read when the request
+ * also presents TRUSTED_PROXY_SECRET (`trustedClientAddress`), so every call keyed
+ * to the connection's peer address instead and the whole probe shared ONE 6/min
+ * billing budget. Sections 19 and 21 then answered 429 where they assert a 403 —
+ * and a throttled response cannot show that a non-owner is refused *for not owning*.
+ * Found in Stage 8 of production acceptance; the isolation this file documents now
+ * happens.
+ */
+const PROXY_SECRET = `probe-proxy-${randomBytes(16).toString("hex")}`;
+
 let callSeq = 0;
 function nextIp() {
   callSeq += 1;
@@ -271,6 +284,7 @@ async function post(base, path, { body, store, origin, raw, headers = {}, ip } =
       // it wrong, or wants none at all (a webhook), says so.
       ...(origin === null ? {} : { Origin: origin ?? probeOrigin(base) }),
       "X-Forwarded-For": ip ?? nextIp(),
+      "x-pdfdadi-proxy-secret": PROXY_SECRET,
       ...(store && store.size ? { Cookie: cookieHeader(store) } : {}),
       ...headers,
     },
@@ -292,6 +306,7 @@ async function get(base, path, { store } = {}) {
   const res = await fetch(`${base}${path}`, {
     headers: {
       "X-Forwarded-For": nextIp(),
+      "x-pdfdadi-proxy-secret": PROXY_SECRET,
       ...(store && store.size ? { Cookie: cookieHeader(store) } : {}),
     },
     redirect: "manual",
@@ -398,6 +413,13 @@ async function startServer({ port, dbUrl, storageRoot, billing }) {
     ...process.env,
     NODE_ENV: "production",
     PORT: String(port),
+    // The production topology, which the gate has required since Phase 6 and which
+    // this probe did not set: `...process.env` supplies it only if the operator's
+    // shell happens to, so the server exited 1 at boot and every check read as a
+    // product failure. Found in Stage 8 of production acceptance; the deployment
+    // test now hands this environment to the gate itself.
+    DEPLOYMENT_TOPOLOGY: "single-instance",
+    TRUSTED_PROXY_SECRET: PROXY_SECRET,
     DATABASE_URL: dbUrl,
     ADMIN_SECRET: `probe-admin-${randomBytes(8).toString("hex")}`,
     // The configured public origin, which the probe echoes as `Origin`. Not `base`:

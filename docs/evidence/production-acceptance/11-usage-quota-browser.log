@@ -1,0 +1,69 @@
+
+── 0. Isolated fixtures, an HTTPS origin, and one enforce deployment
+  fixtures: /var/folders/2r/w29d3y252f7fb6md7d29w1mw0000gn/T/usage-quota-browser-LxKHpr
+  origin:   https://192.168.0.175:3171 → http://127.0.0.1:3172
+  ok   an HTTPS terminator is listening on a non-loopback origin — tls-front: https://192.168.0.175:3171 → http://127.0.0.1:3172
+  ok   the enforce deployment booted with the production gate unweakened — site url https://192.168.0.175:3171
+
+── 1. The deployment is enforcing, and the ceiling is read, never assumed
+  ok   GET /api/usage answers from the page's own origin — status 200
+  ok   this deployment reports mode enforce — mode enforce
+  ok   the server operations ceiling is a real number read off /api/usage — limit 30
+  ok   the fixture starts unspent — used 0
+  ··   ceiling 30 operations per day, plan Guest
+
+── 2. A real submission is admitted, and the meter moves
+  ok   the action button was clickable — {"ok":true,"label":"Compress PDF"}
+  ok   the submit was ADMITTED on the wire — statuses 202
+  ok   no quota panel is shown for an admitted submission — no alerts
+  ok   the meter moved: the browser's operation was charged — used 1
+  ok   a real job row exists, owned by the browser's anonymous identity — anon 56f5a74f… slug compress-pdf
+  ··   after settlement the counter reads 1 (a failed job refunds, a completed one does not)
+
+── 3. The remaining allowance is spent by a REAL run, to the exact boundary
+  ok   the LAST allowance is admitted, not refused — statuses 202
+  ok   the server's own projection now reports the boundary reached — used 30/30 remaining 0
+  ok   no quota panel yet — the boundary is reached, not exceeded — no alerts
+  ok   the fixture is exhausted going into the denial — used 30/30
+
+── 4. The next submission is refused, and the user is told what and why
+  ok   the submit was REFUSED with 429 on the wire — statuses 429
+  ok   and it was the PIPELINE runner that was refused (its submit carries an Idempotency-Key) — keys ["b8e40b9b-42dc-4112-a329-e805237db56b"]
+  ok   the quota panel actually rendered — 1 matching alert(s) of 1
+  ok   it says what ran out, in the domain's own words — You have used your allowance for now You have reached your usage limit for now. It resets shortly — please try again the
+  ok   it names the plan, read from the server's usage projection — plan label Guest
+  ok   it says when the allowance returns —  usage limit for now. It resets shortly — please try again then. Guest · Resets in 6 hours
+  ok   no meter key, counter or owner reaches the panel — You have used your allowance for now You have reached your usage limit for now. It resets shortly — 
+  ok   the raw numbers stay behind /api/usage — must not print 30
+  ok   no second, generic error banner tells the user again — amber:You have used your allowance for now You
+  ok   the upgrade control degrades to nothing where Pro cannot be sold — buttons in panel: []
+  ok   the refusal threw no client-side exception — none
+  ok   a refusal costs nothing: the counter did not move past the ceiling — counter 30, ceiling 30
+  ok   a refusal creates no job — tool jobs 2 (was 2)
+
+── 5. The legacy remote runner reaches the SAME shared denial UX
+  ok   the LEGACY runner is what is mounted now (its submit carries no Idempotency-Key) — keys [null]
+  ok   it is refused with the same 429 — statuses 429
+  ok   it shows the SAME panel, not a bespoke one — 1 matching alert(s)
+  ok   with the same plan and reset information — You have used your allowance for now You have reached your usage limit for now. It resets shortly — please try again the
+  ok   and no generic banner beside it — You have used your allowance for now You
+
+── 6. A browser-only tool still works while the server allowance is spent
+  ok   the local tool accepted the files and ran — {"ok":true,"label":"Merge PDFs"}
+  ok   it really produced a result the user can take — download controls: ["Download"]
+  ok   and the download control works — {"ok":true,"label":"Download"}
+  ok   no quota panel anywhere on a local tool — no alerts
+  ok   it submitted nothing to the job API — submits []
+  ok   it consumed no server operation — counter 30 (was 30)
+  ok   and created no job row — tool jobs 2 (was 2)
+
+── 7. The default configuration does not block, on the SAME exhausted fixture
+  ok   with USAGE_LIMIT_MODE unset the deployment reports observe — mode observe
+  ok   the fixture is still over its ceiling — used 30/30
+  ok   the very submission that was refused is now ADMITTED — statuses 202
+  ok   no hard-denial state is rendered in observe mode — no alerts
+  ok   and the overage was RECORDED rather than refused — counter 31, ceiling 30
+
+45/45 checks passed
+  note: ceiling 30 operations per day, plan Guest
+  note: after settlement the counter reads 1 (a failed job refunds, a completed one does not)

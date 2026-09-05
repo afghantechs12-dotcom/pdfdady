@@ -171,6 +171,12 @@ async function startServer({ dbUrl, storageRoot, siteUrl, mode, pipeline }) {
     ...process.env,
     NODE_ENV: "production",
     PORT: String(TARGET),
+    // The production topology, which the gate has required since Phase 6 and which
+    // this probe did not set: `...process.env` supplies it only if the operator's
+    // shell happens to, so the server exited 1 at boot and every check read as a
+    // product failure. Found in Stage 8 of production acceptance; the deployment
+    // test now hands this environment to the gate itself.
+    DEPLOYMENT_TOPOLOGY: "single-instance",
     HOSTNAME: "127.0.0.1",
     DATABASE_URL: dbUrl,
     ADMIN_SECRET: "probe-admin-secret-not-a-real-one",

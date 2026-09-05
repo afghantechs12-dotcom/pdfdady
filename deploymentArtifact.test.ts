@@ -91,6 +91,12 @@ const GATE_STANDIN: Record<string, string> = {
   NEXT_PUBLIC_SITE_URL: "https://pdfdadi.example",
   // Chosen when a probe runs, not written into a launcher: a throwaway file.
   DATABASE_URL: "file:/srv/db.sqlite",
+  // Likewise throwaway, and absolute: the schema default below is `.storage/local`,
+  // which the gate refuses in production — correctly, since it resolves against the
+  // working directory. A launcher passing a run-time path is what should be asked
+  // about here, not the value it happens to pick.
+  STORAGE_LOCAL_ROOT: "/srv/storage",
+  ADMIN_STORE_DIR: "/srv/admin",
 };
 /**
  * The schema defaults for keys a deployment need not set, because the gate reads
@@ -104,6 +110,24 @@ const SCHEMA_DEFAULTS: Record<string, string | number> = {
   UPLOAD_ANON_RATE_LIMIT_PER_MIN: 20,
   UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN: 240,
 };
+/**
+ * The same words, out of a JS `const env = {` literal handed to `spawn`.
+ *
+ * Only the top-level pairs, and every non-string value becomes `$RUNTIME` so the
+ * shared body resolves it through GATE_STANDIN exactly as it does a shell `${X}`:
+ * `DATABASE_URL: dbUrl` and `` ADMIN_SECRET: `probe-${…}` `` are values chosen when
+ * the probe runs, and what is being asked is whether the KEY is set at all. An
+ * explicit `undefined` is a deletion (the probe strips those keys before spawning),
+ * so it is dropped here too rather than being reported as set-to-nothing.
+ */
+function envObjectWords(text: string): string {
+  const body = /\bconst env = \{\n([\s\S]*?)\n  \};/.exec(text)?.[1] ?? "";
+  return [...body.matchAll(/^ {4}([A-Z][A-Z0-9_]*): (.+?),?$/gm)]
+    .filter(([, , value]) => value !== "undefined")
+    .map(([, key, value]) => `${key}=${/^"[^"]*"$/.test(value) ? value : "$RUNTIME"}`)
+    .join(" ");
+}
+
 function composeEnvForGate(): Parameters<typeof productionProblems>[0] {
   const resolved: Record<string, string> = {};
   for (const [key, raw] of environment) {
@@ -318,9 +342,20 @@ describe("R3 — the compose file starts the app it describes", () => {
    * check never saw it, and the same missing variable made both of its instances
    * exit at boot. Every row about exclusion then "passed" on a standby that was
    * refusing because it had died, which is the most expensive way to be green.
-   * Both are asked the same question here — does the launcher set every variable
-   * the gate requires — not whether the values are right, since the paths are
-   * throwaways chosen at run time.
+   * `scripts/billing-probe.mjs` and `scripts/usage-quota-browser-probe.mjs` are the
+   * third instance, and the reason this list is now exhaustive rather than "the two
+   * launchers we happened to think of". They build an env OBJECT and hand it to
+   * `spawn`, so neither of the two extractors above could see them, and both were
+   * missing DEPLOYMENT_TOPOLOGY — required since Phase 6. The billing probe was
+   * found in Stage 8 exiting 2 because its server refused to boot; the quota probe
+   * had the identical gap and had simply not been re-run yet. Adding a launcher and
+   * not adding it here is how this rots a fifth time.
+   *
+   * All four are asked the same question — does the launcher set every variable the
+   * gate requires — not whether the values are right, since the paths are throwaways
+   * chosen at run time. Conditionally-spread blocks (the billing probe's Stripe
+   * keys) are deliberately out of scope: they are indented deeper than the top-level
+   * pairs and are all-or-nothing by construction.
    */
   it.each([
     [
@@ -331,6 +366,8 @@ describe("R3 — the compose file starts the app it describes", () => {
       "scripts/singleton-probe.mjs",
       (text: string) => /\bexport ([\s\S]*?); exec /.exec(text)?.[1] ?? "",
     ],
+    ["scripts/billing-probe.mjs", envObjectWords],
+    ["scripts/usage-quota-browser-probe.mjs", envObjectWords],
   ])("%s exports every variable the production gate requires", (file, exportedWords) => {
     const words = exportedWords(readFileSync(path.join(root, file), "utf8"));
     expect(words, `no exported production environment found in ${file}`).not.toBe("");

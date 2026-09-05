@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T19:45:00Z (UTC) |
+| Last updated | 2026-09-05T20:05:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `DIi1m4KbzBmf96popnixW` — rebuilt in Stage 7 because the admin-store fix changes compiled application code. Supersedes `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6, rebuilt because `NEXT_PUBLIC_SITE_URL` is a build input) and the accepted cold artifact `98appVCcbyMxzlhk26zya`; the final candidate is rebuilt and re-measured in Stage 14. |
@@ -25,7 +25,7 @@ what it produced, and what is still owed.
 | 5 | Network and proxy topology | **DONE** — 1 P1 and 1 P3 found and fixed |
 | 6 | Staging deployment (local production-mode surrogate) | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 7 | Production-like user acceptance | **DONE** — 1 P2 and 3 P3 found and fixed |
-| 8 | Security acceptance | NOT STARTED |
+| 8 | Security acceptance | **DONE** — 2 P3 found and fixed; `IMAGE CVE SCAN: NOT EXERCISED — NO SCANNER` |
 | 9 | Reliability and recovery | NOT STARTED |
 | 10 | Observability and operations | NOT STARTED — no provider selected; provider-neutral templates only |
 | 11 | Bounded performance smoke test | NOT STARTED |
@@ -182,8 +182,9 @@ Stage 14 report.
 | Limitation | Consequence |
 | --- | --- |
 | No container runtime (docker, podman, nerdctl, finch, colima, lima, buildah, kubectl all absent) | Stage 3 is static validation only: `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
-| No image scanner (trivy, grype, syft, docker-scout) | no image CVE scan in Stage 8 |
+| No image scanner (trivy, grype, syft, snyk, docker-scout) | Stage 8 records `IMAGE CVE SCAN: NOT EXERCISED — NO SCANNER`; `npm audit` covers the dependency tree (0 vulnerabilities of 486) but not the base image's OS packages |
 | `soffice`/`libreoffice` absent | `pdf-to-word` and `html-to-pdf` are ENVIRONMENTAL and `word-to-pdf`/`powerpoint-to-pdf`/`excel-to-pdf` are NOT EXERCISED (no fixtures either); one workflow-probe row (the 415 `UNSUPPORTED_OUTPUT` branch) is unreachable for the same reason; `/api/health/ready` correctly answers 503 `toolchain:false` here |
+| No Stripe test credentials | 3 billing rows are ENVIRONMENT-LIMITED (a real checkout URL, a real portal URL, a real price rendered as an amount); `scripts/stripe-testmode-probe.mjs` is the probe that needs them |
 | No staging target, no hosting credentials | Stages 6–11 run against a local production-mode surrogate (`scripts/restart-origin.sh` + `scripts/tls-front.mjs`, throwaway DB and storage root) |
 | No monitoring provider selected | Stage 10 delivers metrics, thresholds and provider-neutral templates, marked `MONITORING: NOT EXERCISED` |
 | No Git remote | nothing can be pushed; `main` stays untouched |
@@ -363,6 +364,52 @@ Throwaway state used by this stage: `file:/tmp/pa-stage6-db.db`,
 `file:/tmp/pa-stage7-analytics-db.db` (virgin, for the zero-data section),
 `/tmp/pa-stage6-storage`, `/tmp/pa-stage7-analytics-storage`, `/tmp/pa-stage6-admin`.
 
+## Stage 8 — security acceptance (DONE)
+
+Six probes plus the dependency audit, all against `BUILD_ID DIi1m4KbzBmf96popnixW`
+(no rebuild — nothing this stage changed is compiled into the app). Full write-up:
+`docs/evidence/production-acceptance/11-security-acceptance.md`.
+
+| Probe | Command | Result | Exit |
+| --- | --- | --- | --- |
+| Legacy job ownership (pipeline **off**, the shipped default) | `node scripts/legacy-job-ownership-probe.mjs` | **25/25**, 0 failed, 0 skipped | 0 |
+| Proxy parity | `node scripts/proxy-parity-probe.mjs` | **37/37** | 0 |
+| CSP end to end | `node scripts/csp-probe.mjs --server-log /tmp/pa-stage8-origin.log` | **118/118** | 0 |
+| Upload abuse (L0–L13) | `node scripts/upload-abuse-probe.mjs` | **32/32** | 0 |
+| Billing trust boundary | `node scripts/billing-probe.mjs` | **78/78**, 3 ENVIRONMENT-LIMITED | 0 |
+| Usage ceiling in a browser | `node scripts/usage-quota-browser-probe.mjs` | **45/45** | 0 |
+| Dependency vulnerabilities | `npm audit`, `npm audit --omit=dev` | **0 vulnerabilities**, 486 dependencies (158 prod) | 0 |
+
+`--server-log` matters on the CSP probe: without it the run is 110/110 rather than
+118/118, because the eight report-endpoint rows read the server's own log.
+
+**P3, fixed: the fourth launcher rotted the same way as the first three.**
+`scripts/billing-probe.mjs` exited 2 — its spawned server refused to boot for a
+missing `DEPLOYMENT_TOPOLOGY`, required since Phase 6.
+`scripts/usage-quota-browser-probe.mjs` had the identical gap. The gate worked; the
+guard did not reach these two, because `deploymentArtifact.test.ts` fed only the two
+*shell*-shaped launchers to `productionProblems`. It now feeds all **four**, via a
+third extractor that reads a JS `const env = {…}` literal. 16 tests (was 14).
+Verified to bite: removing the variable again fails the new row with the gate's own
+message.
+
+**P3, fixed: the billing probe's caller isolation was inert.** With the server
+booting, two rows answered `429 RATE_LIMITED` where they assert `403 FORBIDDEN` — and
+a throttle cannot show that a non-owner is refused *for not owning*. `nextIp()` sends
+a distinct `X-Forwarded-For` per call, but `clientIp()` reads that header only when
+the request also presents `TRUSTED_PROXY_SECRET`, so the whole run shared one 6/min
+billing budget. The probe now generates a per-run secret, passes it to the servers it
+spawns and sends `x-pdfdadi-proxy-secret` → 78/78. Corroboration: §15, which
+deliberately exhausts the limiter, was passing on luck and now reports `limited on
+attempt 7` — exactly `max = 6` admitted. Probe-only; no product code changed.
+
+Also carried in this commit: the L13 sampling settle in
+`scripts/upload-abuse-probe.mjs` found in Stage 7, now measured 32/32 twice.
+
+Secrets: none requested, echoed or written. The one synthetic canary in the CSP log
+(`sk_live_…`, planted by the probe to prove it would be caught) is redacted as
+`[probe-canary-token-redacted]` in the evidence copy.
+
 ## Remaining actions
 
 1. Stages 8–11 — the surrogate is **already running** and is what these stages
@@ -382,7 +429,7 @@ Throwaway state used by this stage: `file:/tmp/pa-stage6-db.db`,
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stage 8 is security, Stage 9 reliability and recovery, Stage 10
+   default. Stage 8 is done; Stage 9 is reliability and recovery, Stage 10
    observability (`MONITORING: NOT EXERCISED`, provider-neutral templates, no
    invented provider), Stage 11 the bounded performance smoke test.
 2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
@@ -391,7 +438,7 @@ Throwaway state used by this stage: `file:/tmp/pa-stage6-db.db`,
    the unexplained page exception from Stage 7) and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 7; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 8; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,

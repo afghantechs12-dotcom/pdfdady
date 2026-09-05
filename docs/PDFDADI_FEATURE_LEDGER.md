@@ -5250,3 +5250,42 @@ interstitial before reaching the product.
 - **Next related step:** Stages 8–11 against the surrogate — security acceptance,
   reliability and recovery, observability (`MONITORING: NOT EXERCISED`) and the
   bounded performance smoke test.
+
+## Security acceptance changed no feature, and one guard grew to cover four launchers
+
+Stage 8 of production acceptance measured the shipped artifact and changed no product
+code: legacy job ownership 25/25 (a stranger gets 404, never 403), proxy parity 37/37,
+CSP 118/118, upload abuse 32/32 with no row written by any anonymous request, billing
+trust boundary 78/78 with 3 rows needing live Stripe, browser usage ceiling 45/45, and
+`npm audit` 0 vulnerabilities of 486 dependencies. No image CVE scan — no scanner on
+this machine. Write-up: `docs/evidence/production-acceptance/11-security-acceptance.md`.
+
+### Two probe defects, and the guard that will catch the next one
+
+`scripts/billing-probe.mjs` and `scripts/usage-quota-browser-probe.mjs` compose a
+production environment for a server they spawn, and both were missing
+`DEPLOYMENT_TOPOLOGY` — required by the gate since Phase 6. The gate did exactly its
+job (refused, printed the reason, exited 1), which is why this is P3 rather than a
+product bug; the cost is that a gate-refused process answers nothing on every port, so
+an audit row expecting a refusal can pass on a dead process. `deploymentArtifact.test.ts`
+already asked `productionProblems` about `restart-origin.sh` and `singleton-probe.mjs`,
+but its two extractors read shell `export` lines and an `sh -c` template literal, so
+neither could see a JavaScript env object. A third extractor now reads that shape and
+**all four** launchers are handed to the gate itself — 16 tests, was 14.
+
+The second one is a fixture-inert guard of the kind this ledger has recorded before.
+The billing probe gives every call its own `X-Forwarded-For` specifically so its 24
+sections cannot spend each other's 6-per-minute billing budget — but `clientIp()` reads
+that header only when the request also presents `TRUSTED_PROXY_SECRET`, by design, so
+the isolation never happened and two authorization rows answered `429` where they
+assert `403`. A throttle cannot show that a non-owner is refused *for not owning*. The
+probe now generates a per-run secret and presents it, and the row that deliberately
+exhausts the limiter — which had been passing on luck — reports the exact budget:
+`limited on attempt 7`.
+
+- **Feature flags:** none new.
+- **Known limitations:** live Stripe, a container image scan and a real certificate are
+  all outside what this machine can exercise; the billing probe signs its own events, so
+  `scripts/stripe-testmode-probe.mjs` remains the only real provider verification.
+- **Next related step:** Stages 9–11 — reliability and recovery, observability
+  (`MONITORING: NOT EXERCISED`), and the bounded performance smoke test.

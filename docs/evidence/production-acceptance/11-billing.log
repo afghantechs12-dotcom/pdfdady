@@ -1,0 +1,135 @@
+
+── 0. Isolated fixtures and two production deployments
+  ok   two throwaway databases migrated outside the repo — /var/folders/2r/w29d3y252f7fb6md7d29w1mw0000gn/T/pdfdadi-billing-probe-57217-6F0f79
+  ok   billing-configured production server is healthy — http://localhost:3141
+  ok   billing-absent production server is healthy — http://localhost:3142
+
+── 1. Accounts, and the customer row a real checkout would have written
+  ok   two accounts signed up through the real server
+  ok   each account owns its own organization — owner / owner
+  ok   the customer row starts with no subscription and no paid plan — plan=free status=incomplete
+  ok   the owner starts on free, with limits observed rather than enforced — plan=free mode=observe
+
+── 2. Checkout requires a session and a same-origin request
+  ok   an anonymous checkout is refused with 401 — status 401 {"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}
+  ok   the refusal carries no URL of any kind — {"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}
+  ok   a cross-origin checkout is refused with 403, before the session is read — status 403
+
+── 3. Pro is the only purchasable plan, and the client never names a price
+  ok   a Business checkout is refused with 400 — status 400 {"error":{"code":"INVALID_INPUT","message":"A supported plan must be specified."}}
+  ok   an arbitrary provider price id is refused with 400 — status 400
+  ok   the refusal echoes back neither the price, the customer nor the return URL — {"error":{"code":"INVALID_INPUT","message":"A supported plan must be specified."}}
+  ok   no refused checkout wrote billing state — app=free db=free
+  n/a  a successful Pro checkout returns a provider-hosted URL — needs a live Stripe API call
+
+── 4. Returning from the provider grants nothing
+  ok   /pricing?checkout=success renders for the signed-in owner — status 200 bytes 83873
+  ok   the success query upgrades nobody, in the application or in the database — app=free db=free
+  ok   a completed checkout that bought no subscription grants no plan — status 200 reason=no_subscription db=free
+
+── 5. The webhook verifies its signature first, then grants Pro
+  ok   an unsigned delivery is refused with 400 — status 400
+  ok   a delivery signed with the wrong secret is refused with 400 — status 400
+  ok   a body altered by one byte after signing is refused with 400 — status 400
+  ok   a correctly signed replay from outside the tolerance window is refused with 400 — status 400
+  ok   no refusal echoed the unverified payload
+  ok   four refused deliveries granted nothing and claimed no event id — plan=free
+  ok   the same body, validly signed, is accepted and applied — status 200 {"received":true,"applied":true,"reason":null}
+  ok   the real repository stored an active Pro subscription — plan=pro status=active
+  ok   the application now reports plan=pro — plan=pro
+  ok   granting Pro did not switch limits into enforcement — mode=observe
+
+── 6. A redelivered event applies exactly once
+  ok   the redelivery answers 200 with reason=duplicate, so the provider stops retrying — status 200 {"received":true,"applied":false,"reason":"duplicate"}
+  ok   the redelivery's contradictory payload was not applied — plan=pro status=active price=price_probe_pro
+  ok   the second delivery added no event row — events=2
+
+── 7. A stale event cannot overwrite newer state
+  ok   an out-of-order cancellation is dropped as stale, with a final 200 — status 200 {"received":true,"applied":false,"reason":"stale"}
+  ok   the newer Pro state survived the stale cancellation — plan=pro
+
+── 8. An unmapped price grants no paid plan, and no price grants Business
+  ok   an active subscription on an unmapped price is recorded but grants nothing — reason=unmapped_price db=free app=free
+  ok   a Business-shaped price on an active subscription grants neither Business nor Pro — db=free app=free
+  ok   STRIPE_PRICE_BUSINESS, set in this deployment's environment, bought nothing — db=free
+
+── 9. Pro can still be granted — the two sections above were real refusals
+  ok   a newer event on the configured Pro price restores plan=pro — status 200 app=pro
+
+── 10. Ownership comes from the stored customer, never from the payload
+  ok   an event whose metadata names a different organization is refused, and mints no row for it — reason=ownership_mismatch other=no row owner=pro
+  ok   a signed event for a customer we never issued mints no entitlement — reason=unknown_customer other=free
+
+── 11. Cancellation removes Pro
+  ok   subscription.deleted removes the paid plan even though the object still said active — db=free/canceled app=free
+
+── 12. The portal uses the stored customer and nothing from the request
+  ok   an organization with no stored customer gets 409, not a portal for the id it sent — status 409 {"error":{"code":"NO_BILLING_CUSTOMER","message":"This organization has no billing account yet. Start a subscription first."}}
+  ok   a client-supplied customer id yields no URL and is never echoed — status 502 {"error":{"code":"PROVIDER_FAILED","message":"Stripe returned 401: Invalid API Key provided: sk_test_****************_key"}}
+  n/a  a successful portal session returns a provider-hosted URL — needs a live Stripe API call
+
+── 13. A deployment with no provider credentials fails safely
+  ok   an anonymous portal request is refused with 401 — status 401
+  ok   checkout answers 503 BILLING_NOT_CONFIGURED rather than half-working — status 503 {"error":{"code":"BILLING_NOT_CONFIGURED","message":"Billing is not configured in this deployment."}}
+  ok   the webhook refuses with no provider and writes nothing — status 503
+  ok   the account on that deployment is free, with limits observed — plan=free mode=observe
+
+── 14. Usage limits stayed observe-only throughout
+  ok   USAGE_LIMIT_MODE was never set, and resolves to observe on both deployments — configured=observe absent=observe
+
+── 15. Billing session creation is rate limited per client
+  ok   a burst from one address is eventually rejected with 429 — limited on attempt 7
+
+── 16. Metadata cannot move a subscription onto a second billing tenant
+  ok   a signed event whose metadata names another billing tenant grants that tenant nothing — reason=ownership_mismatch target=free/no sub app=free
+
+── 17. The public summary is anonymous-safe and names nothing
+  ok   the summary endpoint answers an anonymous GET on a configured deployment — status 200 configured=true
+  ok   an anonymous visitor is guest, not signed in, and is offered sign-in — signedIn=false plan=guest action=sign_in
+  ok   the response carries exactly the rendering fields and no others — action,actionLabel,configured,note,plan,priceLabel,pricePeriod,signedIn
+  ok   no provider id, owner id, price id or secret appears in the anonymous body — {"configured":true,"signedIn":false,"plan":"guest","priceLabel":null,"pricePeriod":null,"action":"sign_in","actionLabel":"Sign in to upgrade","note":"Pro applies to your account, so it needs one."}
+  ok   the response is marked private so a shared cache cannot serve one visitor's offer to the next — private, no-store
+
+── 18. Checkout is offered only on a deployment that can actually sell Pro
+  ok   the free owner's own summary offers checkout, matching the plan the app reports — action=checkout summaryPlan=free appPlan=free
+  ok   an owner on the billing-absent deployment is offered no purchase at all — configured=false action=unavailable price=null
+  ok   that deployment also refuses the checkout POST, so no state disagrees with the button — status 503
+  ok   with an unreadable provider price, priceLabel is null on every caller's summary — null / null / null
+  ok   and no currency amount is fabricated anywhere in those responses — {"configured":true,"signedIn":false,"plan":"guest","priceLabel":null,"pricePeriod":null,"a | {"configured":true,"signedIn":true,"plan":"free","priceLabel":null,"pricePeriod":null,"act | {"configured":false,"signedIn":true,"plan":"free","priceLabel":null,"pricePeriod":null,"ac
+  ok   the checkout state is still truthful with no price to show — configured=checkout absent=unavailable
+  n/a  a real configured Stripe price is read and rendered as a display amount — needs live Stripe test credentials — see scripts/stripe-testmode-probe.mjs
+
+── 19. A non-owner member is told it is owner-only, and cannot buy
+  ok   the fixture exists: a real admin membership in the owner's organization — role=admin
+  ok   the admin's summary for that organization says owner-only and offers no purchase — action=owner_only plan=free
+  ok   and the endpoint refuses them, so the button state is not a lie in either direction — status 403 code=FORBIDDEN
+
+── 20. Only trusted billing state makes the summary say Pro
+  ok   the signed event was applied — the transition below is a real one — status 200 applied=true
+  ok   the same caller went from checkout to manage only after trusted state changed — before=free/checkout after=pro/manage
+  ok   the application agrees: /api/usage reports pro for the same session — plan=pro mode=observe
+  ok   the paid summary still names no customer, subscription or price id — {"configured":true,"signedIn":true,"plan":"pro","priceLabel":null,"pricePeriod":null,"action":"manage","actionLabel":"Manage billing","note":"Change your card or cancel in the billing portal."}
+
+── 21. Selecting another tenant's organization gains nothing
+  ok   the foreign caller is not given the target's plan, and is offered no purchase for it — plan=free action=owner_only
+  ok   and the response carries no identifier belonging to the foreign organization — {"configured":true,"signedIn":true,"plan":"free","priceLabel":null,"pricePeriod":null,"action":"owner_only","actionLabel":"Ask your owner to upgrade","note":"Only an organization owner can start a sub
+  ok   no purchase permission is derived from the foreign selector, on either endpoint — checkout 403 portal 403
+  ok   the target organization's own state was not disturbed by any of it — owner=pro
+
+── 22. The checkout success query is not entitlement, at any layer
+  ok   the fixture is unambiguous: the caller owns exactly one organization — orgs=1 role=owner
+  ok   the success page renders for them, so the query really was delivered — status 200 bytes 83873
+  ok   their offer was a purchase before the visit and is the same purchase after it — before=checkout after=checkout/free app=free
+  ok   and no billing row was created for their organization by visiting it — no row
+  ok   the returned page ships no endpoint that could confirm a checkout — bytes 83873
+
+── 23. A deployment that cannot bill still runs the product
+  ok   the pricing page renders in full where billing is unavailable — status 200 bytes 83804
+  ok   it keeps the approved Pro copy and shows no amount the deployment never configured — approved copy present; no amount
+  ok   the usage API and a tool page are unaffected by billing being absent — usage 200/free tool 200 bytes 90335
+
+78/78 checks passed
+  ENVIRONMENT-LIMITED: a successful Pro checkout returns a provider-hosted URL — needs a live Stripe API call
+  ENVIRONMENT-LIMITED: a successful portal session returns a provider-hosted URL — needs a live Stripe API call
+  ENVIRONMENT-LIMITED: a real configured Stripe price is read and rendered as a display amount — needs live Stripe test credentials — see scripts/stripe-testmode-probe.mjs
+Live Stripe E2E: NOT COVERED HERE — this probe signs its own events. Run `node scripts/stripe-testmode-probe.mjs` for real Stripe TEST-MODE verification.
