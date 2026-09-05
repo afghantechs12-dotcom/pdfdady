@@ -140,6 +140,11 @@ async function main() {
       "--no-default-browser-check",
       "--disable-gpu",
       "--hide-scrollbars",
+      // The supported deployment shape terminates TLS in front of the origin, and the
+      // audit front uses a self-signed certificate; without this the measurement runs
+      // against Chrome's interstitial instead of the page. Only for an https --url, so
+      // an ordinary http run is unchanged.
+      ...(BASE.startsWith("https:") ? ["--ignore-certificate-errors"] : []),
       "about:blank",
     ],
     { stdio: "ignore" },

@@ -1,0 +1,247 @@
+### Stage 12 human visual-acceptance package — 2026-09-05T19:32:00Z
+### pages https://192.168.0.175:3001 (TLS front, self-signed) · origin http://127.0.0.1:3002
+### BUILD_ID MniplDUweIbeIPYT_CM5N · baseline docs/screenshots/final-prelaunch/baseline (the accepted Gate B set)
+### NO APPROVAL IS RECORDED IN THIS FILE. A machine measured that the pixels did not
+### move; whether they look right is the owner's call. VISUAL ACCEPTANCE PENDING.
+
+== 0. The first run proved nothing, and is recorded because it proved nothing ==
+$ node scripts/visual-acceptance-probe.mjs --url https://192.168.0.175:3001 --auth \
+    --out docs/screenshots/production-acceptance
+[exit 0]  — and worthless. Tail:
+
+  18-not-found 1920x1080: no baseline at 18-not-found/1920x1080.png
+  19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+  VISUAL ACCEPTANCE — PASS 0/0 exercised
+  NOT EXERCISED (157)
+
+  BASELINE_DIR defaults to join(OUT, "baseline"). Pointing --out at a fresh stage
+  directory therefore does not "capture into a new directory and compare" — it
+  removes the comparison, and the probe still exits 0 with its banner printed. A
+  PASS 0/0 is the shape a green-looking vacuous run takes here; the fix is to name
+  the baseline explicitly, which section 1 does.
+
+  It also surfaced a real defect in the probe: contactSheets() wrote to a hardcoded
+  docs/evidence/final-prelaunch/visual, so a later phase's run overwrote the
+  previous phase's committed sheets (10 modified files). Restored with
+  `git checkout -- docs/evidence/final-prelaunch/visual/`; the probe now takes
+  --sheets. See section 4.
+
+== 1. The compare against the accepted baseline ==
+$ node scripts/visual-acceptance-probe.mjs --url https://192.168.0.175:3001 --auth \
+    --out docs/screenshots/production-acceptance \
+    --baseline-dir docs/screenshots/final-prelaunch/baseline \
+    --sheets docs/evidence/production-acceptance/visual
+[exit 0]
+
+manifest: docs/screenshots/production-acceptance/visual-manifest.json (156 captures)
+sheet: docs/evidence/production-acceptance/visual/contact-mobile.png (69)
+sheet: docs/evidence/production-acceptance/visual/contact-tablet.png (35)
+sheet: docs/evidence/production-acceptance/visual/contact-desktop.png (52)
+sheet: docs/evidence/production-acceptance/visual/contact-workflow-states.png (39)
+sheet: docs/evidence/production-acceptance/visual/contact-editor-states.png (36)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE — PASS 156/156 exercised
+
+NOT EXERCISED (1) — never counted as a pass:
+  19-app-error: this server answered /workspaces normally; the boundary needs a genuinely failing dependency (run with a broken DATABASE_URL)
+
+══════════════════════════════════════════════════════════════════════════
+VISUAL ACCEPTANCE PENDING — a machine proved the pixels did not move.
+Only a human can approve how they look; no approval is recorded here.
+
+Manifest header: base https://192.168.0.175:3001 · mode compare · authenticated true
+                 compressOutcome result · generatedAt 2026-09-05T19:14:33.934Z
+Captures: 156 over 18 surfaces (05-compress-progress is deliberately 3, not 9 —
+          a genuine in-flight state cannot be held at nine widths).
+Viewports: 320x800 360x800 390x844 412x915 768x1024 1024x768 1280x800 1440x900 1920x1080
+Groups:    marketing 45 · workflow 39 · editor 36 · workspace 27 · states 9
+
+Aggregate over the 156 compared captures:
+  154 byte-identical (0/N px differ)
+    2 nonzero, both far under the 0.1% ratio threshold:
+        12-editor-workspace 1280x800   5 px  0.0005%  (1 masked region)
+        14-conflict-dialog  1280x800   9 px  0.0009%  (6 masked regions)
+  total 14 differing px of 124,482,826 compared = 0.000011%
+
+== 2. Where those 14 pixels are ==
+Re-ran scripts/lib/png-diff.mjs on the two pairs to get the worst-box geometry the
+probe only prints on failure, then cropped both captures at that box and looked:
+
+  12-editor-workspace 1280x800: 5/1017850 px, worst box 62x3 at 276,170
+  14-conflict-dialog  1280x800: 9/1017775 px, worst box 345x3 at 276,207
+
+Both boxes are 3 px tall and sit inside the editor's tool rail (select, pan, text,
+image, shape, draw, duplicate). Every icon is present, the same size, at the same
+x — the residual is anti-aliasing along SVG strokes. The geometry rules out the
+alternative reading: a moved or resized element produces a diff box the height of
+that element, not a 3-pixel band. Neither box is adjacent to a mask rect, so it is
+not mask-edge bleed either.
+
+== 3. Masks — what was excluded, and what it cost ==
+Global (scripts/visual-acceptance-probe.mjs:133): [data-user-identity], [data-relative-time], time
+Per-surface: [role="status"] on 13-publish-state and 14-conflict-dialog only (lines 405, 439).
+
+  selector               rects  surfaces
+  [data-relative-time]      99  08-workspace-populated 54, 09-workspace-empty 45
+  [role="status"]           90  13-publish-state 45, 14-conflict-dialog 45
+  [data-user-identity]      25  08 4, 09 4, 10-activity-recent 9, 12 4, 14 4
+  time                       0  — no <time> element is rendered on any captured surface
+  ----------------------------------------------------------------------
+  total                    214  in 49 of 156 captures
+
+107 captures are compared with no mask at all. The masked content is exactly what
+differs legitimately between two runs: the throwaway account's identity, relative
+timestamps, and a transient live-region whose text depends on when the screenshot
+lands. `time` binding 0 rects is worth stating rather than assuming — a mask that
+matches nothing hides nothing, and nobody should later "fix" its absence.
+
+== 4. Contact sheets — the artifact a human actually reviews ==
+docs/evidence/production-acceptance/visual/  (PNG + HTML index per sheet)
+  contact-mobile.png           69 captures  320/360/390/412 wide
+  contact-tablet.png           35 captures  768x1024
+  contact-desktop.png          52 captures  1024/1280/1440/1920
+  contact-workflow-states.png  39 captures  upload → progress → result → download
+  contact-editor-states.png    36 captures  empty, loaded, publish, conflict, error
+
+The probe took --sheets for the first time on this run. Before that the directory
+was hardcoded to the prelaunch phase's, which is how the first run (section 0)
+overwrote 10 committed files. Verified afterwards: 0 modified files under
+docs/evidence/final-prelaunch/visual/, and the five sheets landed in this stage's
+directory instead.
+
+== 5. Responsive sweep — anonymous, 7 pages x 9 widths ==
+$ node scripts/responsive-qa.mjs --url https://192.168.0.175:3001
+[exit 0]  — report at ./responsive-qa-report.json (gitignored, .gitignore:54)
+
+  page      measurements  overflow  hscroll  wide(max)  pageH range   console errs
+  /                    9         0        0          8  5922-11492               9
+  /tools               9         0        0          0  5535-11688               9
+  /pricing             9         0        0          0  1916-3595                9
+  /blog                9         0        0          0  2608-5572                9
+  /editor              9         0        0          8   720-1080                0
+  /login               9         0        0          2   800-1080                0
+  /signup              9         0        0          2   925-1141                0
+  ------------------------------------------------------------------------------
+  total               63         0        0          -                          36
+
+scrollW <= viewport width in 63 of 63 measurements, no exceptions. This is the
+first evidence package to include an anonymous sweep; every previous
+console-cleanliness measurement in this repository signed in first (section 7).
+
+`wide` is not overflow, and the report's own rects say so. All 101 flagged
+elements are decorative aura layers — `pointer-events-none absolute -inset-10
+-z-10`, `animate-glow-pulse absolute … blur-[70px]` — whose boxes extend past the
+viewport by design while the document does not scroll. Example at 360x800 on `/`:
+a rect left=-44 right=256 and another left=175 right=645, with scrollW=360.
+
+`tiny` (144 rows, height or width < 24 over a,button,[role=button],input,select)
+contains no accessibility defect on these pages:
+  1x1 <a>, all 7 pages          the skip link, `sr-only focus:not-sr-only …`
+                                (app/layout.tsx:85). Focused it is 138x40 —
+                                measured by the premium probe's A5/B5 gates.
+  1x1 <input>, on /             the dropzone's file input: `className="sr-only"
+                                tabIndex={-1} aria-hidden`
+                                (components/upload/UploadDropzone.tsx:86-95).
+                                Not a target at all; the 300x256 dropzone is.
+                                Asserted independently by premium gate C1.
+  16x16 <input>, login/signup   checkboxes wrapped in a <label> that is the
+                                target (min-h-[44px] on login, py-2 on signup).
+  17px-tall <a> x6              inline text links inside sentences, which
+                                WCAG 2.2 SC 2.5.8 excepts.
+The rule is a screening heuristic; it does not read aria-hidden, sr-only, or the
+wrapping label, so these rows are expected output, not findings.
+
+== 6. Premium UI/UX probe — authenticated, 13 scenarios ==
+$ node scripts/premium-ui-ux-probe.mjs --url https://192.168.0.175:3001 --auth
+[exit 0]
+
+  base https://192.168.0.175:3001 (HTTP 200)   auth on   shots off
+  PASS  A — Homepage                      12/12 gates
+  PASS  B — Tools directory               13/13
+  PASS  C — Local tool workflow (Merge)    8/8
+  PASS  E — Result workflow / destination   5/5
+  PASS  D — Server tool workflow (Compress) 7/7
+  PASS  F — Workspace                     13/13
+  PASS  G — Workspace-backed editor       11/11
+  PASS  H — Standalone editor             10/10
+  PASS  I — Pricing                       12/12
+  PASS  J — Responsive global shell         5/5
+  PASS  K — Keyboard and accessibility    11/11
+  PASS  M — Keyboard tool workflow (R28)  14/14
+  PASS  L — State matrix                   4/4
+
+  125 pass · 0 product failures · 0 environmental · 0 not exercised
+  No product failure measured.
+
+Rendered-content check (the anti-vacuity floor — a scenario cannot pass against an
+empty page): / 7105 chars · /tools 5512 · /tools/merge-pdf 1437 ·
+/tools/compress-pdf 1575 · /workspaces 388 · workspace document 777 · /editor 728 ·
+/pricing 2513.
+
+== 7. The console noise, and why no earlier probe could see it ==
+Two designed "nothing here" answers are 4xx, so Chrome files a red console line for
+each. Both are functionally correct and neither is suppressible from JS.
+
+(a) GET /api/auth/me -> 401 for an anonymous visitor.
+    app/api/auth/me/route.ts: `if (!token) return authError("UNAUTHORIZED", …, 401)`
+    Fetched after hydration by hooks/usePublicSession.ts:51, whose own comment says
+    "401 is the normal signed-out case, not an error worth reporting" — the header
+    ships signed-out markup and upgrades after hydration precisely so a server
+    cookie read does not opt ~30 static routes out of prerendering.
+    Measured: 36 occurrences = 4 pages x 9 widths (/, /tools, /pricing, /blog).
+    /login, /signup and /editor do not render that header, hence errs=0.
+
+(b) GET /api/workspaces/…/documents/…/editor-state -> 404 EDITOR_STATE_UNAVAILABLE
+    for a version with no saved scene (route.ts:110-126, "Deliberately
+    undifferentiated"). Measured once, by premium gate G5:
+      PASS  G5 no console errors  — clean (1 network entries ignored:
+            https://192.168.0.175:3001/api/workspaces/<id>/documents/<id>/editor-state?organizationId=<id>
+            Failed to load resource: the …)
+
+Why every earlier measurement missed it: premium-ui-ux-probe.mjs's main() calls
+signUp(ctx) before the scenario loop under --auth, so /api/auth/me answers 200 in
+scenarios A/B/I — 10 of its 11 console gates ignored exactly 0 network entries.
+responsive-qa.mjs is always anonymous and had never been included in an evidence
+package before this stage. And probe-browser.mjs splits jsErrors from netErrors
+(Chrome files "Failed to load resource: 401" under Log.entryAdded source=network),
+which is why Stage 11's "0 JS errors" and these 36 lines are both true statements
+about the same build.
+
+Filed as P3, not fixed here: changing an auth endpoint's status code is not a
+clearly low-risk edit during acceptance. Owner row.
+
+== 8. 19-app-error is NOT EXERCISED, and the probe's hint for it is stale ==
+The probe suggests reaching the error boundary by starting with a broken
+DATABASE_URL. That technique is obsolete. Measured on a throwaway origin
+(PORT=3004, started by hand rather than through scripts/restart-origin.sh so the
+live origin's .next/static was never touched):
+
+  $ DATABASE_URL=file:/tmp/pa-stage12-broken/nonexistent-dir/x.db … node ingress/server.mjs
+  $ curl -s -o /dev/null -w '%{http_code} ' http://127.0.0.1:3004/ /workspaces \
+      /api/health /api/health/ready
+  503 503 503 503     body: {"error":"Server is not accepting requests."}
+
+src/infrastructure/config/instanceLease.ts:95-170 — tryAcquire() throws on a
+genuine database failure and beat()'s catch keeps status "pending" — while
+ingress/guard.mjs:107-129 serves only `SERVING = new Set(["held","disabled"])`.
+So an unusable database now returns 503 on EVERY path and the Next application is
+never invoked: no error boundary renders, and there is nothing to screenshot.
+Two consequences recorded for Stage 13, not decided here:
+  - The guard's own comment says an operator reads the difference in
+    /api/health/ready's `instance` field. In exactly the states that matter that
+    endpoint is one of the 503s, so the field is unreachable.
+  - Dockerfile:105-106 healthchecks /api/health, which a lease-unheld process
+    refuses. The container is therefore marked unhealthy for a lease it may be
+    correctly waiting on. docker-compose.yml defines no healthcheck of its own.
+Live listeners re-verified 200 afterwards; /tmp/pa-stage12-broken removed.
+
+== 9. Redaction ==
+Every log folded into this file was scanned before inclusion:
+  $ grep -inE "@|cookie|token|secret|password|authorization|bearer|sk_|whsec_" \
+      /tmp/pa-stage12-{compare,responsive,premium,brokendb}.log
+  (no matches in any of the four)
+No password, cookie, token, API key or connection string appears above. The
+throwaway workspace/document ids in section 6 belong to a disposable account in a
+throwaway SQLite file, not to a customer. 192.168.0.175 is the audit machine's
+private LAN address, kept for consistency with the earlier stage logs.

@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T20:55:00Z (UTC) |
+| Last updated | 2026-09-05T21:45:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
@@ -29,7 +29,7 @@ what it produced, and what is still owed.
 | 9 | Reliability and recovery | **DONE** — 0 defects; container rollback `NOT EXERCISED` |
 | 10 | Observability and operations | **DONE** — 0 defects; `MONITORING: NOT EXERCISED — NO PROVIDER`; template + alert-set test |
 | 11 | Bounded performance smoke test | **DONE** — 0 new defects; P2-2 reproduced, **P2-6 diagnosed**; memory peak and cold start measured |
-| 12 | Human visual acceptance package | NOT STARTED — will be marked `VISUAL ACCEPTANCE PENDING` |
+| 12 | Human visual acceptance package | **DONE (machine half)** — compare **PASS 156/156**; 1 P3 found; `VISUAL ACCEPTANCE PENDING` — owner approval not recorded |
 | 13 | Manual decision register | NOT STARTED |
 | 14 | Go/no-go checkpoint | NOT STARTED |
 | 15 | Production deployment | **BLOCKED — OWNER AUTHORIZATION REQUIRED** |
@@ -189,6 +189,7 @@ Stage 14 report.
 | No monitoring provider selected | Stage 10 delivered `docs/ops/MONITORING.md` (provider-neutral) and marked `MONITORING: NOT EXERCISED — NO PROVIDER`. No provider, DSN, ingest key or dashboard was invented. Wiring it up is an operator action |
 | No access log, no metrics endpoint | Measured in Stage 10: 20 requests added 0 log lines; `/api/metrics` and `/metrics` are 404. Request rate, latency and HTTP error rate must come from the reverse proxy or platform — not a defect, a documented limitation, and a go-live checklist row |
 | One machine runs Chrome, the TLS front and the origin | Stage 11's latencies are **floors**, not forecasts: loopback and LAN, no CDN, no throttling, no other tenants. The ≈3 s `server_processing` of earlier stages was traced to this contention plus a 500ms poll (`14-performance.md` §4) |
+| One browser, emulated viewports, no real device | Stage 12's 156 captures and 63 responsive measurements are Chrome with CDP-emulated widths on one machine. **No** iOS Safari, Android Chrome, Firefox, real DPR-3 phone, screen reader, reduced-motion, forced-colors, print or 200%-zoom pass. `VISUAL ACCEPTANCE PENDING` is the owner-facing half of the same limitation |
 | No Git remote | nothing can be pushed; `main` stays untouched |
 
 Available: node v26.7.0, npm 11.19.0, gs, qpdf, pdftoppm, pdfinfo, tesseract,
@@ -535,9 +536,88 @@ answered — sustained load and cold start measured, memory measured as a **peak
 Secrets: none requested, echoed or written. Evidence redacted for repo path, home path
 and hostname.
 
+## Stage 12 — human visual-acceptance package (DONE, machine half)
+
+**`VISUAL ACCEPTANCE PENDING.`** The pixels were proved not to have moved; nothing in
+this branch records an owner approving how they look. Full write-up:
+`docs/evidence/production-acceptance/15-visual-acceptance.md`; measurements in
+`15-visual-acceptance.log`; the reviewable artifact is
+`docs/evidence/production-acceptance/visual/` (five contact sheets, PNG + HTML).
+
+Three probes against the running surrogate, all exit 0:
+
+```sh
+node scripts/visual-acceptance-probe.mjs --url https://192.168.0.175:3001 --auth \
+  --out docs/screenshots/production-acceptance \
+  --baseline-dir docs/screenshots/final-prelaunch/baseline \
+  --sheets docs/evidence/production-acceptance/visual        # PASS 156/156, 1 NOT EXERCISED
+
+node scripts/responsive-qa.mjs --url https://192.168.0.175:3001   # 63/63, 0 overflow
+node scripts/premium-ui-ux-probe.mjs --url https://192.168.0.175:3001 --auth  # 125 pass
+```
+
+| Measurement | Result |
+| --- | --- |
+| Visual compare vs the accepted Gate B baseline | **PASS 156/156** over 18 surfaces × 9 widths. 154 byte-identical; aggregate **14 px of 124 482 826 = 0.000011%** against a 0.1% threshold |
+| The 2 nonzero captures | `12-editor-workspace 1280x800` 5 px and `14-conflict-dialog 1280x800` 9 px. Worst boxes 62×3 at 276,170 and 345×3 at 276,207 — cropped and looked at: anti-aliasing on the editor tool-rail icons. A 3-px band cannot be a moved element |
+| What changed under the compare | a rebuild, 12 commits, a different LAN origin (`172.20.10.2` → `192.168.0.175`) and a different throwaway account. Only 8 files under `app/` changed on this branch, all API routes/tests — so a moved pixel would have been a regression, not drift |
+| Masks | 214 rects: `[data-relative-time]` 99, `[role="status"]` 90 (2 surfaces), `[data-user-identity]` 25, **`time` 0**. **107 of 156 captures carry no mask at all** |
+| Responsive sweep, anonymous | **63/63**, `scrollW <= viewport` everywhere, `hscroll=0` everywhere. `wide` (101 rects) is decorative aura layers; `tiny` (144 rows) is the `sr-only` skip link, an `aria-hidden tabindex=-1` file input, label-wrapped checkboxes and inline links — **no a11y defect**, itemised in the write-up rather than filed as six false bugs |
+| Premium UI/UX, authenticated | **125 pass · 0 product failures · 0 environmental · 0 not exercised**, all 13 scenarios. Reconciles the harness's 111 → 125 via M5b |
+| `19-app-error` | **NOT EXERCISED.** A broken `DATABASE_URL` no longer reaches the error boundary — see below |
+
+**New P3 (not fixed here).** Every anonymous page load prints a console error, and
+every first open of an unsaved document prints another: `GET /api/auth/me` answers
+**401** by design (`hooks/usePublicSession.ts:51` fetches it after hydration so a
+server cookie read does not opt ~30 static routes out of prerendering) and
+`GET …/editor-state` answers **404 `EDITOR_STATE_UNAVAILABLE`** for a version with no
+saved scene. Measured 36× (4 pages × 9 widths) and 1× respectively. Invisible to every
+prior probe for three separate reasons: `premium-ui-ux-probe.mjs` signs up before its
+scenario loop (10 of its 11 console gates ignored **0** network entries),
+`responsive-qa.mjs` is always anonymous and had never been in an evidence package, and
+`probe-browser.mjs` splits `jsErrors` from `netErrors` — which is why Stage 11's "0 JS
+errors" and these 36 lines are both true. Changing an auth endpoint's status code is
+not a clearly low-risk acceptance-time edit, so it is a **Stage 13 owner row** with
+three options listed in the write-up.
+
+**A measured behaviour change, recorded for Stage 13.** With an unusable database the
+ingress guard now answers **503 on every path** — `/`, `/workspaces`, `/api/health`
+*and* `/api/health/ready` — and the Next app is never invoked
+(`instanceLease.ts:95-170` keeps status `pending`; `guard.mjs:107-129` serves only
+`held`/`disabled`). Measured on a throwaway `PORT=3004` origin started by hand so the
+live origin's `.next/static` was untouched; both live listeners re-verified 200
+afterwards. Two consequences: the guard's own advice to read `/api/health/ready`'s
+`instance` field is unreachable in exactly the failing states, and `Dockerfile:105-106`
+healthchecks `/api/health`, so a container correctly waiting for a lease is marked
+unhealthy (`docker-compose.yml` defines no healthcheck of its own).
+
+**One misstep, recorded because it would otherwise look like a pass.** The first run
+used `--out` at a fresh directory with no `--baseline-dir`; since `BASELINE_DIR`
+defaults to `join(OUT, "baseline")` that silently *removed* the comparison and printed
+**PASS 0/0 with 157 NOT EXERCISED**, exit 0. It also overwrote the prelaunch phase's
+10 committed contact sheets, because `contactSheets()` wrote to a hardcoded path;
+restored with `git checkout --` and verified 0 modified.
+
+Two measurement-tool fixes committed with the stage, no product code touched:
+`visual-acceptance-probe.mjs` gained `--sheets`, and `responsive-qa.mjs` gained
+`--ignore-certificate-errors` for an `https` base only — without it the sweep would
+have measured Chrome's TLS interstitial instead of the product. No test added: none of
+the brief's five test-warranting categories was touched, and a probe's output is its
+own evidence.
+
+Harness rows: **R2** ("111 rendered-layout assertions across 9 viewports", NOT
+EXERCISED, delegated) → **PASS**, run separately and reporting its own count as the row
+instructed: 125 premium gates plus 63 responsive measurements. **R3** ("visual
+acceptance … by a human") → **still MANUAL REVIEW REQUIRED**, carried to Stage 13.
+
+Secrets: none requested, echoed or written. The throwaway account is
+`gateb.<timestamp>@example.test`; the four source logs were grepped for
+`@|cookie|token|secret|password|authorization|bearer|sk_|whsec_` with no matches
+before inclusion.
+
 ## Remaining actions
 
-1. Stage 12 — the surrogate is **already running** and is what it measures: origin
+1. The surrogate the browser stages measure is **still running**: origin
    `http://127.0.0.1:3002` (`BUILD_ID MniplDUweIbeIPYT_CM5N`, pid renamed to
    `next-server`, so find it with `lsof -nP -iTCP:3002 -sTCP:LISTEN`) behind
    `https://192.168.0.175:3001`. Restart it with
@@ -555,21 +635,30 @@ and hostname.
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stages 8–11 are done; **Stage 12** is next — the human visual-acceptance
-   package at 320/360/390/412/768/1024/1440/1920
-   (`node scripts/visual-acceptance-probe.mjs --url https://192.168.0.175:3001 --auth`,
-   plus `responsive-qa.mjs` and `premium-ui-ux-probe.mjs`), marked
-   **`VISUAL ACCEPTANCE PENDING`** — only the owner accepts it. It closes or carries
-   harness rows **R2** (111 rendered-layout assertions) and **R3**.
+   default. Stages 8–12 are done; **Stage 13** is next and needs no server.
+   If a visual re-run is ever needed, it MUST pass
+   `--baseline-dir docs/screenshots/final-prelaunch/baseline` and
+   `--sheets docs/evidence/production-acceptance/visual` — without the first it
+   compares against nothing and still exits 0.
 2. Re-running Stage 11 is cheap and non-destructive if a later stage changes code:
    `scripts/perf-load-probe.mjs` for pages/workflow/fan-out, `scripts/perf-soak-probe.mjs`
    for sustained load and cold start. `--cold-start` restarts the origin, so pass the
    same four `AUDIT_*` variables or it comes back on different throwaway state.
-3. Stage 13 — decision register from the manual rows (11 harness rows plus **S1**,
-   the unexplained page exception from Stage 7) and 14 owner decisions.
-4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
-   final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 11; update it again
+3. **Stage 13 — next.** Decision register from the manual rows (11 harness rows plus
+   **S1**, the unexplained page exception from Stage 7), the 4 NOT EXERCISED and 2
+   ENVIRONMENTAL rows, and §37's 14 owner decisions. **R2 is now PASS** (Stage 12);
+   **R3** stays MANUAL REVIEW. Stage 12 adds four rows: the 401/404 console noise
+   (P3, three options), the lease-503 observability gap, `/api/health` refusal vs the
+   `Dockerfile` healthcheck, and whether the storage volume needs a restore drill of
+   its own. `N3` is only *partly* answered and `L3` (readiness presence-only) and the
+   rollback runbook's Case B are owner decisions. Do not decide legal/tax/privacy/
+   billing/business-risk rows, and do not silently add a consent banner for `Q4`.
+4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md` (it must carry the first-boot
+   mount-verification row for `/app/data/db`, `/app/data/storage` and
+   `/app/data/admin`, and the **1 GB** memory-limit row from Stage 11), the full suite
+   re-run at the final candidate, and the 26-section report. `VISUAL ACCEPTANCE
+   PENDING` is an open row there — it cannot be counted as a PASS.
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 12; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 6. **P2-6 has a recommendation attached, not a decision.** Stage 11 diagnosed it as a
    measurement artifact and amended its row in `docs/FINAL_PRELAUNCH_AUDIT.md`;

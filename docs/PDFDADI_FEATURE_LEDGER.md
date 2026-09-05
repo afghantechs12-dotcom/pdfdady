@@ -5376,3 +5376,53 @@ reserved-height container in the authenticated workbench is product work.
   `soffice` is absent on this host, so Office conversions have never run.
 - **Next related step:** Stage 12, the human visual-acceptance package, which only the
   owner can accept.
+
+## 156 captures that did not move, and the console error every visitor already sees
+
+Production acceptance Stage 12 built the package a human reviews and changed no product
+code. The visual probe re-captured 18 surfaces at nine widths against the accepted Gate B
+baseline: **PASS 156/156**, 154 of them byte-identical, **14 differing pixels of
+124 482 826 (0.000011%)** against a 0.1% threshold. The two nonzero captures were run
+back through `png-diff` to recover the worst-box geometry the probe prints only on
+failure — 62×3 at 276,170 and 345×3 at 276,207 — then cropped and looked at: anti-aliasing
+along the editor tool rail's SVG strokes. A 3-pixel band cannot be a moved element, which
+is what makes that a measurement rather than a hope. The comparison spanned a rebuild, 12
+commits, a different LAN origin and a different throwaway account, and only eight files
+under `app/` changed on this branch — all API routes and tests — so a moved pixel would
+have been a regression, not drift.
+
+The finding came from the probe nobody had ever included in an evidence package. Run
+anonymously, `responsive-qa.mjs` measured **63/63** with zero horizontal overflow and 36
+console errors: `GET /api/auth/me` answers **401** for a signed-out visitor, by design,
+because `hooks/usePublicSession.ts` fetches the session after hydration rather than
+reading the cookie on the server — which would opt roughly thirty static routes out of
+prerendering. `GET …/editor-state` answers **404** the same way for a version with no
+saved scene. Three separate accidents had hidden this: the premium probe signs up before
+its scenario loop, so ten of its eleven console gates ignored zero network entries; the
+responsive sweep is always anonymous and had never been run for evidence; and
+`probe-browser.mjs` counts `jsErrors` separately from `netErrors`, which is why "0 JS
+errors" and 36 red console lines are both true of the same build. Filed **P3** and left
+alone: changing an auth endpoint's status code during acceptance is not a low-risk edit.
+
+One state could not be captured at all, for a reason that is itself worth recording. The
+probe's hint for reaching the error boundary — start with a broken `DATABASE_URL` — is 72
+commits out of date. The single-instance lease now means an unusable database returns
+**503 on every path**, including `/api/health` and `/api/health/ready`, and the Next
+application is never invoked, so no error boundary renders. Two consequences follow for
+operators: the guard's own advice to read `/api/health/ready`'s `instance` field is
+unreachable in exactly the states where it would help, and `Dockerfile`'s healthcheck
+targets `/api/health`, so a container correctly waiting for a lease reports unhealthy.
+
+- **Feature flags:** none new.
+- **Known limitations:** `VISUAL ACCEPTANCE PENDING` — a machine proved the pixels did
+  not move; only the owner can approve how they look, and no approval is recorded. Every
+  capture is Chrome with an emulated viewport on one machine: no iOS Safari, Android
+  Chrome, Firefox, real DPR-3 device, screen reader, reduced-motion, forced-colors, print
+  or 200%-zoom pass, and no colour-contrast measurement anywhere in the package.
+  `19-app-error` is **NOT EXERCISED**. `/blog` appears in the responsive sweep only, so
+  its posts have no pixel baseline. Two measurement tools were fixed — `--sheets` on the
+  visual probe (it had been overwriting the previous phase's committed sheets) and
+  `--ignore-certificate-errors` for an `https` base on the responsive sweep (without it
+  the sweep measured Chrome's TLS interstitial, not the product).
+- **Next related step:** Stage 13, the manual decision register — where the 401/404
+  console noise, the lease-503 observability gap and harness row **R3** are owner rows.

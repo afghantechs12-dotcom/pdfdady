@@ -77,6 +77,13 @@ const RECORD_BASELINE = has("--baseline");
 const BASELINE_DIR = arg("--baseline-dir", join(OUT, "baseline"));
 const SHOT_DIR = RECORD_BASELINE ? BASELINE_DIR : join(OUT, "current");
 const WITH_AUTH = has("--auth");
+/**
+ * Where the contact sheets land. `--out` moved the PNGs but this was hardcoded to the
+ * prelaunch directory, so a second acceptance run OVERWROTE that phase's committed
+ * sheets — accepted evidence, silently replaced by a later run of the same script. The
+ * default is unchanged so the prelaunch command still refreshes its own sheets in place.
+ */
+const SHEET_DIR = arg("--sheets", "docs/evidence/final-prelaunch/visual");
 const ONLY = (arg("--only", "") || "").split(",").filter(Boolean);
 const PASSWORD = "GateB-Probe-Password!";
 /*
@@ -740,7 +747,7 @@ async function main() {
       }
     }
 
-    const sheets = await contactSheets(b, "docs/evidence/final-prelaunch/visual");
+    const sheets = await contactSheets(b, SHEET_DIR);
     const manifestPath = join(OUT, RECORD_BASELINE ? "baseline-manifest.json" : "visual-manifest.json");
     mkdirSync(dirname(manifestPath), { recursive: true });
     writeFileSync(manifestPath, `${JSON.stringify({
