@@ -6,10 +6,10 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T15:44:46Z (UTC) |
+| Last updated | 2026-09-05T16:26:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
-| Build artifact | `.next/BUILD_ID` = `98appVCcbyMxzlhk26zya` (accepted cold artifact; **not** rebuilt yet in this acceptance) |
+| Build artifact | `.next/BUILD_ID` = `U1Tagyyl2WuT2jmfk2Tvm` — rebuilt in Stage 6 because `NEXT_PUBLIC_SITE_URL` is a build input. Supersedes the accepted cold artifact `98appVCcbyMxzlhk26zya`; the final candidate is rebuilt and re-measured in Stage 14. |
 | `package-lock.json` | sha256 `43558cef02ddf3ed8a579b82a995bb8e080e29c26da50ef2a91da1119a9fd039` |
 | Production deployment | **NOT AUTHORIZED.** Stage 15 requires explicit owner authorization and has not begun. |
 | Remote | none configured. Nothing pushed. `main` untouched. |
@@ -23,7 +23,7 @@ what it produced, and what is still owed.
 | 3 | Container build | **DONE (static)** — `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
 | 4 | Persistent database and storage | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 5 | Network and proxy topology | **DONE** — 1 P1 and 1 P3 found and fixed |
-| 6 | Staging deployment (local production-mode surrogate) | NOT STARTED |
+| 6 | Staging deployment (local production-mode surrogate) | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 7 | Production-like user acceptance | NOT STARTED |
 | 8 | Security acceptance | NOT STARTED |
 | 9 | Reliability and recovery | NOT STARTED |
@@ -190,7 +190,7 @@ Stage 14 report.
 
 Available: node v26.7.0, npm 11.19.0, gs, qpdf, pdftoppm, pdfinfo, tesseract,
 ocrmypdf, python3, openssl, sqlite3, Playwright chromium-1234, Chrome, LAN IP
-`172.20.10.2`.
+`192.168.0.175` (Stage 5's notes said `172.20.10.2`; that lease is stale).
 
 ## Stage 5 — network and proxy topology (DONE)
 
@@ -236,21 +236,95 @@ only a rebuilt surrogate can prove it end to end.
 Evidence: `docs/evidence/production-acceptance/08-network-proxy-topology.md`,
 `08-network-proxy-topology.log`.
 
+## Stage 6 — staging deployment (DONE, against a local surrogate)
+
+**There is no staging host** — no provider, no credentials, no DNS, no container
+runtime. Stage 6 stood up a **local production-mode surrogate** instead and every
+claim is scoped to it: origin `http://127.0.0.1:3002` (`scripts/restart-origin.sh`
+→ `node ingress/server.mjs`) behind `https://192.168.0.175:3001`
+(`scripts/tls-front.mjs`, throwaway self-signed cert), `NODE_ENV=production`,
+throwaway `file:/tmp/pa-stage6-db.db` and `/tmp/pa-stage6-storage`.
+
+A **rebuild was required and the accepted cold artifact is superseded**:
+`next.config.mjs` bakes the static-asset CSP report-to group from
+`NEXT_PUBLIC_SITE_URL`, and `/_next/static/*` bypasses the proxy that could supply
+it later, so the origin is a build input. `HOSTNAME=127.0.0.1` was confirmed to be
+a real bind boundary — the origin port is refused on the LAN address (`curl` exit
+7) while the front answers on it.
+
+The two runtime rows Stage 5 deferred are now answered: rotating a forged
+`X-Forwarded-For` against `/api/admin/login` buys no bucket (409 × 5, then **429**,
+and 429 × 3 through the TLS front), and the audit row records the peer —
+`user.register ip=127.0.0.1`, **0 rows** carrying the forged address.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `scripts/ingress-probe.mjs` | 0 | **25/25** — 28 × 100 MiB anonymous burst bounded to 26.5 MiB read of 2800 offered, RSS peak +0 |
+| `scripts/upload-abuse-probe.mjs` | 0 | **32/32** (a cold run first reported 27/32 — see below) |
+| `scripts/singleton-probe.mjs --entry ingress/server.mjs` | 0 | **8/8** — takeover after SIGKILL 12.09 s, release-then-acquire 0.43 s |
+| `scripts/csp-probe.mjs --url https://192.168.0.175:3001` | 0 | **118/118** |
+| `npx vitest run` (4 targeted files) | 0 | 68 tests, 0 failures |
+| `npx tsc --noEmit`; `npx eslint` (changed files) | 0 | clean |
+| 2 mutations, each restored | 1 each | M7 1/12, M8 1/14 |
+
+Found and fixed a **P2**: `checkUploadLimit`'s per-address bucket was keyed on
+`trustedClientAddress()`, which yields an address only when a proxy vouched for it
+with `TRUSTED_PROXY_SECRET`. In the topology this build ships that key was always
+absent, so every anonymous caller fell through to the global 240/min alone and one
+of them could spend it for everyone — the upload-abuse probe had measured exactly
+that as "429 on attempt 227". Now keyed on `clientIp()`, whose second source is the
+peer address `ingress/guard.mjs` stamps; `"unknown"` is **skipped rather than
+keyed**, because one shared 20/min bucket for unidentifiable callers would be
+tighter than the ceiling it stands in for. The ten existing tests passed with the
+fix *and* with it reverted — their `req()` helper stamps no peer header — so two
+cases were added; mutation **M7** fails 1 of 12.
+
+Found and fixed a **P3 of my own making**: Stage 4 made `STORAGE_LOCAL_ROOT`
+required, and **every place that hand-writes a production environment** silently
+stopped being able to boot. Nothing shipped broke (compose and the documented
+`docker run` both set it) — the damage was in the acceptance tooling, and it was a
+*false pass*: the singleton probe's S2 and S4 ("the second instance does not
+serve", "the standby discloses nothing") passed on a **dead process**, and harness
+row B4 went red while B2 went vacuous. Fixed at the cause: one `VALID_PROD_ENV`
+fixture in the harness with B1's expected names derived from it, one environment
+composition in the probe (`start(port, entry)`, so S8 stops holding a second
+copy), four documented recipes pointed at the guarded launcher, and
+`deploymentArtifact.test.ts` now hands **both** launchers to `productionProblems`
+itself so a launcher that cannot boot fails in 5 ms instead of mid-audit. Mutation
+**M8** fails 1 of 14.
+
+Readiness on this host is `degraded` (`toolchain:false`) because `soffice` is
+absent — ENVIRONMENTAL, and the reason office conversion is `NOT EXERCISED` in
+Stage 7. Worth an operator's attention: liveness is `GET /api/health`; there is no
+`/api/health/live`, and a probe configured for that path gets a 404 and would
+restart a healthy container.
+
+Not established here: anything about a hosting provider, container execution
+(unchanged from Stage 3), soak behaviour, or the documented nginx body caps — the
+TLS front is a stand-in, not nginx.
+
+Evidence: `docs/evidence/production-acceptance/09-staging-surrogate.md`,
+`09-surrogate-runtime.log`, `09-csp.log`.
+
 ## Remaining actions
 
-1. Stages 6–11 — stand up the production-mode surrogate on
-   `https://172.20.10.2:3001` and re-run the probe fleet against it. A **rebuild is
-   required** (the https origin must be exported at build time, and the cold
-   artifact predates Stage 5's route changes), so `BUILD_ID` will change. Stage 6
-   additionally owes the two runtime rows Stage 5 deferred: rotating
-   `X-Forwarded-For` against `/api/admin/login` is refused at the 6th attempt, and
-   the audit row records the peer rather than the sent header.
+1. Stages 7–11 — the surrogate is **already running** and is what these stages
+   measure: origin `http://127.0.0.1:3002` (`BUILD_ID U1Tagyyl2WuT2jmfk2Tvm`,
+   `file:/tmp/pa-stage6-db.db`, `/tmp/pa-stage6-storage`, log
+   `/tmp/pa-stage6-origin.log`) behind `https://192.168.0.175:3001`. Restart it
+   with `AUDIT_SITE_URL=https://192.168.0.175:3001 AUDIT_DATABASE_URL=... \
+   AUDIT_STORAGE_ROOT=... scripts/restart-origin.sh` — a **different** origin needs
+   a rebuild, the same one does not. Stage 7 exercises the tools end to end
+   (office-format conversion is `NOT EXERCISED` — no `soffice`), Stage 8 security,
+   Stage 9 reliability and recovery, Stage 10 observability
+   (`MONITORING: NOT EXERCISED`, provider-neutral templates, no invented provider),
+   Stage 11 the bounded performance smoke test.
 2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
    `VISUAL ACCEPTANCE PENDING`.
 3. Stage 13 — decision register from the 12 manual rows and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 5; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 6; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,

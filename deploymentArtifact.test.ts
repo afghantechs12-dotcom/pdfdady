@@ -89,6 +89,8 @@ const GATE_STANDIN: Record<string, string> = {
   ADMIN_SECRET: "0123456789abcdef0123456789abcdef",
   // Deferred to the shell by the documented `docker run`; compose has a default.
   NEXT_PUBLIC_SITE_URL: "https://pdfdadi.example",
+  // Chosen when a probe runs, not written into a launcher: a throwaway file.
+  DATABASE_URL: "file:/srv/db.sqlite",
 };
 /**
  * The schema defaults for keys a deployment need not set, because the gate reads
@@ -290,28 +292,50 @@ describe("R3 — the compose file starts the app it describes", () => {
   });
 
   /**
-   * The local production surrogate, checked against the same gate as the two
-   * container paths.
+   * Every launcher that composes a production environment, checked against the
+   * same gate as the two container paths.
    *
    * `scripts/restart-origin.sh` is what every probe from Stage 6 on runs the app
    * with, in production mode — so it meets the gate, and Stage 4's new
    * STORAGE_LOCAL_ROOT requirement silently made its environment incomplete. A
    * surrogate that cannot boot is discovered at the start of an audit run, hours
    * from the change that broke it; the gate can say so here instead.
+   *
+   * `scripts/singleton-probe.mjs` was the second half of that lesson: it composes
+   * the same words into a template literal for `sh -c`, so a per-line `^export`
+   * check never saw it, and the same missing variable made both of its instances
+   * exit at boot. Every row about exclusion then "passed" on a standby that was
+   * refusing because it had died, which is the most expensive way to be green.
+   * Both are asked the same question here — does the launcher set every variable
+   * the gate requires — not whether the values are right, since the paths are
+   * throwaways chosen at run time.
    */
-  it("exports every variable the audit origin needs to boot in production mode", () => {
-    const script = readFileSync(path.join(root, "scripts", "restart-origin.sh"), "utf8");
+  it.each([
+    [
+      "scripts/restart-origin.sh",
+      (text: string) => [...text.matchAll(/^export (.+)$/gm)].map(([, words]) => words).join(" "),
+    ],
+    [
+      "scripts/singleton-probe.mjs",
+      (text: string) => /\bexport ([\s\S]*?); exec /.exec(text)?.[1] ?? "",
+    ],
+  ])("%s exports every variable the production gate requires", (file, exportedWords) => {
+    const words = exportedWords(readFileSync(path.join(root, file), "utf8"));
+    expect(words, `no exported production environment found in ${file}`).not.toBe("");
     const env: Record<string, string | number> = { ...SCHEMA_DEFAULTS };
-    for (const [, key, raw] of script.matchAll(/^export ([A-Z][A-Z0-9_]*)=(\S+)/gm)) {
-      // `${AUDIT_X:-default}` is the default; a bare `$X` or `${X}` comes from the
-      // shell, and `. ./.env` supplies the secrets this test must not read.
-      const value = raw.replace(/^"|"$/g, "");
+    for (const [, key, raw] of words.matchAll(/([A-Z][A-Z0-9_]*)=("[^"]*"|'[^']*'|\S+)/g)) {
+      // `\${X:-default}` is how a template literal writes a shell expansion it
+      // does not want JS to interpolate: the backslash is the escape, not a value.
+      const value = raw.replace(/^["']|["']$/g, "").replace(/\\\$/g, "$");
+      // `${AUDIT_X:-default}` is what the launcher actually uses; a bare `${X}` is
+      // filled in at run time (a port, a throwaway db path), and `. ./.env`
+      // supplies the secrets this test must not read.
       const fallback = /^\$\{[A-Za-z0-9_]+:-([^}]*)\}$/.exec(value);
-      env[key] = fallback ? fallback[1] : (GATE_STANDIN[key] ?? value);
+      env[key] = fallback ? fallback[1] : value.startsWith("$") ? (GATE_STANDIN[key] ?? value) : value;
     }
     // Sourced from `.env`, never from this file.
     env.ADMIN_SECRET = GATE_STANDIN.ADMIN_SECRET;
-    expect(env.NODE_ENV, "the surrogate must run in production mode").toBe("production");
+    expect(env.NODE_ENV, `${file} must run the app in production mode`).toBe("production");
     expect(productionProblems(env as unknown as Parameters<typeof productionProblems>[0])).toEqual(
       [],
     );

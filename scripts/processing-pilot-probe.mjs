@@ -64,11 +64,15 @@
  *     product defect. So the browser needs real HTTPS.
  *
  *   node scripts/next-build.js
- *   cp -R .next/static .next/standalone/.next/static     # the Dockerfile's own step
- *   [ -d public ] && cp -R public .next/standalone/public   # only if the repo has one
- *   cd .next/standalone && NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 \
- *     NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 PROCESSING_PIPELINE=on \
- *     DATABASE_URL="file:$TMPDIR/pilot.db" node server.js &
+ *   AUDIT_SITE_URL=https://<lan-ip>:3001 AUDIT_DATABASE_URL="file:$TMPDIR/pilot.db" \
+ *     AUDIT_STORAGE_ROOT="$TMPDIR/pilot-storage" PROCESSING_PIPELINE=on \
+ *     scripts/restart-origin.sh &
+ *   #   The launcher copies `.next/static` first and starts the GUARDED entry from
+ *   #   the repository root. A hand-written `cd .next/standalone && node server.js`
+ *   #   stood here: that entry exits 1 in production (no guard, no lease), and the
+ *   #   environment beside it went stale every time the production gate gained a
+ *   #   requirement — twice so far. `deploymentArtifact.test.ts` hands the launcher
+ *   #   to the gate itself, so it cannot go stale silently again.
  *   node scripts/tls-front.mjs --listen 3001 --target 3002   # prints the origin
  *   node scripts/processing-pilot-probe.mjs --url https://<lan-ip>:3001
  *

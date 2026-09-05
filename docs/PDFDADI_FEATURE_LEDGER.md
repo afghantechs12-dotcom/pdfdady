@@ -5104,3 +5104,69 @@ limiters; they now rotate `x-pdfdadi-peer`. The three suites that assert
   from the mutated headers); the end-to-end row is owed by the rebuilt surrogate.
 - **Next related step:** Stages 6–11 against the local production-mode surrogate,
   which needs a rebuild and will therefore change `BUILD_ID`.
+
+## One anonymous caller could spend the whole upload budget
+
+`checkUploadLimit` charges three buckets — per user (120/min), per client address
+(20/min) and a global ceiling (240/min). The per-address bucket was keyed on
+`trustedClientAddress()`, which returns an address **only when a proxy vouched for
+it** with `TRUSTED_PROXY_SECRET`. In the topology this build actually ships —
+single instance, no proxy secret — that key was never available, so every
+unauthenticated caller fell through to the global ceiling alone and one address
+could consume all 240/min and refuse uploads for everyone else. The upload-abuse
+probe had been recording it for phases as a neutral-sounding fact: "429 on attempt
+227".
+
+### What was built
+
+The anonymous bucket is keyed on `clientIp()` — the three-source identity built one
+entry above, whose second source is the peer address `ingress/guard.mjs` stamps and
+a client cannot set. So the fix is a two-line change that only became *possible*
+once the socket was a source of truth; before that, keying on a forwarding header
+would have handed every caller a fresh bucket per request.
+
+`"unknown"` is **skipped rather than keyed**. It means nothing in the request
+identifies the caller — `next dev`, which runs no ingress, or a Unix-socket front —
+and collapsing those callers into one shared 20/min bucket would be *tighter* than
+the 240/min ceiling it stands in for, turning a fallback into a denial of service.
+
+Two tests were added, because the ten that already covered this function passed
+with the fix **and** with it reverted: their `req()` helper stamps no peer header,
+so `clientIp()` answered `"unknown"` for every one of them — the fixture-inert
+shape earlier phases kept finding. Mutation: restore
+`trustedClientAddress(...) ?? "unknown"` → 1 of 12 fails.
+
+### The requirement that rotted three launchers
+
+Making `STORAGE_LOCAL_ROOT` required in production (one entry above) broke nothing
+that ships — `docker-compose.yml` and the documented `docker run` both set it — but
+every *other* place that hand-writes a production environment silently stopped
+being able to boot, and those places are the acceptance tooling. The damage was a
+false pass, not a failure: a process the gate refuses answers 0 on every port, so
+the singleton probe's "the second instance does not serve" and "the standby
+discloses nothing" rows passed against a **dead process**, while its S1 row waited
+out a 90 s timeout for a process that had already exited. In the static harness one
+row went red and its neighbour went vacuous.
+
+Fixed at the cause in each place rather than by writing the variable four more
+times: the harness has one `VALID_PROD_ENV` fixture with the expected key names
+**derived** from it, the probe composes its environment once (`start(port, entry)`,
+so the unguarded-baseline row stops holding a second copy of the recipe), four
+documented origin recipes point at `scripts/restart-origin.sh` instead of printing
+a `cd .next/standalone && node server.js` that cannot boot in production, and
+`deploymentArtifact.test.ts` hands **both** launchers to `productionProblems`
+itself — so the next requirement fails a 5 ms test instead of an audit run.
+
+- **Known limitations:** the per-address bucket is per process and in memory, so it
+  is a ceiling only under `DEPLOYMENT_TOPOLOGY=single-instance`. Behind a reverse
+  proxy with no `TRUSTED_PROXY_SECRET` every request still arrives from the proxy's
+  address, so anonymous callers share one 20/min bucket — unspoofable, but one
+  caller can spend it for the others; setting the secret is the documented fix. The
+  upload-abuse probe assumes a **warm** origin: run cold immediately after a
+  restart it reports 27/32 on rows that are not rate-limit-shaped (a control upload
+  timing out at 30 s, two status-0 reads), and 32/32 once the routes are warm and
+  the 60 s windows have drained.
+- **Next related step:** Stages 7–11 against the running surrogate — user
+  acceptance (office conversion `NOT EXERCISED`, no `soffice`), security,
+  reliability and recovery, observability (`MONITORING: NOT EXERCISED`) and the
+  bounded performance smoke test.

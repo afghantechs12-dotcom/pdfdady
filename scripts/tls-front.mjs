@@ -23,7 +23,13 @@
  *   [ -d public ] && cp -R public .next/standalone/public   # only if the repo has one
  *   NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 DEPLOYMENT_TOPOLOGY=single-instance \
  *     NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 \
- *     DATABASE_URL="file:/abs/path/to.db" node ingress/server.mjs
+ *     DATABASE_URL="file:/abs/path/to.db" STORAGE_LOCAL_ROOT=/abs/path/to/storage \
+ *     node ingress/server.mjs
+ *   #   Every variable above is required: the production gate refuses to start
+ *   #   without any one of them, so a command missing one serves nothing rather
+ *   #   than serving a degraded origin. `deploymentArtifact.test.ts` hands this
+ *   #   command to the gate itself, so a new requirement fails there instead of
+ *   #   here.
  *   #   `node ingress/server.mjs` from the REPOSITORY ROOT, not `node server.js` from
  *   #   inside `.next/standalone`: the generated entry now exits 1 in production
  *   #   because it binds its port before anything can refuse a body, and it holds no

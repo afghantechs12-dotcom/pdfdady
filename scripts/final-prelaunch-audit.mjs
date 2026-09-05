@@ -341,35 +341,61 @@ function groupA() {
 /* ══════════════════════════════════════════════════════════════════════════
    B. Production configuration gate
    ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * A production environment the gate accepts, as source for a `tsFacts` child.
+ *
+ * In ONE place on purpose. Every row below changes exactly one of these values
+ * and asserts the refusal is about that value — which only holds while the other
+ * values are complete. The gate has since grown two more requirements
+ * (DEPLOYMENT_TOPOLOGY in Phase 6, STORAGE_LOCAL_ROOT in Stage 4 of production
+ * acceptance), and each time the fixtures that hand-wrote their own four
+ * variables changed meaning silently: B2 began being refused for a missing
+ * variable rather than for its postgres URL, and B4's "a good secret is
+ * accepted" row went red for a reason that had nothing to do with secrets.
+ * Adding the next requirement here keeps every row testing what it claims.
+ */
+const VALID_PROD_ENV = `
+      e.DATABASE_URL = "file:/srv/db.sqlite";
+      e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
+      e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
+      e.DEPLOYMENT_TOPOLOGY = "single-instance";
+      e.STORAGE_LOCAL_ROOT = "/srv/objects";
+`;
+
+/** The variables `VALID_PROD_ENV` supplies — what B1 expects to be named. */
+const REQUIRED_PROD_KEYS = [...VALID_PROD_ENV.matchAll(/e\.([A-Z0-9_]+) =/g)].map(([, k]) => k);
+
 function groupB() {
   beginGroup("B", "Production configuration gate");
   const envSrc = read("src/infrastructure/config/env.ts");
 
-  check("B1", "a production start with none of the four required values is refused, and names all four", () => {
+  check("B1", "a production start with none of the required values is refused, and names every one", () => {
     const out = tsFacts(`
-      const e = process.env; e.NODE_ENV = "production";
-      delete e.DATABASE_URL; delete e.ADMIN_SECRET; delete e.NEXT_PUBLIC_SITE_URL; delete e.NEXT_PHASE;
-      delete e.DEPLOYMENT_TOPOLOGY;
+      const e = process.env; e.NODE_ENV = "production"; delete e.NEXT_PHASE;
+      ${REQUIRED_PROD_KEYS.map((k) => `delete e.${k};`).join(" ")}
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
-      console.log(JSON.stringify({ refused: msg !== "", names: ["DATABASE_URL","ADMIN_SECRET","NEXT_PUBLIC_SITE_URL","DEPLOYMENT_TOPOLOGY"].filter(n => msg.includes(n)) }));
+      console.log(JSON.stringify({ refused: msg !== "", names: ${JSON.stringify(REQUIRED_PROD_KEYS)}.filter(n => msg.includes(n)) }));
     `);
     if (!out.refused) return "getConfig() returned normally with nothing configured";
-    // Four, since the topology declaration became required: the upload limiter counts in
-    // one process's memory, so the operator has to state that there is one process.
-    return out.names.length === 4 ? null : `named only ${out.names.join(", ")}`;
+    // Derived from the fixture rather than counted: the point of the row is that
+    // the operator sees EVERY problem in one boot, so the expected set has to grow
+    // with the gate instead of staying at whatever number was true when it was
+    // written. STORAGE_LOCAL_ROOT is named even when deleted — its schema default
+    // is relative, which is itself the refusal.
+    const missing = REQUIRED_PROD_KEYS.filter((k) => !out.names.includes(k));
+    return missing.length ? `refusal does not name ${missing.join(", ")}` : null;
   });
 
   check("B2", "the gate refuses a DATABASE_URL the shipped Prisma provider cannot open", () => {
     const provider = /datasource\s+\w+\s*\{[^}]*?provider\s*=\s*"([^"]+)"/.exec(read("prisma/schema.prisma"))?.[1];
     const out = tsFacts(`
       const e = process.env; e.NODE_ENV = "production"; delete e.NEXT_PHASE;
-      e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
-      e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
+      // Complete, so the ONLY problem this fixture leaves is the URL. Without the
+      // rest the refusal below would be true no matter what DATABASE_URL said.
+      ${VALID_PROD_ENV}
       e.DATABASE_URL = "postgresql://u:p@db.internal:5432/pdfdadi";
-      // Declared, so the ONLY problem this fixture leaves is the URL. Without it the
-      // refusal below would be true no matter what DATABASE_URL said.
-      e.DEPLOYMENT_TOPOLOGY = "single-instance";
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
       console.log(JSON.stringify({ refused: msg !== "", leaks: msg.includes("u:p@") }));
@@ -384,10 +410,8 @@ function groupB() {
   check("B3", "the gate refuses a relative SQLite path, which a container deploy deletes", () => {
     const out = tsFacts(`
       const e = process.env; e.NODE_ENV = "production"; delete e.NEXT_PHASE;
-      e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
-      e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
+      ${VALID_PROD_ENV}
       e.DATABASE_URL = "file:./prisma/dev.db";
-      e.DEPLOYMENT_TOPOLOGY = "single-instance";
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }
       console.log(JSON.stringify({ refused: msg !== "", names: msg.includes("DATABASE_URL") }));
@@ -402,9 +426,9 @@ function groupB() {
       const { INSECURE_DEV_SECRET } = await import("./lib/admin/session.ts");
       const { getConfig, _resetConfigForTests } = await import("./src/infrastructure/config/env.ts");
       const attempt = (secret) => {
-        e.NODE_ENV = "production"; e.DATABASE_URL = "file:/srv/db.sqlite";
-        e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example"; e.ADMIN_SECRET = secret;
-        e.DEPLOYMENT_TOPOLOGY = "single-instance";
+        e.NODE_ENV = "production";
+        ${VALID_PROD_ENV}
+        e.ADMIN_SECRET = secret;
         _resetConfigForTests();
         try { getConfig(); return false; } catch { return true; }
       };
@@ -437,9 +461,7 @@ function groupB() {
   check("B7", "half-configured object storage is refused rather than silently local", () => {
     const out = tsFacts(`
       const e = process.env; e.NODE_ENV = "production"; delete e.NEXT_PHASE;
-      e.DATABASE_URL = "file:/srv/db.sqlite"; e.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
-      e.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.example";
-      e.DEPLOYMENT_TOPOLOGY = "single-instance";
+      ${VALID_PROD_ENV}
       e.R2_ACCOUNT_ID = "acct"; delete e.R2_ACCESS_KEY_ID; delete e.R2_SECRET_ACCESS_KEY; delete e.R2_BUCKET;
       const { getConfig } = await import("./src/infrastructure/config/env.ts");
       let msg = ""; try { getConfig(); } catch (err) { msg = String(err.message); }

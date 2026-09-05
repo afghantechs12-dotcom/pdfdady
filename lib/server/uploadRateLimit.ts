@@ -33,7 +33,7 @@
 
 import { getConfig } from "@/src/infrastructure/config/env";
 
-import { PROXY_SECRET_HEADER, RateLimiter, trustedClientAddress } from "./rateLimit";
+import { PROXY_SECRET_HEADER, RateLimiter, clientIp, trustedClientAddress } from "./rateLimit";
 
 /*
  * The proxy-secret header and the forwarded-address reader moved down into
@@ -113,11 +113,26 @@ export function checkUploadLimit(input: {
     }
 
     // Unauthenticated: the global ceiling is always charged, so it is the bound
-    // no key rotation can get past. A trusted per-client bucket refuses earlier
-    // when a proxy makes one available, but never instead.
+    // no key rotation can get past. A per-client bucket refuses earlier when the
+    // deployment can identify the caller, but never instead.
+    //
+    // That identification used to require a trusted proxy, so in the default
+    // topology every anonymous caller shared the global 240/min and ONE of them
+    // could spend it all — an anonymous caller locking uploads for every other
+    // anonymous caller, which the upload-abuse probe measured as a 429 on attempt
+    // 227. Stage 5 of production acceptance gave the deployment a second,
+    // unspoofable source: `ingress/guard.mjs` stamps the connection's peer
+    // address, and `clientIp()` resolves verified-proxy hop → stamped peer →
+    // "unknown". Keying on it restores the per-address 20/min bucket in the
+    // topology that actually ships.
+    //
+    // `"unknown"` is skipped rather than keyed, deliberately: it means nothing in
+    // the request identifies the caller (`next dev`, which runs no ingress, or a
+    // Unix-socket front), and one shared 20/min bucket there would be *tighter*
+    // than the global ceiling it stands in for.
     const globalLimited = b.global.hit("global", now);
-    const address = trustedClientAddress(input.request);
-    if (address) {
+    const address = clientIp(input.request);
+    if (address !== "unknown") {
       const key = `client:${address}`;
       const clientLimited = b.client.hit(key, now);
       if (clientLimited) {

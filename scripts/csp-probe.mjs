@@ -58,11 +58,15 @@
  * Run against the real standalone entrypoint (see the ledger for the full recipe):
  *
  *   NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 node scripts/next-build.js
- *   cp -R .next/static .next/standalone/.next/static
- *   cd .next/standalone && NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 \
- *     NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 PROCESSING_PIPELINE=on \
- *     STORAGE_LOCAL_ROOT="$TMPDIR/csp-storage" ADMIN_SECRET=csp-probe-secret-not-a-real-one \
- *     DATABASE_URL="file:$TMPDIR/csp.db" node server.js > /tmp/csp-server.log 2>&1 &
+ *   AUDIT_SITE_URL=https://<lan-ip>:3001 AUDIT_DATABASE_URL="file:$TMPDIR/csp.db" \
+ *     AUDIT_STORAGE_ROOT="$TMPDIR/csp-storage" PROCESSING_PIPELINE=on \
+ *     scripts/restart-origin.sh > /tmp/csp-server.log 2>&1 &
+ *   #   The launcher copies `.next/static` first and starts the GUARDED entry from
+ *   #   the repository root. A hand-written `cd .next/standalone && node server.js`
+ *   #   stood here: that entry exits 1 in production (no guard, no lease), and the
+ *   #   environment beside it went stale every time the production gate gained a
+ *   #   requirement — twice so far. `deploymentArtifact.test.ts` hands the launcher
+ *   #   to the gate itself, so it cannot go stale silently again.
  *
  * That DATABASE_URL is a THROWAWAY, created with `DATABASE_URL=... npx prisma migrate
  * deploy` beforehand, and it matters: section 2c signs up an account and runs a real

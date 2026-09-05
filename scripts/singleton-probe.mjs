@@ -56,15 +56,23 @@ function record(id, label, pass, detail) {
  * configuration rather than reimplementing dotenv, and `exec` means the shell is
  * replaced — so the pid returned here is the Node process, which is what makes
  * SIGKILL in S6 land on the right thing.
+ *
+ * Every value the production gate requires has to be composed here, not just the
+ * ones this probe cares about: a process that is refused at boot answers 0 on
+ * every port, which reads as "exclusion works" on the standby and as a broken
+ * product on the holder. `STORAGE_LOCAL_ROOT` is set for that reason — the gate
+ * gained it in Stage 4 of production acceptance and this launcher, which
+ * hand-writes its own environment, stopped booting at all.
  */
-function start(port) {
+function start(port, entry = ENTRY) {
   const child = spawn(
     "sh",
     [
       "-c",
       `set -a; . ./.env; set +a; export NODE_ENV=production DEPLOYMENT_TOPOLOGY=single-instance ` +
         `PORT=${port} HOSTNAME=127.0.0.1 DATABASE_URL='${DB}' ` +
-        `NEXT_PUBLIC_SITE_URL="\${AUDIT_SITE_URL:-https://172.20.10.2:3001}"; exec node ${ENTRY}`,
+        `STORAGE_LOCAL_ROOT="\${AUDIT_STORAGE_ROOT:-/tmp/audit-storage}" ` +
+        `NEXT_PUBLIC_SITE_URL="\${AUDIT_SITE_URL:-https://172.20.10.2:3001}"; exec node ${entry}`,
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
@@ -203,30 +211,22 @@ async function main() {
     stop(c, "SIGTERM");
 
     // ---- S8: the unguarded entry is not startable ------------------------
-    const unguarded = spawn(
-      "sh",
-      [
-        "-c",
-        // The same environment `start()` uses, NEXT_PUBLIC_SITE_URL included. Without
-        // it the config gate refuses first and the row would read "exit 1" for a
-        // reason that has nothing to do with the guard — which is what the baseline
-        // run showed. The row asserts BOTH the exit code and the guard's own message,
-        // so it stays honest either way; this makes the failure attributable.
-        `set -a; . ./.env; set +a; export NODE_ENV=production DEPLOYMENT_TOPOLOGY=single-instance ` +
-          `PORT=${PORTS.a} HOSTNAME=127.0.0.1 DATABASE_URL='${DB}' ` +
-          `NEXT_PUBLIC_SITE_URL="\${AUDIT_SITE_URL:-https://172.20.10.2:3001}"; exec node .next/standalone/server.js`,
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
-    const rawOut = [];
-    unguarded.stdout.on("data", (d) => rawOut.push(String(d)));
-    unguarded.stderr.on("data", (d) => rawOut.push(String(d)));
+    /*
+     * Through `start()`, with the entry swapped — not a second copy of the
+     * environment. The copy is exactly how this row came to report "exit 1"
+     * because STORAGE_LOCAL_ROOT was missing, months after it was written to warn
+     * that the config gate refusing first would make the row unattributable. The
+     * row asserts BOTH the exit code and the guard's own message, so it stayed
+     * honest; it just stopped being about the guard.
+     */
+    const unguarded = start(PORTS.a, ".next/standalone/server.js");
+    started.push(unguarded);
     const rawCode = await Promise.race([
-      new Promise((r) => unguarded.on("exit", (code) => r(code))),
+      unguarded.exited,
       sleep(30_000).then(() => "still-running"),
     ]);
-    if (rawCode === "still-running") unguarded.kill("SIGKILL");
-    const text = rawOut.join("");
+    if (rawCode === "still-running") stop(unguarded);
+    const text = unguarded.log();
     record(
       "S8",
       "the generated server.js refuses to start in production without the guard",

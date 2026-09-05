@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { _resetConfigForTests } from "@/src/infrastructure/config/env";
 
+import { PEER_ADDR_HEADER } from "./rateLimit";
 import {
   PROXY_SECRET_HEADER,
   _resetUploadLimitsForTests,
@@ -77,7 +78,7 @@ describe("checkUploadLimit — whose budget is spent", () => {
     expect(checkUploadLimit({ request: req(), userId: "u1" }).limited).toBe(false);
   });
 
-  it("collapses untrusted callers into one bucket that header rotation cannot escape", () => {
+  it("collapses callers it cannot identify into one bucket that header rotation cannot escape", () => {
     env.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN = "2";
     const rotate = (n: number) =>
       checkUploadLimit({
@@ -88,6 +89,38 @@ describe("checkUploadLimit — whose budget is spent", () => {
     expect(rotate(2).limited).toBe(false);
     const third = rotate(3);
     expect(third).toMatchObject({ limited: true, bucket: "global" });
+  });
+
+  it("keys an unvouched caller by the stamped peer, so one address cannot spend everyone's ceiling", () => {
+    env.UPLOAD_ANON_RATE_LIMIT_PER_MIN = "1";
+    env.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN = "50";
+    // Same forged X-Forwarded-For on every request: the key is the stamp, and the
+    // client cannot write the stamp because `ingress/guard.mjs` deletes its copy.
+    const from = (peer: string) =>
+      checkUploadLimit({
+        request: req({ [PEER_ADDR_HEADER]: peer, "x-forwarded-for": "9.9.9.9" }),
+        userId: null,
+      });
+
+    expect(from("10.0.0.1").limited).toBe(false);
+    expect(from("10.0.0.1")).toMatchObject({ limited: true, bucket: "client" });
+    // 48 global slots are still unspent, so the flooder locked out nobody but itself.
+    expect(from("10.0.0.2").limited).toBe(false);
+  });
+
+  it("falls back to the global ceiling when nothing identifies the caller", () => {
+    // `next dev` runs no ingress, so no peer is stamped. One shared per-address
+    // bucket would then be TIGHTER than the ceiling it stands in for, so the
+    // global bucket answers instead — today's behaviour, kept on purpose.
+    env.UPLOAD_ANON_RATE_LIMIT_PER_MIN = "1";
+    env.UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN = "3";
+    for (let i = 0; i < 3; i++) {
+      expect(checkUploadLimit({ request: req(), userId: null }).limited).toBe(false);
+    }
+    expect(checkUploadLimit({ request: req(), userId: null })).toMatchObject({
+      limited: true,
+      bucket: "global",
+    });
   });
 
   it("ignores X-Forwarded-For entirely without the proxy secret", () => {
