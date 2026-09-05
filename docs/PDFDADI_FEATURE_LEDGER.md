@@ -5502,3 +5502,20 @@ Row classification: **12 PASS**, 2 PASS-for-the-pattern-not-the-deployment (I-4,
   acceptance.**
 - **Next related step:** Stage 15, production deployment — **blocked on explicit owner
   authorization and an identified production target.** Its report is a separate one.
+
+
+## Recording-led editor/UI candidate — 2026-09-06 (not accepted)
+
+Post-candidate runtime changes on `recording-ui-ux-performance-closeout` add partial
+ink erasing, canonical shape previews, truthful loading feedback, focused canvas,
+geometry caching, and tool/Workspace/auth/admin-pricing refinements. This work was
+performed in an isolated copy from `7608211`, after backup and explicit user approval.
+
+The historical candidate and reports above remain historical. Runtime code changed;
+a **new production build and fresh production acceptance are required**. Nothing
+was deployed and Stage 15 has not begun. Targeted checks pass, but the full suite,
+build, browser performance/replay, accessibility and exact eraser footprint gates
+are not all satisfied. See [the 17-section closeout](RECORDING_UI_UX_CLOSEOUT.md) and
+[recording audit](RECORDING_UI_UX_AUDIT.md) for exact outcomes and remaining work.
+
+`RECORDING UI/UX CLOSEOUT INCOMPLETE — INTERACTION OR PERFORMANCE BLOCKERS REMAIN`

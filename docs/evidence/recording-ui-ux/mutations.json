@@ -1,0 +1,30 @@
+[
+  {
+    "mutation": "M1",
+    "test": "src/application/editor/tools/eraserGesture.test.ts",
+    "mutantExit": 1,
+    "restoredExit": 0,
+    "restored": true
+  },
+  {
+    "mutation": "M2",
+    "test": "src/application/editor/tools/shapeDraft.test.ts",
+    "mutantExit": 1,
+    "restoredExit": 0,
+    "restored": true
+  },
+  {
+    "mutation": "M3",
+    "test": "components/editor/canvas/recordingGestures.test.ts",
+    "mutantExit": 1,
+    "restoredExit": 0,
+    "restored": true
+  },
+  {
+    "mutation": "M4",
+    "test": "components/ui/asyncStatus.test.ts",
+    "mutantExit": 1,
+    "restoredExit": 0,
+    "restored": true
+  }
+]

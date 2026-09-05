@@ -97,3 +97,13 @@ the execution sandbox (`listen EPERM`, port 3107); no browser baseline is claime
 Implementation and measured acceptance are separate. Browser input-to-paint,
 CLS, shell timing, publish/reopen and physical device/screen-reader gates remain
 open until actually run. Historical production evidence remains historical.
+
+
+## Post-implementation evidence append
+
+Native-sized frames at 162.2–162.5s confirm the rectangle-to-hexagon swap. Code
+inspection additionally found the admin pricing bottom SaveButton had no form or
+click handler. Both are addressed in the new candidate. Initial dispositions above
+are preserved; the final outcomes, unresolved exact eraser-footprint and eager
+rasterization limitations, and all unexercised gates are recorded in
+[the closeout](RECORDING_UI_UX_CLOSEOUT.md). No prior acceptance is implied.

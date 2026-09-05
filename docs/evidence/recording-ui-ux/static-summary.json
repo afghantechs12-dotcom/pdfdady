@@ -1,0 +1,10 @@
+{
+  "scope": "offline static checks with explicit local SQLite URL; no deployment or DB acceptance",
+  "counts": {
+    "PASS": 49,
+    "MANUAL REVIEW REQUIRED": 11,
+    "ENVIRONMENTAL": 19,
+    "NOT EXERCISED": 6
+  },
+  "codeHead": "4777fb1bfedbb6d8a2a8a089596fa2772ec01224"
+}

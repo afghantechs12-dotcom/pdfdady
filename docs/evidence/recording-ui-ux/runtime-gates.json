@@ -1,0 +1,82 @@
+[
+  {
+    "gate": "phase6",
+    "command": [
+      "node",
+      "scripts/premium-ui-ux-probe.mjs",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 2,
+    "durationSeconds": 0.055697166004392784
+  },
+  {
+    "gate": "phase5",
+    "command": [
+      "node",
+      "scripts/workflow-completeness-probe.mjs",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 0.1052960409942898
+  },
+  {
+    "gate": "phase4",
+    "command": [
+      "node",
+      "scripts/product-capability-truth-probe.mjs",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 0.06158054099796573
+  },
+  {
+    "gate": "phase3",
+    "command": [
+      "node",
+      "--import",
+      "tsx",
+      "scripts/editor-roundtrip-fidelity-probe.mjs",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 12.707761208999727
+  },
+  {
+    "gate": "phase2",
+    "command": [
+      "node",
+      "scripts/editor-save-state-probe.mjs",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 12.576446209001006
+  },
+  {
+    "gate": "phase1",
+    "command": [
+      "node",
+      "scripts/phase1-workspace-reliability-probe.mjs",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 0.0648851670048316
+  },
+  {
+    "gate": "export-fidelity",
+    "command": [
+      "node",
+      "--import",
+      "tsx",
+      "scripts/export-fidelity-probe.mts",
+      "--url",
+      "http://localhost:3107"
+    ],
+    "exit": 1,
+    "durationSeconds": 0.2753178749990184
+  }
+]
