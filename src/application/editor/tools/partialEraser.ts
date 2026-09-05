@@ -92,6 +92,24 @@ function renderedCenterline(o: DrawingObject, scale: number) {
   return { points, widths };
 }
 
+const geometryCache = new WeakMap<DrawingObject, {
+  points: Point[]; widths: number[] | undefined; scale: number;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number }; halfWidth: number;
+}>();
+function inkGeometry(o: DrawingObject) {
+  const cached = geometryCache.get(o);
+  if (cached) return cached;
+  const scale = maxScale(o);
+  const source = renderedCenterline(o, scale);
+  const points = source.points.map(p => transformPoint(o.transform, p));
+  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const p of points) { bounds.minX = Math.min(bounds.minX, p.x); bounds.minY = Math.min(bounds.minY, p.y); bounds.maxX = Math.max(bounds.maxX, p.x); bounds.maxY = Math.max(bounds.maxY, p.y); }
+  const halfWidth = (source.widths ?? [o.style.strokeWidth]).reduce((n, w) => Math.max(n, w), 0) * scale / 2;
+  const value = { points, widths: source.widths, scale, bounds, halfWidth };
+  geometryCache.set(o, value);
+  return value;
+}
+
 /**
  * Subtract one swept disk from rendered ink. A miss returns the original object
  * identity (no flattening or history). Fragments stay canonical DrawingObjects;
@@ -99,12 +117,14 @@ function renderedCenterline(o: DrawingObject, scale: number) {
  * and pencil coordinates compensate the renderer's deterministic index jitter.
  */
 export function eraseStroke(o: DrawingObject, from: Point, to: Point, radius: number): DrawingObject[] {
-  const scale = maxScale(o);
-  if (!(scale > 0) || !Number.isFinite(radius) || radius <= 0) return [o];
-  const inv = invert(o.transform);
-  const source = renderedCenterline(o, scale);
-  const pts = source.points.map(p => transformPoint(o.transform, p));
-  const widths = source.widths;
+  if (!Number.isFinite(radius) || radius <= 0) return [o];
+  const { points: pts, widths, scale, bounds, halfWidth } = inkGeometry(o);
+  if (!(scale > 0)) return [o];
+  const reach = radius + halfWidth;
+  if (Math.max(from.x, to.x) + reach < bounds.minX || Math.min(from.x, to.x) - reach > bounds.maxX ||
+      Math.max(from.y, to.y) + reach < bounds.minY || Math.min(from.y, to.y) - reach > bounds.maxY) return [o];
+  let inv;
+  try { inv = invert(o.transform); } catch { return [o]; }
   const fragments: { points: Point[]; widths: number[] }[] = [];
   let current: { points: Point[]; widths: number[] } | null = null;
   let changed = false;

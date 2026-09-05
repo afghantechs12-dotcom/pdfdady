@@ -325,19 +325,19 @@ async function main() {
   }
   const midCount = await countObjects();
   const midPreview = await evaluate(
-    `document.querySelectorAll('main svg rect[data-shape-draft]').length`,
+    `document.querySelectorAll('main svg [data-shape-draft] path').length`,
   );
   await shot("shape-drag-preview");
   check("mid-drag creates NO model object (deferred commit)", midCount === before,
     `before=${before} mid=${midCount}`);
-  check("mid-drag shows a live dashed preview", midPreview >= 1, `dashed rects=${midPreview}`);
+  check("mid-drag paints the actual shape path", midPreview >= 1, `shape paths=${midPreview}`);
   await mouseUp(x1, y1);
   await sleep(700);
 
   const after = await countObjects();
   check("pointer-up commits EXACTLY ONE object", after - before === 1, `before=${before} after=${after}`);
-  const previewGone = await evaluate(`document.querySelectorAll('main svg rect[data-shape-draft]').length`);
-  check("the draft preview is removed after commit", previewGone === 0, `dashed rects left=${previewGone}`);
+  const previewGone = await evaluate(`document.querySelectorAll('main svg [data-shape-draft] path').length`);
+  check("the draft preview is removed after commit", previewGone === 0, `shape paths left=${previewGone}`);
   await shot("shape-created");
 
   // ---- 7. Geometry matches the pointer rectangle (the old +20% defect) -----
@@ -414,7 +414,7 @@ async function main() {
   }
   await key("Escape", "Escape");
   const afterEscBeforeUp = await countObjects();
-  const draftAfterEsc = await evaluate(`document.querySelectorAll('main svg rect[data-shape-draft]').length`);
+  const draftAfterEsc = await evaluate(`document.querySelectorAll('main svg [data-shape-draft] path').length`);
   await mouseUp(ex + 90, ey + 50);
   await sleep(600);
   const afterEscRelease = await countObjects();

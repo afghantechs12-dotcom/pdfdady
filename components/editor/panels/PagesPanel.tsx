@@ -446,6 +446,8 @@ function PageThumbnail({ page, src, pageNumber }: { page: EditorPage; src: strin
         // A plain <img> is right here: the src is an in-memory data URL page
         // raster (SignTool does the same) — next/image adds nothing for those.
         <img
+          loading="lazy"
+          decoding="async"
           src={src}
           alt=""
           draggable={false}
