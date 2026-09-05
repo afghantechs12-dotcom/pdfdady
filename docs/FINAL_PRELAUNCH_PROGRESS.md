@@ -558,6 +558,9 @@ process: **15.75 MiB read of 2800 offered**, RSS **238.4 → 238.4 → 238.4**, 
 → **238.0**. Ingress probe 25/25 twice, singleton 8/8 (SIGKILL failover 12 107 ms, clean
 release 433 ms), upload-abuse 32/32, csp 118/118, vitest 389 files / 7487 tests, tsc 0,
 eslint 0 errors, prisma 0. **PRODUCT FAILURE 0** on every gate. 13 mutations, 13 caught.
+The static harness was re-run after the commit, so its clean-tree row means something:
+**PASS 67/67 exercised, PRODUCT FAILURE 0**, with 2 ENVIRONMENTAL / 4 NOT EXERCISED /
+12 MANUAL REVIEW REQUIRED kept out of that count.
 
 **Statements corrected** (each keeping the superseded text visible): the "Six commits" heading
 above a seven-row table; Session 6's `CLOSED via Path A` for the topology; "the only in-app

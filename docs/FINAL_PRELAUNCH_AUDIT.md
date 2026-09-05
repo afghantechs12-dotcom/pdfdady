@@ -2875,8 +2875,13 @@ never folded into the first.
 | `npx eslint .` | 0 errors, 13 warnings | 0 | 0 | — | — |
 | `npx prisma validate` | valid | 0 | 0 | — | — |
 | `npx vitest run` | **389 files, 7487 tests** | 0 | 0 | — | — |
+| `scripts/final-prelaunch-audit.mjs` (static harness, clean tree) | **PASS 67/67 exercised**, 85 assertions | 0 | **0** | 2 | 4 |
 
-**PRODUCT FAILURE: 0** across every gate.
+**PRODUCT FAILURE: 0** across every gate. The static harness also records **12 MANUAL
+REVIEW REQUIRED** rows, which are questions for a human (consent-banner applicability, the
+two sha256-pinned secret fixtures, human screenshot approval) and are not passes; it ran
+after this closeout's commit, so its `A1` row — "the working tree is clean, so what is
+measured is what is committed" — is green against the tree this report describes.
 
 The non-passes, named rather than counted. *Environmental* (2 + 1): the tool matrix's two rows
 and the workflow probe's journey I need `soffice`, which is not installed on this machine —
