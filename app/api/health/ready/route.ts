@@ -4,6 +4,7 @@ import path from "node:path";
 import { checkAllDependencies } from "@/lib/server/dependencyCheck";
 import { STORE_PATH } from "@/data/admin";
 import { appContainer } from "@/src/application/di/container";
+import { ingressState } from "@/src/infrastructure/config/ingressState";
 import { Tokens } from "@/src/application/di/tokens";
 import type { IHealthCheck, HealthResult } from "@/src/application/ports/HealthCheck";
 
@@ -31,6 +32,12 @@ async function cachedDeps(): Promise<Record<string, boolean>> {
  *  - DI health checks: infrastructure registered in the container (currently
  *    the database ping). Resilient — a wiring/config error is reported as an
  *    unhealthy check, not a 500, so a load balancer drains cleanly.
+ *  - instance: this process holds the single-instance lease. A standby that lost
+ *    the race, or a holder whose lease was taken, is not ready — it is a live
+ *    process that must not receive traffic, which is exactly what a readiness
+ *    probe is for. (Under the supported entry the ingress guard also answers 503
+ *    to every path in that state, so this field is what an operator reads on the
+ *    HOLDER to confirm the lease is real.)
  *
  * Returns 503 when not ready. Deliberately says WHETHER each subsystem is
  * healthy and never WHY: this endpoint is unauthenticated (a load balancer must
@@ -81,7 +88,13 @@ export async function GET() {
   }
   const dbOk = checks.find((c) => c.name === "database")?.healthy ?? false;
 
-  const ready = dataDirOk && toolchainOk && dbOk;
+  // "disabled" is a development process, where there is nothing to exclude and so
+  // nothing to be unready about. Every other non-held status means this process
+  // must not take traffic.
+  const lease = ingressState().lease;
+  const instanceOk = lease === "held" || lease === "disabled";
+
+  const ready = dataDirOk && toolchainOk && dbOk && instanceOk;
   return NextResponse.json(
     {
       ok: ready,
@@ -89,6 +102,8 @@ export async function GET() {
       dataDir: dataDirOk,
       toolchain: toolchainOk,
       database: dbOk,
+      // Whether, never which holder or why — same rule as every other field here.
+      instance: instanceOk,
       // Name + healthy only. `detail` is dropped on purpose — see the note
       // above; it carries raw driver text on an unauthenticated endpoint.
       checks: checks.map((c) => ({ name: c.name, healthy: c.healthy })),

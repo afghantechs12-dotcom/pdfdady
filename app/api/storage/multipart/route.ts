@@ -3,6 +3,7 @@ import { z } from "zod";
 import { appContainer } from "@/src/application/di/container";
 import { Tokens } from "@/src/application/di/tokens";
 import type { IMultipartUpload } from "@/src/application/ports/storage/MultipartUpload";
+import { CLASS_B_MAX_BYTES } from "@/ingress/policy.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,12 @@ const schema = z.object({
   key: z.string().min(1),
   contentType: z.string().default("application/octet-stream"),
   partCount: z.number().int().min(1).max(10_000),
-  partSize: z.number().int().positive(),
+  // Bounded by the class B ingress ceiling, because that is what will actually
+  // accept the parts: `PUT .../{uploadId}/{n}` is inside `proxy.ts`'s matcher, so
+  // `ingress/policy.mjs` refuses a part body over CLASS_B_MAX_BYTES before Next
+  // sees it. Accepting a larger `partSize` here would hand the client a session
+  // whose own part URLs answer 413 — a promise the deployment cannot keep.
+  partSize: z.number().int().positive().max(CLASS_B_MAX_BYTES),
 });
 
 /** Begins a multipart upload; returns the uploadId + per-part URLs. */

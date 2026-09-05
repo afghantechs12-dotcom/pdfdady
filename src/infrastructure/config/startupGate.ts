@@ -1,4 +1,5 @@
 import { configWarnings, databaseEngineLabel, getConfig } from "@/src/infrastructure/config/env";
+import { assertIngressInstalled } from "@/src/infrastructure/config/ingressState";
 
 /**
  * Boot-time production gate, Node-only.
@@ -42,7 +43,12 @@ function startupSummary(): string {
  */
 export function runStartupGate(): void {
   try {
-    console.info(`[startup] PDFDadi configuration OK — ${startupSummary()}`);
+    // Computed before the ingress check so a configuration problem is reported
+    // ahead of a topology one, and logged after it so nothing says "OK" and then
+    // refuses.
+    const summary = startupSummary();
+    assertIngressInstalled();
+    console.info(`[startup] PDFDadi configuration OK — ${summary}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[startup] PDFDadi refused to start.\n${message}`);

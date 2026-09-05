@@ -22,6 +22,17 @@ async function resolveMultipart(): Promise<IMultipartUpload> {
   return appContainer.resolve<IMultipartUpload>(Tokens.MultipartUpload);
 }
 
+/**
+ * An upload id is `crypto.randomBytes(16).toString("hex")` (`LocalMultipartUpload.create`),
+ * so anything else is not one we issued.
+ *
+ * This is a trust boundary, not a tidiness check: the id is joined onto the
+ * multipart root to build a file path, and a catch-all segment can carry `../`
+ * through a percent-encoded slash. Unvalidated, `PUT /api/storage/multipart/
+ * ..%2F..%2Fsomewhere/1` writes the request body outside the storage root.
+ */
+const UPLOAD_ID = /^[0-9a-f]{32}$/;
+
 /** PUT /api/storage/multipart/{uploadId}/{partNumber} — upload one part (local). */
 export async function PUT(
   req: Request,
@@ -31,7 +42,7 @@ export async function PUT(
   if (segs.length !== 2) return new NextResponse("Not found", { status: 404 });
   const uploadId = segs[0];
   const partNumber = Number(segs[1]);
-  if (!Number.isInteger(partNumber) || partNumber < 1) {
+  if (!UPLOAD_ID.test(uploadId) || !Number.isInteger(partNumber) || partNumber < 1) {
     return new NextResponse("Bad part number", { status: 400 });
   }
   const multipart = await resolveMultipart();
@@ -58,6 +69,7 @@ export async function POST(
     return new NextResponse("Not found", { status: 404 });
   }
   const uploadId = segs[0];
+  if (!UPLOAD_ID.test(uploadId)) return new NextResponse("Not found", { status: 404 });
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const key = body.key;
   const parts = body.parts;
@@ -82,6 +94,7 @@ export async function DELETE(
   const segs = (await params).segments;
   if (segs.length !== 1) return new NextResponse("Not found", { status: 404 });
   const uploadId = segs[0];
+  if (!UPLOAD_ID.test(uploadId)) return new NextResponse("Not found", { status: 404 });
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const key = body.key;
   if (typeof key !== "string") return new NextResponse("Bad request", { status: 400 });

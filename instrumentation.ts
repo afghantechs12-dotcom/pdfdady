@@ -19,4 +19,12 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { runStartupGate } = await import("@/src/infrastructure/config/startupGate");
   runStartupGate();
+
+  // Only after the configuration is known good: the lease is a database write, and
+  // a deployment with an invalid DATABASE_URL should fail on the gate's list rather
+  // than on a connection error. Awaited, so no request is served before this
+  // process knows whether it is the one instance — and if it is not, the ingress
+  // guard is already answering 503 from the moment the port was bound.
+  const { startInstanceLease } = await import("@/src/infrastructure/config/instanceLease");
+  await startInstanceLease();
 }
