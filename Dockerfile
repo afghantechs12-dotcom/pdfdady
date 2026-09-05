@@ -64,6 +64,14 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/p
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 COPY --chown=nextjs:nodejs prisma ./prisma
 
+# The ingress guard, which the standalone trace cannot know about: nothing in the
+# application imports it, because it has to run BEFORE Next creates its
+# `http.Server`. Without this directory the CMD below has no entry point and the
+# generated `server.js` it would fall back to now refuses to start in production
+# (`assertIngressInstalled`), so a missing COPY is a container that exits 1 at
+# boot rather than one that quietly serves unguarded.
+COPY --chown=nextjs:nodejs ingress ./ingress
+
 # Writable, mountable state, created HERE so a named volume attached to any of
 # these paths inherits `nextjs` ownership on first use. `/app` itself is
 # root-owned, and the server runs as uid 1001: a directory the app creates lazily
@@ -85,4 +93,10 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # safe and a redeploy that adds a migration cannot serve the old schema. A
 # migration failure exits non-zero here rather than leaving a container up and
 # 500ing every request.
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && exec node server.js"]
+#
+# `ingress/server.mjs`, never `server.js`: the guard installs itself around
+# `http.createServer`, so it has to own the process before Next builds its
+# server. This is the only supported entry point, and it is the artifact rather
+# than a note in a runbook — which is what stops the topology from depending on
+# an operator remembering a setting.
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma && exec node ingress/server.mjs"]

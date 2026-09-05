@@ -166,7 +166,7 @@ const running = [];
  * later sections depend on would silently not apply to them.
  */
 async function startServer({ dbUrl, storageRoot, siteUrl, mode, pipeline }) {
-  const dir = join(process.cwd(), ".next", "standalone");
+  const dir = process.cwd();
   const env = {
     ...process.env,
     NODE_ENV: "production",
@@ -183,7 +183,11 @@ async function startServer({ dbUrl, storageRoot, siteUrl, mode, pipeline }) {
   };
   for (const [key, value] of Object.entries(env)) if (value === undefined) delete env[key];
 
-  const child = spawn("node", ["server.js"], {
+  // `ingress/server.mjs` from the repository root, not `server.js` from inside
+  // `.next/standalone`: the guarded entry is the only production topology, and the
+  // generated entry now exits 1 under NODE_ENV=production without it. The Next
+  // entry it loads chdirs into its own directory, so paths are unchanged.
+  const child = spawn("node", ["ingress/server.mjs"], {
     cwd: dir,
     env,
     stdio: ["ignore", "pipe", "pipe"],

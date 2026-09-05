@@ -129,8 +129,30 @@ describe("R3 — the container image can be built and can serve", () => {
     // And it runs them before serving, not instead of serving.
     const cmd = dockerfile.slice(dockerfile.lastIndexOf("\nCMD "));
     expect(cmd).toContain("migrate deploy");
-    expect(cmd).toContain("exec node server.js");
-    expect(cmd.indexOf("migrate deploy")).toBeLessThan(cmd.indexOf("exec node server.js"));
+    expect(cmd).toContain("exec node ingress/server.mjs");
+    expect(cmd.indexOf("migrate deploy")).toBeLessThan(cmd.indexOf("exec node ingress/server.mjs"));
+  });
+
+  it("starts through the ingress guard, and ships it", () => {
+    /*
+     * The two halves of one fact, which is why they are one test: the image must
+     * CONTAIN `ingress/` and must START from it. Either alone is a container that
+     * exits 1 at boot — the CMD has no entry point without the copy, and the
+     * generated `server.js` refuses to run in production without the guard.
+     *
+     * Pinned here rather than left to review because the failure mode is silent in
+     * the other direction: an image that starts `server.js` on a build where the
+     * startup gate has been relaxed serves every request with Next retaining up to
+     * `proxyClientMaxBodySize` of its body, which is the defect this branch closes.
+     */
+    expect(dockerfile).toContain("COPY --chown=nextjs:nodejs ingress ./ingress");
+    const cmd = dockerfile.slice(dockerfile.lastIndexOf("\nCMD "));
+    expect(cmd).toContain("exec node ingress/server.mjs");
+    expect(cmd).not.toMatch(/exec node server\.js/);
+
+    // And `npm start` is the same entry: the two documented ways in agree.
+    const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+    expect(pkg.scripts.start).toBe("node ingress/server.mjs");
   });
 
   it("installs a package for every binary readiness requires", () => {

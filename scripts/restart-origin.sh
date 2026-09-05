@@ -19,7 +19,13 @@ set -a
 . ./.env
 set +a
 export NODE_ENV=production PORT="${PORT:-3002}" HOSTNAME=127.0.0.1
+# The production topology, so the audit origin exercises the single-instance lease
+# rather than a code path only containers reach.
+export DEPLOYMENT_TOPOLOGY="${DEPLOYMENT_TOPOLOGY:-single-instance}"
 export DATABASE_URL="${AUDIT_DATABASE_URL:-file:/tmp/audit-final-db.db}"
 export NEXT_PUBLIC_SITE_URL="${AUDIT_SITE_URL:-https://172.20.10.2:3001}"
-cd .next/standalone
-exec node server.js
+# The guarded entry, from the repository root — `ingress/server.mjs` installs the
+# guard around `http.createServer` and then loads `.next/standalone/server.js`,
+# which chdirs into its own directory itself. Starting the generated entry directly
+# is no longer a supported topology and exits 1 in production.
+exec node ingress/server.mjs

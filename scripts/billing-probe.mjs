@@ -432,8 +432,12 @@ async function startServer({ port, dbUrl, storageRoot, billing }) {
   // production runs, and it is the runtime whose request-URL handling and env
   // reading are under test. `HOSTNAME` binds it to loopback so only this probe can
   // reach it.
-  const child = spawn("node", ["server.js"], {
-    cwd: join(process.cwd(), ".next", "standalone"),
+  // `ingress/server.mjs` from the repository root, not `server.js` from inside
+  // `.next/standalone`: the guarded entry is the only production topology, and the
+  // generated entry now exits 1 under NODE_ENV=production without it. The Next
+  // entry it loads chdirs into its own directory, so paths are unchanged.
+  const child = spawn("node", ["ingress/server.mjs"], {
+    cwd: process.cwd(),
     env: { ...env, HOSTNAME: "127.0.0.1" },
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,

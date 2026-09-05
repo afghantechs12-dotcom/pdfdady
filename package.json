@@ -6,7 +6,7 @@
     "dev": "next dev -p 3001",
     "predev": "prisma generate",
     "build": "prisma generate && node scripts/next-build.js",
-    "start": "next start",
+    "start": "node ingress/server.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
