@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T20:25:00Z (UTC) |
+| Last updated | 2026-09-05T20:55:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
@@ -28,7 +28,7 @@ what it produced, and what is still owed.
 | 8 | Security acceptance | **DONE** — 2 P3 found and fixed; `IMAGE CVE SCAN: NOT EXERCISED — NO SCANNER` |
 | 9 | Reliability and recovery | **DONE** — 0 defects; container rollback `NOT EXERCISED` |
 | 10 | Observability and operations | **DONE** — 0 defects; `MONITORING: NOT EXERCISED — NO PROVIDER`; template + alert-set test |
-| 11 | Bounded performance smoke test | NOT STARTED |
+| 11 | Bounded performance smoke test | **DONE** — 0 new defects; P2-2 reproduced, **P2-6 diagnosed**; memory peak and cold start measured |
 | 12 | Human visual acceptance package | NOT STARTED — will be marked `VISUAL ACCEPTANCE PENDING` |
 | 13 | Manual decision register | NOT STARTED |
 | 14 | Go/no-go checkpoint | NOT STARTED |
@@ -188,6 +188,7 @@ Stage 14 report.
 | No staging target, no hosting credentials | Stages 6–11 run against a local production-mode surrogate (`scripts/restart-origin.sh` + `scripts/tls-front.mjs`, throwaway DB and storage root) |
 | No monitoring provider selected | Stage 10 delivered `docs/ops/MONITORING.md` (provider-neutral) and marked `MONITORING: NOT EXERCISED — NO PROVIDER`. No provider, DSN, ingest key or dashboard was invented. Wiring it up is an operator action |
 | No access log, no metrics endpoint | Measured in Stage 10: 20 requests added 0 log lines; `/api/metrics` and `/metrics` are 404. Request rate, latency and HTTP error rate must come from the reverse proxy or platform — not a defect, a documented limitation, and a go-live checklist row |
+| One machine runs Chrome, the TLS front and the origin | Stage 11's latencies are **floors**, not forecasts: loopback and LAN, no CDN, no throttling, no other tenants. The ≈3 s `server_processing` of earlier stages was traced to this contention plus a 500ms poll (`14-performance.md` §4) |
 | No Git remote | nothing can be pushed; `main` stays untouched |
 
 Available: node v26.7.0, npm 11.19.0, gs, qpdf, pdftoppm, pdfinfo, tesseract,
@@ -476,11 +477,70 @@ real, because this acceptance origin sits behind `scripts/tls-front.mjs` with no
 Secrets: none requested, echoed or written. The evidence log is redacted for repo
 path, home path and hostname.
 
+## Stage 11 — bounded performance smoke test (DONE)
+
+No new defects, no P0, no P1. No product code changed. Full write-up:
+`docs/evidence/production-acceptance/14-performance.md`; measurements in
+`14-performance.log` and `14-performance.json`.
+
+Two probes, both against the running surrogate:
+
+```sh
+node scripts/perf-load-probe.mjs --url https://192.168.0.175:3001 \
+  --api-url http://127.0.0.1:3002 --csrf-origin https://192.168.0.175:3001 \
+  --json /tmp/pa-stage11-perf.json                                    # exit 0
+
+AUDIT_SITE_URL=… AUDIT_DATABASE_URL=file:/tmp/pa-stage6-db.db \
+AUDIT_STORAGE_ROOT=/tmp/pa-stage6-storage AUDIT_ADMIN_STORE_DIR=/tmp/pa-stage6-admin \
+  node scripts/perf-soak-probe.mjs --seconds 60 --concurrency 4 --idle 30 --cold-start
+```
+
+| Measurement | Result |
+| --- | --- |
+| Page load, 7 routes × 3 runs | LCP 36–108 ms, CLS ≤ 0.017, **0 JS errors everywhere** — except Workspace Editor |
+| **Workspace Editor** | LCP 408, **CLS 0.212**, 913 KB / 449 KB JS — open **P2-2**, reproduced byte-for-byte on a payload 8 KB smaller than prelaunch's |
+| Workflow, 6 input shapes × 2 runs | complete end to end; the four Editor refusals are the 200-page limit and the damaged-file message, quoted in the write-up |
+| **`server_processing` ≈3 s** | **diagnosed, not reproduced.** With a 25ms poll on an idle host the same inputs take **512 ms** (5 KB) and **1010 ms** (22.7 MB / 340 pp); Ghostscript is 80 ms and 490 ms of that. The 3 s was 500ms poll granularity plus contention with the probe's own browser. The user path streams progress at 400ms. Recommend closing **P2-6** |
+| Fan-out accepted | anonymous jobs **16**, uploads **8**, document opens **16**, publishes **4**, browser workflows **3** |
+| The two rows that shed | one-IP burst ×25 → 20×202 + **5×429** `retry_after 10`; revision conflict ×4 → 1×201 + **3×409**, `cas held`. Both are the designed answer |
+| Sustained load, 60 s at concurrency 4 | **15 896 requests, 265/s, all 200.** p50 10 ms, p95 41 ms, p99 43, max 88 |
+| Memory | RSS 171 MB → **peak 543 MB** → 322 MB ten seconds after load stopped, then flat. A second run on a longer-lived process: 334 → 652 → 369. Transient peak, floor rises ~35 MB and stops. **Not a leak** |
+| Cold start | SIGTERM → port free **67 ms**; `exec` → `/api/health` 200 **393 ms**; first cold `GET /` 56 ms; warm 20 ms; fresh-boot RSS 216 MB. Same `BUILD_ID` before and after |
+
+Three things an operator has to be told, and now is:
+
+1. **Size the container memory limit to the peak, not the idle.** ~550–650 MB at
+   concurrency 4 on *page serving alone*, before any Ghostscript, so **1 GB is the
+   smallest limit that is not a gamble** — and `WORKER_CONCURRENCY` multiplies real
+   memory on top of that.
+2. **A 393 ms boot means a 5 s health-check initial delay is generous.** A slow first
+   probe is a configuration choice, not a constraint.
+3. **`accepted` is not `completed`.** The ×16 row means the limiter and queue admitted
+   16 jobs in 82 ms; `WORKER_CONCURRENCY=2` means the rest queued. Throughput under
+   saturation is still unmeasured.
+
+`scripts/perf-soak-probe.mjs` is new — the sustained-load and cold-start numbers had no
+instrument. No test was added: a probe's output is the evidence, and none of the
+brief's five test-warranting categories was touched.
+
+One unrelated find while running the gates: `eslint .` was carrying **1 error** —
+`no-regex-spaces` at `deploymentArtifact.test.ts:124`, introduced on this branch by
+`209b1ca` in Stage 8 and missed there. Fixed (`\n  \};` → `\n {2}\};`, same match);
+`eslint .` 0 errors, `tsc --noEmit` 0, `deploymentArtifact.test.ts` 16/16.
+
+Harness row **N3** ("sustained load, cold-start, memory ceiling") is now *partly*
+answered — sustained load and cold start measured, memory measured as a **peak**, not a
+**ceiling**. Stage 14 must not record it as a clean PASS.
+
+Secrets: none requested, echoed or written. Evidence redacted for repo path, home path
+and hostname.
+
 ## Remaining actions
 
-1. Stages 8–11 — the surrogate is **already running** and is what these stages
-   measure: origin `http://127.0.0.1:3002` (`BUILD_ID DIi1m4KbzBmf96popnixW`)
-   behind `https://192.168.0.175:3001`. Restart it with
+1. Stage 12 — the surrogate is **already running** and is what it measures: origin
+   `http://127.0.0.1:3002` (`BUILD_ID MniplDUweIbeIPYT_CM5N`, pid renamed to
+   `next-server`, so find it with `lsof -nP -iTCP:3002 -sTCP:LISTEN`) behind
+   `https://192.168.0.175:3001`. Restart it with
 
    ```sh
    AUDIT_SITE_URL=https://192.168.0.175:3001 \
@@ -495,17 +555,25 @@ path, home path and hostname.
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stages 8, 9 and 10 are done; **Stage 11** is next
-   — the bounded performance smoke test (`scripts/perf-load-probe.mjs`, which also
-   builds the `/tmp/perf-fixtures/*` files R30 wanted).
-2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
-   `VISUAL ACCEPTANCE PENDING`.
+   default. Stages 8–11 are done; **Stage 12** is next — the human visual-acceptance
+   package at 320/360/390/412/768/1024/1440/1920
+   (`node scripts/visual-acceptance-probe.mjs --url https://192.168.0.175:3001 --auth`,
+   plus `responsive-qa.mjs` and `premium-ui-ux-probe.mjs`), marked
+   **`VISUAL ACCEPTANCE PENDING`** — only the owner accepts it. It closes or carries
+   harness rows **R2** (111 rendered-layout assertions) and **R3**.
+2. Re-running Stage 11 is cheap and non-destructive if a later stage changes code:
+   `scripts/perf-load-probe.mjs` for pages/workflow/fan-out, `scripts/perf-soak-probe.mjs`
+   for sustained load and cold start. `--cold-start` restarts the origin, so pass the
+   same four `AUDIT_*` variables or it comes back on different throwaway state.
 3. Stage 13 — decision register from the manual rows (11 harness rows plus **S1**,
    the unexplained page exception from Stage 7) and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 10; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 11; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
+6. **P2-6 has a recommendation attached, not a decision.** Stage 11 diagnosed it as a
+   measurement artifact and amended its row in `docs/FINAL_PRELAUNCH_AUDIT.md`;
+   whether the finding is closed is a Stage 13/14 line item, not a silent edit.
 
 **Not to be done without explicit owner authorization:** deploying to production,
 changing production DNS, running migrations against a production database,

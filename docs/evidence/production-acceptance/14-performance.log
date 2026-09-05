@@ -1,0 +1,440 @@
+### Stage 11 performance measurements — 2026-09-05T20:41:00Z
+### pages https://192.168.0.175:3001 · origin http://127.0.0.1:3002 · BUILD_ID MniplDUweIbeIPYT_CM5N
+### One machine runs Chrome, the TLS front and the origin. Every latency below is a
+### FLOOR, not a forecast: no CDN, no network throttling, no other tenants.
+
+== 1. Burst and page load ==
+$ node scripts/perf-load-probe.mjs --url https://192.168.0.175:3001 \
+    --api-url http://127.0.0.1:3002 --csrf-origin https://192.168.0.175:3001 \
+    --json /tmp/pa-stage11-perf.json
+[exit 0]  — full output below, JSON in 14-performance.json
+
+PERF/LOAD PROBE — pages https://192.168.0.175:3001 · api http://127.0.0.1:3002 (origin header https://192.168.0.175:3001)
+fixtures: tiny 2KB, ordinary 5KB, large 22778KB, many-page 104KB, encrypted 6KB, malformed 3KB
+parts: page,workflow,load · page runs: 3 · workflow runs: 2
+
+  · page/Homepage: lcp=100 (100–104) fcp=100 (100–104) ttfb=17 (15–20) cls=0.005 inp=16 (16–16) hydrate=115 (113–121) kb=387 (387–387) js=150 (150–150) requests=38 js_errors=0
+  · page/Tools directory: lcp=60 (48–84) fcp=60 (48–84) ttfb=14 (13–14) cls=0.005 inp=40 (40–40) hydrate=78 (65–81) kb=310 (309–310) js=186 (186–186) requests=41 js_errors=0
+  · page/Merge (tool page): lcp=44 (40–48) fcp=44 (40–48) ttfb=10 (8–16) cls=0.005 inp=16 (16–16) hydrate=57 (52–58) kb=273 (273–276) js=175 (175–175) requests=26 js_errors=0
+  · page/Pricing: lcp=36 (36–40) fcp=36 (36–40) ttfb=10 (9–11) cls=0.005 inp=16 (16–16) hydrate=50 (49–50) kb=274 (248–274) js=149 (149–149) requests=56 js_errors=0
+  · page/Editor (standalone): lcp=76 (64–92) fcp=76 (64–92) ttfb=16 (14–39) cls=0.001 inp=16 (16–16) hydrate=81 (79–98) kb=386 (386–386) js=300 (300–300) requests=23 js_errors=0
+  · page/Workspace: lcp=108 (104–116) fcp=60 (56–68) ttfb=19 (18–24) cls=0.017 inp=16 (16–24) hydrate=75 (70–80) kb=280 (280–280) js=185 (185–185) requests=33 js_errors=0
+  · page/Workspace Editor: lcp=408 (404–436) fcp=40 (40–44) ttfb=16 (14–22) cls=0.212 inp=16 (16–24) hydrate=55 (54–56) kb=913 (913–914) js=449 (449–449) requests=40 js_errors=0
+(node:89317) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  · workflow/tiny (2 KB): local_merge=514 (511–517) local_download=7 (5–9) upload=14 (9–18) job_submit=14 (9–18) server_processing=1583 (510–2656) result_download=16 (12–19) workspace_save=10 (9–11) editor_load=241 (236–246) publish=7 (7–7) reopen=243 (241–245)
+  · workflow/ordinary (5 KB): local_merge=519 (519–519) local_download=6 (3–8) upload=8 (7–9) job_submit=8 (7–9) server_processing=3004 (3004–3004) result_download=12 (11–12) workspace_save=12 (12–12) editor_load=352 (341–362) publish=5 (5–5) reopen=360 (360–360)
+  · workflow/large (22778 KB): local_merge=516 (513–519) local_download=6 (5–7) upload=42 (31–52) job_submit=39 (35–43) server_processing=2970 (2966–2973) result_download=8 (6–10) workspace_save=9 (8–9) editor_load=n/a — refused after 234ms — "This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200." publish=37 (36–37) reopen=n/a — refused after 238ms — "This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200."
+  · workflow/many-page (104 KB): local_merge=515 (509–521) local_download=4 (2–5) upload=10 (6–14) job_submit=9 (6–12) server_processing=3001 (2994–3007) result_download=10 (9–11) workspace_save=10 (9–11) editor_load=n/a — refused after 133ms — "This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200." publish=5 (5–5) reopen=n/a — refused after 144ms — "This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200."
+  · workflow/encrypted (6 KB): local_merge=13 (13–13) local_download=n/a upload=9 (7–11) job_submit=11 (8–14) server_processing=2673 (2345–3001) result_download=9 (7–11) workspace_save=10 (8–11) editor_load=n/a — refused after 238ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits." publish=6 (6–6) reopen=n/a — refused after 244ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+  · workflow/malformed (3 KB): local_merge=517 (516–518) local_download=n/a upload=10 (7–13) job_submit=12 (11–13) server_processing=2785 (2573–2996) result_download=8 (7–9) workspace_save=10 (8–11) editor_load=n/a — refused after 133ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits." publish=5 (4–5) reopen=n/a — refused after 133ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+  · load/anonymous server jobs ×2: accepted=2/2 statuses=2×202 latency=9 (8–9) wall=9ms retry_after=—
+  · load/anonymous server jobs ×4: accepted=4/4 statuses=4×202 latency=30 (18–42) wall=44ms retry_after=—
+  · load/anonymous server jobs ×8: accepted=8/8 statuses=8×202 latency=40 (23–57) wall=59ms retry_after=—
+  · load/anonymous server jobs ×16: accepted=16/16 statuses=16×202 latency=57 (24–79) wall=82ms retry_after=—
+  · load/one-IP burst ×25 (limiter under test): accepted=20/25 statuses=20×202 5×429 latency=66 (35–104) wall=110ms retry_after=10
+  · load/workspace uploads ×2: accepted=2/2 statuses=2×201 latency=9 (7–11) wall=12ms retry_after=—
+  · load/workspace uploads ×4: accepted=4/4 statuses=4×201 latency=16 (9–78) wall=78ms retry_after=—
+  · load/workspace uploads ×8: accepted=8/8 statuses=8×201 latency=36 (13–76) wall=76ms retry_after=—
+  · load/document opens ×4: accepted=4/4 statuses=4×200 latency=8 (7–8) wall=8ms retry_after=—
+  · load/document opens ×8: accepted=8/8 statuses=8×200 latency=13 (10–16) wall=16ms retry_after=—
+  · load/document opens ×16: accepted=16/16 statuses=16×200 latency=13 (12–14) wall=14ms retry_after=—
+  · load/publishes ×4 (distinct documents): accepted=4/4 statuses=4×201 latency=10 (8–19) wall=19ms retry_after=— documents=4 distinct of 14 uploaded
+  · load/revision conflict ×4 (one document, one revision): accepted=1/4 statuses=1×201 3×409 latency=6 (6–6) wall=14ms retry_after=— cas=held — one winner, the rest refused
+  · load/anonymous browser workflows ×3 (concurrent): accepted=3/3 statuses=3×200 latency=7162 (7162–7163) wall=7231ms retry_after=—
+
+══ PAGE ══
+
+  Homepage
+    lcp                100 (100–104)
+    fcp                100 (100–104)
+    ttfb               17 (15–20)
+    cls                0.005
+    inp                16 (16–16)
+    hydrate            115 (113–121)
+    kb                 387 (387–387)
+    js                 150 (150–150)
+    requests           38
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Tools directory
+    lcp                60 (48–84)
+    fcp                60 (48–84)
+    ttfb               14 (13–14)
+    cls                0.005
+    inp                40 (40–40)
+    hydrate            78 (65–81)
+    kb                 310 (309–310)
+    js                 186 (186–186)
+    requests           41
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Merge (tool page)
+    lcp                44 (40–48)
+    fcp                44 (40–48)
+    ttfb               10 (8–16)
+    cls                0.005
+    inp                16 (16–16)
+    hydrate            57 (52–58)
+    kb                 273 (273–276)
+    js                 175 (175–175)
+    requests           26
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Pricing
+    lcp                36 (36–40)
+    fcp                36 (36–40)
+    ttfb               10 (9–11)
+    cls                0.005
+    inp                16 (16–16)
+    hydrate            50 (49–50)
+    kb                 274 (248–274)
+    js                 149 (149–149)
+    requests           56
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Editor (standalone)
+    lcp                76 (64–92)
+    fcp                76 (64–92)
+    ttfb               16 (14–39)
+    cls                0.001
+    inp                16 (16–16)
+    hydrate            81 (79–98)
+    kb                 386 (386–386)
+    js                 300 (300–300)
+    requests           23
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Workspace
+    lcp                108 (104–116)
+    fcp                60 (56–68)
+    ttfb               19 (18–24)
+    cls                0.017
+    inp                16 (16–24)
+    hydrate            75 (70–80)
+    kb                 280 (280–280)
+    js                 185 (185–185)
+    requests           33
+    js_errors          0
+    —                  3 runs, cold cache
+
+  Workspace Editor
+    lcp                408 (404–436)
+    fcp                40 (40–44)
+    ttfb               16 (14–22)
+    cls                0.212
+    inp                16 (16–24)
+    hydrate            55 (54–56)
+    kb                 913 (913–914)
+    js                 449 (449–449)
+    requests           40
+    js_errors          0
+    —                  3 runs, cold cache
+
+══ WORKFLOW ══
+
+  tiny (2 KB)
+    local_merge        514 (511–517)
+    local_download     7 (5–9)
+    upload             14 (9–18)
+    job_submit         14 (9–18)
+    server_processing  1583 (510–2656)
+    result_download    16 (12–19)
+    workspace_save     10 (9–11)
+    editor_load        241 (236–246)
+    publish            7 (7–7)
+    reopen             243 (241–245)
+    —                  2 runs; compress-pdf is the server tool
+
+  ordinary (5 KB)
+    local_merge        519 (519–519)
+    local_download     6 (3–8)
+    upload             8 (7–9)
+    job_submit         8 (7–9)
+    server_processing  3004 (3004–3004)
+    result_download    12 (11–12)
+    workspace_save     12 (12–12)
+    editor_load        352 (341–362)
+    publish            5 (5–5)
+    reopen             360 (360–360)
+    —                  2 runs; compress-pdf is the server tool
+
+  large (22778 KB)
+    local_merge        516 (513–519)
+    local_download     6 (5–7)
+    upload             42 (31–52)
+    job_submit         39 (35–43)
+    server_processing  2970 (2966–2973)
+    result_download    8 (6–10)
+    workspace_save     9 (8–9)
+    editor_load        n/a — refused after 234ms — "This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200."
+    publish            37 (36–37)
+    reopen             n/a — refused after 238ms — "This PDF has too many pages to edit It has 340 pages, and the Editor supports up to 200."
+    —                  2 runs; compress-pdf is the server tool
+
+  many-page (104 KB)
+    local_merge        515 (509–521)
+    local_download     4 (2–5)
+    upload             10 (6–14)
+    job_submit         9 (6–12)
+    server_processing  3001 (2994–3007)
+    result_download    10 (9–11)
+    workspace_save     10 (9–11)
+    editor_load        n/a — refused after 133ms — "This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200."
+    publish            5 (5–5)
+    reopen             n/a — refused after 144ms — "This PDF has too many pages to edit It has 300 pages, and the Editor supports up to 200."
+    —                  2 runs; compress-pdf is the server tool
+
+  encrypted (6 KB)
+    local_merge        13 (13–13)
+    local_download     n/a
+    upload             9 (7–11)
+    job_submit         11 (8–14)
+    server_processing  2673 (2345–3001)
+    result_download    9 (7–11)
+    workspace_save     10 (8–11)
+    editor_load        n/a — refused after 238ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+    publish            6 (6–6)
+    reopen             n/a — refused after 244ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+    —                  2 runs; compress-pdf is the server tool
+
+  malformed (3 KB)
+    local_merge        517 (516–518)
+    local_download     n/a
+    upload             10 (7–13)
+    job_submit         12 (11–13)
+    server_processing  2785 (2573–2996)
+    result_download    8 (7–9)
+    workspace_save     10 (8–11)
+    editor_load        n/a — refused after 133ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+    publish            5 (4–5)
+    reopen             n/a — refused after 133ms — "We couldn't open this PDF The file may be damaged, unsupported, or outside the Editor's supported limits."
+    —                  2 runs; compress-pdf is the server tool
+
+══ LOAD ══
+
+  anonymous server jobs ×2
+    accepted           2/2
+    statuses           2×202
+    latency            9 (8–9)
+    wall               9ms
+    retry_after        —
+    —                  cold window; POST /api/jobs
+
+  anonymous server jobs ×4
+    accepted           4/4
+    statuses           4×202
+    latency            30 (18–42)
+    wall               44ms
+    retry_after        —
+    —                  cold window; POST /api/jobs
+
+  anonymous server jobs ×8
+    accepted           8/8
+    statuses           8×202
+    latency            40 (23–57)
+    wall               59ms
+    retry_after        —
+    —                  cold window; POST /api/jobs
+
+  anonymous server jobs ×16
+    accepted           16/16
+    statuses           16×202
+    latency            57 (24–79)
+    wall               82ms
+    retry_after        —
+    —                  cold window; POST /api/jobs
+
+  one-IP burst ×25 (limiter under test)
+    accepted           20/25
+    statuses           20×202 5×429
+    latency            66 (35–104)
+    wall               110ms
+    retry_after        10
+    —                  20 per 60s per IP is the declared ceiling; a 429 here is the correct answer
+
+  workspace uploads ×2
+    accepted           2/2
+    statuses           2×201
+    latency            9 (7–11)
+    wall               12ms
+    retry_after        —
+    —                  authenticated; POST documents/upload
+
+  workspace uploads ×4
+    accepted           4/4
+    statuses           4×201
+    latency            16 (9–78)
+    wall               78ms
+    retry_after        —
+    —                  authenticated; POST documents/upload
+
+  workspace uploads ×8
+    accepted           8/8
+    statuses           8×201
+    latency            36 (13–76)
+    wall               76ms
+    retry_after        —
+    —                  authenticated; POST documents/upload
+
+  document opens ×4
+    accepted           4/4
+    statuses           4×200
+    latency            8 (7–8)
+    wall               8ms
+    retry_after        —
+    —                  GET one document, same reader
+
+  document opens ×8
+    accepted           8/8
+    statuses           8×200
+    latency            13 (10–16)
+    wall               16ms
+    retry_after        —
+    —                  GET one document, same reader
+
+  document opens ×16
+    accepted           16/16
+    statuses           16×200
+    latency            13 (12–14)
+    wall               14ms
+    retry_after        —
+    —                  GET one document, same reader
+
+  publishes ×4 (distinct documents)
+    accepted           4/4
+    statuses           4×201
+    latency            10 (8–19)
+    wall               19ms
+    retry_after        —
+    documents          4 distinct of 14 uploaded
+    —                  each its own document and its own revision
+
+  revision conflict ×4 (one document, one revision)
+    accepted           1/4
+    statuses           1×201 3×409
+    latency            6 (6–6)
+    wall               14ms
+    retry_after        —
+    cas                held — one winner, the rest refused
+    —                  the compare-and-swap under contention
+
+  anonymous browser workflows ×3 (concurrent)
+    accepted           3/3
+    statuses           3×200
+    latency            7162 (7162–7163)
+    wall               7231ms
+    retry_after        —
+    —                  separate Chrome instances; merge is entirely in the tab, so the server sees only page loads
+
+══ MEASURED CAPACITY (fully accepted fan-out) ══
+  anonymous server jobs                        16 concurrent
+  one-IP burst                                 none at any level; sheds at 25 (20×202 5×429)
+  workspace uploads                            8 concurrent
+  document opens                               16 concurrent
+  publishes                                    4 concurrent
+  revision conflict                            none at any level; sheds at 4 (1×201 3×409)
+  anonymous browser workflows                  3 concurrent
+
+json: /tmp/pa-stage11-perf.json
+
+
+== 2. Sustained load and cold start ==
+$ AUDIT_SITE_URL=… AUDIT_DATABASE_URL=file:/tmp/pa-stage6-db.db \
+    AUDIT_STORAGE_ROOT=/tmp/pa-stage6-storage AUDIT_ADMIN_STORE_DIR=/tmp/pa-stage6-admin \
+    node scripts/perf-soak-probe.mjs --seconds 60 --concurrency 4 --idle 30 --cold-start
+SOAK/COLD-START PROBE — http://127.0.0.1:3002 · pid 92268 · 60s at concurrency 4
+paths: / /tools /api/health /pricing (unauthenticated, not rate limited)
+
+══ SUSTAINED LOAD ══
+  requests            15896 (265/s)
+  statuses            15896×200
+  latency ms          p50=10 p95=41 p99=43 max=88
+  rss KB              start=170608 peak=542768 end=542768
+
+══ AFTER LOAD (30s idle, sampled every 10s) ══
+  + 10s              rss=322336 KB
+  + 20s              rss=322384 KB
+  + 30s              rss=322432 KB
+
+══ COLD START ══
+  SIGTERM to port free  67 ms
+  exec to listening     206 ms (includes the .next/static copy)
+  exec to /api/health   393 ms 
+  first GET / (cold)    56 ms → 200
+  second GET / (warm)   20 ms → 200
+  /api/health/ready     503
+  rss KB (fresh boot)   216080 · pid 92961 · boot log /tmp/perf-soak-coldstart.log
+[exit 0]
+
+   "end" is sampled at the instant load stops, before V8 releases; the +10s row is
+   the same process 10 seconds later. An earlier identical run on the previous
+   process — which had already served every Stage 7-11 probe — measured
+   start=334368 peak=651776, settling to 369408 KB and staying flat for 70s.
+   Two runs, same shape: the peak is transient, the floor rises ~35MB and stops.
+
+== 3. The relaunched process, every line it wrote ==
+     1	▲ Next.js 16.3.4
+     2	- Local:         http://127.0.0.1:3002
+     3	- Network:       http://127.0.0.1:3002
+     4	✓ Ready in 0ms
+     5	✓ Running next.config took 1.1ms
+     6	[startup] PDFDadi configuration OK — env=production db=sqlite storage=local queue=memory billing=disabled usageLimits=observe logLevel=info
+     7	[instance] single-instance lease acquired by <host>:92961:726c6e87-09e2-44d0-af8a-d1823946bf35.
+
+== 4. Same artifact before and after ==
+$ cat .next/BUILD_ID
+MniplDUweIbeIPYT_CM5N
+$ curl -s http://127.0.0.1:3002/api/health
+{"ok":true,"status":"up"}
+$ curl -s http://127.0.0.1:3002/api/health/ready
+{"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,"instance":true,"checks":[{"name":"database","healthy":true}]}
+   toolchain:false is the documented environmental limitation of this machine
+   (no Ghostscript, no LibreOffice), unchanged by this stage.
+
+== 5. Where the ≈3 s of "server_processing" goes ==
+The load probe polls job status every 500ms, and it drives a Chrome instance on the
+same laptop while it does. Re-measured with a 25ms poll and no browser running:
+
+$ node /tmp/where3s.mjs        # POST /api/jobs?slug=compress-pdf, then poll every 25ms
+POST 202 at 15ms  (4888 bytes)      docs/qa/p1/multipage-fixture.pdf — the "ordinary" shape
+     19ms  200 running
+    512ms  200 completed
+
+POST 202 at 52ms  (23325045 bytes) /tmp/perf-fixtures/large-fixture.pdf — 22778 KB, 340 pages
+     56ms  200 running
+   1010ms  200 completed
+
+Ghostscript alone, the same two inputs, the exact argv from lib/server/toolProcessing.ts:
+$ /usr/bin/time -p gs -dSAFER -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 \
+    -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=/tmp/gs-out.pdf <input>
+  4888 bytes     real 0.09 / 0.07 / 0.07   (three runs)   ->    8218 bytes out
+  23325045 bytes real 0.49                                ->  181469 bytes out
+
+So: end to end 512ms and 1010ms; Ghostscript 80ms and 490ms of that. Both scale with
+input size. The ≈3 s in section 1 is the probe's 500ms poll granularity plus
+contention with the browser it drives — not a per-request server cost.
+
+The path a real user takes does not poll at all: app/api/jobs/[id]/progress/route.ts
+streams progress with a 400ms server-side poller.
+
+$ command -v gs soffice qpdf pdftoppm pdfinfo tesseract ocrmypdf
+gs /opt/homebrew/bin/gs · qpdf /opt/homebrew/bin/qpdf · pdftoppm ✓ · pdfinfo ✓
+tesseract ✓ · ocrmypdf ✓ · soffice MISSING
+   One binary of the seven is absent, and `/api/health/ready` ANDs all seven
+   (app/api/health/ready/route.ts:62 `Object.values(deps).every(Boolean)`), which is
+   the whole of this machine's 503. Compress ran on a real Ghostscript.
+
+== 6. An unauthenticated GET of someone else's job ==
+$ node /tmp/shape.mjs          # POST, then GET the job id with the session cookie DROPPED
+POST 202 {"jobId":"cmtoqojgr000buoq9lu434wkr"}
+GET  404 {"error":"Job not found."}
+   Correct: jobs are owner-scoped and a stranger is told "not found" rather than
+   "forbidden", so the endpoint does not confirm the id exists. Noted because the
+   trace above needs a cookie jar to work, not as a finding — 11-legacy-job-ownership.log
+   already covers the rule.

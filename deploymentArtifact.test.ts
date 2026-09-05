@@ -121,7 +121,7 @@ const SCHEMA_DEFAULTS: Record<string, string | number> = {
  * so it is dropped here too rather than being reported as set-to-nothing.
  */
 function envObjectWords(text: string): string {
-  const body = /\bconst env = \{\n([\s\S]*?)\n  \};/.exec(text)?.[1] ?? "";
+  const body = /\bconst env = \{\n([\s\S]*?)\n {2}\};/.exec(text)?.[1] ?? "";
   return [...body.matchAll(/^ {4}([A-Z][A-Z0-9_]*): (.+?),?$/gm)]
     .filter(([, , value]) => value !== "undefined")
     .map(([, key, value]) => `${key}=${/^"[^"]*"$/.test(value) ? value : "$RUNTIME"}`)

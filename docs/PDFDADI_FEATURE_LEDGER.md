@@ -5338,3 +5338,41 @@ plain-text lifecycle lines, and fails if the document alerts on anything unpinne
   store directory's *presence* rather than writability (manual row **L3**, an owner
   decision).
 - **Next related step:** Stage 11, the bounded performance smoke test.
+
+## A memory peak, a cold-start number, and the ≈3 s that was never the server
+
+Production acceptance Stage 11 measured performance, and the one measurement that
+changes a deployment decision is memory. Sixty seconds of page serving at concurrency 4
+— 15 896 requests, all 200, p95 41 ms — took RSS from 171 MB to a **peak of 543 MB**,
+and back to 322 MB within ten seconds of the load stopping, then flat. A second run on a
+longer-lived process traced the same shape at 334 → 652 → 369 MB. So the peak is
+transient and the settled floor rises about 35 MB and stops: not a leak, but a container
+memory limit has to be sized to the peak, before any Ghostscript, which makes **1 GB the
+smallest limit that is not a gamble**. Cold start: 393 ms from `exec` to a 200 on
+`/api/health`, 56 ms for the first server-rendered page, 67 ms for a graceful SIGTERM to
+release the lease and free the port.
+
+The other result is a retraction. Two audits recorded "server processing takes ≈3 s
+largely independent of input size" and both were careful to call it an observation
+rather than a diagnosis. It was the instrument: the load probe polls job status every
+500 ms while driving a Chrome instance on the same laptop. Polled every 25 ms on an idle
+host, the same 5 KB input completes in **512 ms** and the same 22.7 MB / 340-page input
+in **1010 ms** — Ghostscript itself is 80 ms and 490 ms of that, so it scales with size
+after all. The path a real user takes never polls: `/api/jobs/[id]/progress` streams
+from a 400 ms server-side poller. `P2-6`'s row now carries that diagnosis and a
+recommendation to close it.
+
+Workspace Editor CLS **0.212** reproduced byte-for-byte against the prelaunch run on a
+payload 8 KB smaller, which is what open `P2-2` describes, and it stays open: a
+reserved-height container in the authenticated workbench is product work.
+
+- **Feature flags:** none new.
+- **Known limitations:** every latency is a **floor** — one machine ran the browser, the
+  TLS front and the origin, with no CDN, no throttling and no other tenants. Memory was
+  measured as a peak, not a ceiling (finding the ceiling means driving the process to
+  OOM). The soak is GETs only, so sustained *write* load against single-writer SQLite is
+  still unmeasured, and fan-out measures what is *accepted* rather than throughput under
+  saturation — `WORKER_CONCURRENCY=2` means 16 admitted jobs did not run 16 at once.
+  `soffice` is absent on this host, so Office conversions have never run.
+- **Next related step:** Stage 12, the human visual-acceptance package, which only the
+  owner can accept.
