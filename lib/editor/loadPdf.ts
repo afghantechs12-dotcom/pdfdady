@@ -85,7 +85,10 @@ export interface LoadedPdf {
   sourceBytes: Uint8Array;
 }
 
+export interface PdfLoadProgress { phase: "reading" | "preparing" | "rendering"; completed?: number; total?: number }
+
 export interface LoadPdfOptions {
+  onProgress?: (progress: PdfLoadProgress) => void;
   /**
    * When true (default), existing text on each page is extracted into editable
    * `TextObject`s. Set false to open a blank-overlay editor (faster for very
@@ -130,8 +133,10 @@ const PER_PAGE_MAX_LINES = 2_000;
 
 export async function loadPdfIntoEditor(file: File, options: LoadPdfOptions = {}): Promise<LoadedPdf> {
   const extract = options.extractText ?? true;
+  options.onProgress?.({ phase: "reading" });
   const sourceBytes = new Uint8Array(await file.arrayBuffer());
-  const doc = await getPdfDoc(file);
+  options.onProgress?.({ phase: "preparing" });
+  const doc = await getPdfDoc(file, sourceBytes);
 
   // Page-count cap: reject (do not truncate) over the limit — see PdfOpenError.
   if (doc.numPages > MAX_OPEN_PAGES) {
@@ -146,6 +151,7 @@ export async function loadPdfIntoEditor(file: File, options: LoadPdfOptions = {}
   let totalExtracted = 0;
 
   for (let i = 1; i <= doc.numPages; i++) {
+    options.onProgress?.({ phase: "rendering", completed: i - 1, total: doc.numPages });
     const page = await doc.getPage(i);
     // The editor's page space is UNROTATED (MediaBox) space — objects live
     // there, and the page's /Rotate is carried as `EditorPage.rotation`, a

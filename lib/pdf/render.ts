@@ -94,7 +94,7 @@ export function releasePdfDoc(file: File): void {
   }, DESTROY_GRACE_MS);
 }
 
-export async function getPdfDoc(file: File): Promise<PDFDocumentProxy> {
+export async function getPdfDoc(file: File, sourceBytes?: Uint8Array): Promise<PDFDocumentProxy> {
   const cached = docCache.get(file);
   if (cached) return cached.promise;
 
@@ -103,7 +103,7 @@ export async function getPdfDoc(file: File): Promise<PDFDocumentProxy> {
 
     let bytes: ArrayBuffer;
     try {
-      bytes = await file.arrayBuffer();
+      bytes = sourceBytes ? new Uint8Array(sourceBytes).buffer : await file.arrayBuffer();
     } catch {
       throw new PdfProcessingError(
         "We couldn't read this file. Please try again.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   localErrorCategoryOf,
   type ProcessedResult,
@@ -79,6 +79,7 @@ function personalizeFileName(generic: string, sources: readonly File[]): string 
  * throwing tracker cannot turn a working run into a failed one.
  */
 export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
+  const inFlight = useRef(false);
   const [status, setStatus] = useState<ProcessStatus>("idle");
   const [result, setResult] = useState<ProcessedResult | null>(null);
   const [error, setError] = useState<LocalToolFailure | null>(null);
@@ -93,6 +94,8 @@ export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
 
   const run = useCallback(
     async (task: () => Promise<ProcessedResult>, source?: File | readonly File[]) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       // A multi-input tool passes all of them: the naming policy is what decides
       // that ten merged files become `first-and-9-more-merged.pdf` rather than a
       // name built from whichever file happened to be first.
@@ -100,7 +103,6 @@ export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
       funnel.noteRunStart();
       setStatus("processing");
       setError(null);
-      setResult(null);
       try {
         const res = await task();
         // One intention per successful run, minted HERE — the one seam every local
@@ -127,6 +129,8 @@ export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
         setStatus("error");
         funnel.noteRunFailed(localErrorCategoryOf(err));
         return;
+      } finally {
+        inFlight.current = false;
       }
       funnel.noteRunSucceeded();
     },
@@ -134,6 +138,7 @@ export function usePdfProcessor({ fileCount }: UsePdfProcessorOptions) {
   );
 
   const reset = useCallback(() => {
+    if (inFlight.current) return;
     setStatus("idle");
     setResult(null);
     setError(null);
