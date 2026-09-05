@@ -402,7 +402,21 @@ async function main() {
       );
     }
     if (msg.method === "Runtime.exceptionThrown") {
-      consoleErrors.push(msg.params?.exceptionDetails?.text ?? "exception");
+      // `text` is the word "Uncaught" for every thrown Error — the message lives in
+      // `exception.description`. Recording only `text` made this row report the
+      // string "Uncaught" and nothing else, which is a failure nobody can act on:
+      // production acceptance hit it and had to re-run the probe to learn what broke.
+      const d = msg.params?.exceptionDetails ?? {};
+      consoleErrors.push(
+        [
+          d.text,
+          d.exception?.description ?? d.exception?.value,
+          d.url ? `at ${d.url}:${d.lineNumber}` : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .slice(0, 400) || "exception",
+      );
     }
     if (msg.method === "Network.requestWillBeSent") {
       const req = msg.params.request;

@@ -40,6 +40,13 @@ services:
       # which is inside the image layer AND inside a root-owned directory the
       # uid-1001 server cannot create.
       - STORAGE_LOCAL_ROOT=${STORAGE_LOCAL_ROOT:-/app/data/storage}
+      # The admin password hash and every CMS edit. It defaults to
+      # `<working directory>/data/admin`, which is right here only because the
+      # image's WORKDIR is /app and the volume below is mounted there — stated
+      # explicitly so the variable and the mount cannot drift apart, and because
+      # in a non-container deployment the same default lands inside the .next
+      # build output. deploymentArtifact.test.ts pins it to the mount target.
+      - ADMIN_STORE_DIR=${ADMIN_STORE_DIR:-/app/data/admin}
       # REQUIRED in production, and the reason this file has no `replicas:` and a
       # fixed `container_name` (which makes `docker compose up --scale` fail).
       # The upload rate limiter counts in one process's memory and the database is

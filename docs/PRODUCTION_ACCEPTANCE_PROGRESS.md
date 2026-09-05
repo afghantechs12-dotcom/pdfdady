@@ -6,10 +6,10 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T16:26:00Z (UTC) |
+| Last updated | 2026-09-05T19:45:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
-| Build artifact | `.next/BUILD_ID` = `U1Tagyyl2WuT2jmfk2Tvm` — rebuilt in Stage 6 because `NEXT_PUBLIC_SITE_URL` is a build input. Supersedes the accepted cold artifact `98appVCcbyMxzlhk26zya`; the final candidate is rebuilt and re-measured in Stage 14. |
+| Build artifact | `.next/BUILD_ID` = `DIi1m4KbzBmf96popnixW` — rebuilt in Stage 7 because the admin-store fix changes compiled application code. Supersedes `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6, rebuilt because `NEXT_PUBLIC_SITE_URL` is a build input) and the accepted cold artifact `98appVCcbyMxzlhk26zya`; the final candidate is rebuilt and re-measured in Stage 14. |
 | `package-lock.json` | sha256 `43558cef02ddf3ed8a579b82a995bb8e080e29c26da50ef2a91da1119a9fd039` |
 | Production deployment | **NOT AUTHORIZED.** Stage 15 requires explicit owner authorization and has not begun. |
 | Remote | none configured. Nothing pushed. `main` untouched. |
@@ -24,7 +24,7 @@ what it produced, and what is still owed.
 | 4 | Persistent database and storage | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 5 | Network and proxy topology | **DONE** — 1 P1 and 1 P3 found and fixed |
 | 6 | Staging deployment (local production-mode surrogate) | **DONE** — 1 P2 and 1 P3 found and fixed |
-| 7 | Production-like user acceptance | NOT STARTED |
+| 7 | Production-like user acceptance | **DONE** — 1 P2 and 3 P3 found and fixed |
 | 8 | Security acceptance | NOT STARTED |
 | 9 | Reliability and recovery | NOT STARTED |
 | 10 | Observability and operations | NOT STARTED — no provider selected; provider-neutral templates only |
@@ -183,7 +183,7 @@ Stage 14 report.
 | --- | --- |
 | No container runtime (docker, podman, nerdctl, finch, colima, lima, buildah, kubectl all absent) | Stage 3 is static validation only: `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
 | No image scanner (trivy, grype, syft, docker-scout) | no image CVE scan in Stage 8 |
-| `soffice`/`libreoffice` absent | `pdf-to-word` and `html-to-pdf` are ENVIRONMENTAL; `/api/health/ready` correctly answers 503 `toolchain:false` here |
+| `soffice`/`libreoffice` absent | `pdf-to-word` and `html-to-pdf` are ENVIRONMENTAL and `word-to-pdf`/`powerpoint-to-pdf`/`excel-to-pdf` are NOT EXERCISED (no fixtures either); one workflow-probe row (the 415 `UNSUPPORTED_OUTPUT` branch) is unreachable for the same reason; `/api/health/ready` correctly answers 503 `toolchain:false` here |
 | No staging target, no hosting credentials | Stages 6–11 run against a local production-mode surrogate (`scripts/restart-origin.sh` + `scripts/tls-front.mjs`, throwaway DB and storage root) |
 | No monitoring provider selected | Stage 10 delivers metrics, thresholds and provider-neutral templates, marked `MONITORING: NOT EXERCISED` |
 | No Git remote | nothing can be pushed; `main` stays untouched |
@@ -313,25 +313,85 @@ paths, B4) are cleared.
 Evidence: `docs/evidence/production-acceptance/09-staging-surrogate.md`,
 `09-surrogate-runtime.log`, `09-csp.log`, `09-static-harness.json`.
 
+## Stage 7 — production-like user acceptance (DONE)
+
+Six browser probes against the surrogate — the built standalone artifact behind real
+TLS, which is what the production gate and `Secure` cookies require. Full write-up:
+`docs/evidence/production-acceptance/10-user-acceptance.md`.
+
+**Rebuilt during this stage.** `BUILD_ID DIi1m4KbzBmf96popnixW` (was
+`U1Tagyyl2WuT2jmfk2Tvm`): the fix below changes compiled application code, and the
+first restart proved it — the running server still resolved the old path and
+readiness reported `dataDir: false` until the rebuild.
+
+| Probe | Command (all with `NODE_TLS_REJECT_UNAUTHORIZED=0`) | Result | Exit |
+| --- | --- | --- | --- |
+| Capability truth | `node scripts/product-capability-truth-probe.mjs --url https://192.168.0.175:3001` | **49/49** | 0 |
+| Tool runtime matrix | `node scripts/tool-runtime-matrix-probe.mjs --url …` | **PASS 29/29 exercised**, PRODUCT FAILURE **0**, ENVIRONMENTAL 2, NOT EXERCISED 3 | 0 |
+| Processing pilot (`PROCESSING_PIPELINE=on`) | `node scripts/processing-pilot-probe.mjs --url …` | **41/41 PASS** | 0 |
+| Processing pilot (shipped default) | same | 30/33 — the three pipeline-shaped rows, which the probe documents as the flag-off mutation | 0 |
+| Workspace reliability | `node scripts/phase1-workspace-reliability-probe.mjs https://…` | **29/29**, 2 NOT EXERCISED (`--dev-log-forwarding` needs `next dev`) | 0 |
+| Usage analytics | `node scripts/usage-analytics-probe.mjs --url … --admin-pw …` | **83/83** | 0 |
+| Workflow completeness | `node scripts/workflow-completeness-probe.mjs --url …` | **155/156**, 1 ENVIRONMENTAL, 0 PRODUCT | 0 |
+
+**P2, fixed: the admin store lived in the build output.** `data/admin/index.ts`
+resolved `store.json` against `process.cwd()`, which in production is
+`.next/standalone` — so a non-compose deployment lost all CMS content **and**
+`settings.adminPasswordHash` on every deploy, and a lost hash re-opens `/admin/setup`
+to an unauthenticated visitor. Now `ADMIN_STORE_DIR`, refused by the production gate
+when relative or inside `.next`. Falsified: the gate printed the exact file and
+exited 1 (`10-admin-store-gate-refusal.log`); with it set, `POST /api/admin/setup`
+put the hash in the configured directory, the repository's shipped store stayed
+empty, and `.next/standalone/data/` was never created.
+
+**P3 ×3, fixed:** the documented `docker run` mounted two of the three state
+directories (now three, and `deploymentArtifact.test.ts` parses its `-v` targets);
+`scripts/usage-analytics-probe.mjs` had no `--ignore-certificate-errors` and a
+same-turn rect read in one hand-rolled click, which made a working Merge tool look
+broken (`[1,1,0,0,0]`) — it now uses the file's own scrolling helper and reports
+83/83; and the four production-mode launchers each needed the new variable.
+
+Open observation (**S1**, not launch-critical): one `Uncaught (in promise)` in the
+first workflow run on the previous artifact, with no description recorded. The
+collector now records descriptions, and it has not recurred in three runs since.
+
+Secrets: none requested, echoed or written. The throwaway admin password was
+generated locally into `/tmp`, and every log copied into evidence was checked
+against it before being written.
+
+Throwaway state used by this stage: `file:/tmp/pa-stage6-db.db`,
+`file:/tmp/pa-stage7-analytics-db.db` (virgin, for the zero-data section),
+`/tmp/pa-stage6-storage`, `/tmp/pa-stage7-analytics-storage`, `/tmp/pa-stage6-admin`.
+
 ## Remaining actions
 
-1. Stages 7–11 — the surrogate is **already running** and is what these stages
-   measure: origin `http://127.0.0.1:3002` (`BUILD_ID U1Tagyyl2WuT2jmfk2Tvm`,
-   `file:/tmp/pa-stage6-db.db`, `/tmp/pa-stage6-storage`, log
-   `/tmp/pa-stage6-origin.log`) behind `https://192.168.0.175:3001`. Restart it
-   with `AUDIT_SITE_URL=https://192.168.0.175:3001 AUDIT_DATABASE_URL=... \
-   AUDIT_STORAGE_ROOT=... scripts/restart-origin.sh` — a **different** origin needs
-   a rebuild, the same one does not. Stage 7 exercises the tools end to end
-   (office-format conversion is `NOT EXERCISED` — no `soffice`), Stage 8 security,
-   Stage 9 reliability and recovery, Stage 10 observability
-   (`MONITORING: NOT EXERCISED`, provider-neutral templates, no invented provider),
-   Stage 11 the bounded performance smoke test.
+1. Stages 8–11 — the surrogate is **already running** and is what these stages
+   measure: origin `http://127.0.0.1:3002` (`BUILD_ID DIi1m4KbzBmf96popnixW`)
+   behind `https://192.168.0.175:3001`. Restart it with
+
+   ```sh
+   AUDIT_SITE_URL=https://192.168.0.175:3001 \
+   AUDIT_DATABASE_URL=file:/tmp/pa-stage6-db.db \
+   AUDIT_STORAGE_ROOT=/tmp/pa-stage6-storage \
+   AUDIT_ADMIN_STORE_DIR=/tmp/pa-stage6-admin \
+     scripts/restart-origin.sh > /tmp/pa-origin.log 2>&1 &
+   ```
+
+   A **different** origin needs a rebuild, the same one does not.
+   `AUDIT_ADMIN_STORE_DIR` is new in Stage 7 and its default (`/tmp/audit-admin`) is
+   a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
+   `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
+   off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
+   default. Stage 8 is security, Stage 9 reliability and recovery, Stage 10
+   observability (`MONITORING: NOT EXERCISED`, provider-neutral templates, no
+   invented provider), Stage 11 the bounded performance smoke test.
 2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
    `VISUAL ACCEPTANCE PENDING`.
-3. Stage 13 — decision register from the 12 manual rows and 14 owner decisions.
+3. Stage 13 — decision register from the manual rows (11 harness rows plus **S1**,
+   the unexplained page exception from Stage 7) and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 6; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 7; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,

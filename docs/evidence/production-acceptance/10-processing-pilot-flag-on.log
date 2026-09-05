@@ -1,0 +1,72 @@
+
+── 0. Environment
+  ok   Ghostscript is installed
+(node:25860) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   app is serving at https://192.168.0.175:3001
+
+── 1. The pilot page boots and offers the form
+  ok   the compress page rendered its upload form
+  ok   the button the user clicks is present
+  ok   no terminal state is claimed before anything ran
+  ok   the page states the execution mode it actually uses
+
+── 2. Submitting routes through the unified pipeline, not the legacy path
+  ok   the submit button was clickable
+  ok   the click produced a submission request
+  ok   it posts to /api/jobs (the pipeline), not /api/tools (the legacy route)
+  ok   the page mounted the PIPELINE runner (its submit carries an Idempotency-Key)
+  ok   the submission was accepted
+  ok   it was accepted with 202 (queued), not 200 (done inline)
+  ok   the job-creation request returned quickly (22ms < 2500ms)
+       submit round-trip: 22ms
+
+── 3. Progress is reported as real stages, and settles at a terminal one
+  ok   at least one real stage label was shown to the user
+       stages observed in the UI: Preparing → Queued → Processing → Finalizing
+  ok   the page polled a job id
+       job id: cmtonhinz0005uotp900rg3sx   settled in 461ms
+  ok   a completed job reports the terminal stage 'done', not a stale one
+  ok   no numeric progress was invented
+
+── 4. The job reaches a terminal, successful state in the UI
+  ok   the job settled before the deadline
+  ok   the panel reports a finished result
+  ok   a Download BUTTON is offered (not merely the word in the page copy)
+  ok   the failure branch is not showing
+
+── 5. The result is real PDF bytes, and the size the UI advertises
+  ok   the result route served the output
+  ok   the downloaded bytes are a PDF
+  ok   the output is non-trivial in size
+  ok   work actually happened (output differs from input)
+  ok   the byte count the API reports equals the bytes delivered
+  ok   the panel displays the delivered output size (7.9 KB)
+  ok   the panel shows the before/after comparison (10 KB → 7.9 KB)
+  ok   the panel quantifies the saving it achieved
+  ok   the stored output name is derived from the submitted name, sanitized
+       10250 bytes in → 8118 bytes out (21% smaller)
+       panel said: 10 KB → 7.9 KB(21% smaller)
+       served from: https://192.168.0.175:3001/api/storage/file?key=jobs%2Fcmtonhinz0005uotp900rg3sx%2Foutput%2FQuarterly+Report-compressed.pdf&verb=get&expires=1788629835&sig=fcf357867b5a4f41082e3b0418f87287775615484c8e8bb4ada01a112cb30a2e
+       content-disposition after redirect: null (documented best-effort; see report)
+
+── 6. A LOCAL tool keeps the document in the browser
+  ok   the merge page rendered
+  ok   the merge page states local processing
+  ok   no terminal state is claimed before anything ran
+  ok   the merge button was clickable
+  ok   the local merge really produced a result in the browser
+  ok   the merge created no job
+  ok   the merge called no server tool route
+  ok   nothing but the funnel beacon carried a body while merging (the PDF bytes never left)
+  ok   the beacon body is a handful of declared dimensions, not a document
+  ok   the beacon body names no file and carries no PDF bytes
+       requests during the merge: 4 (/api/analytics/events, /_next/static/chunks/08vt3vfga_3_u.js, /api/workflow/save-target)
+       blob: anchor present: false
+
+── 7. No page errors along the way
+  ok   the browser reported no console errors
+
+────────────────────────────────────────────────────────────────
+checks passed: 41   failed: 0
+PILOT BROWSER VERIFICATION: PASS

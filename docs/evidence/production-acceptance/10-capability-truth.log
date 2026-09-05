@@ -1,0 +1,57 @@
+(node:21517) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  0: a server is answering on the verification origin  — GET / → 200
+PASS  B1: /tools renders and states a tool count  — status 200, stated 32/32, 32 distinct tool links
+PASS  B2: every count /tools states is the same number  — 32 / 32
+PASS  B3: the catalog offers both execution filters, so the two modes are distinguishable  — Browser, Secure cloud
+PASS  B4: every representative route answers 200 — available and unavailable alike  — merge-pdf:200 compress-pdf:200 word-to-pdf:200 redact-pdf:200 chat-with-pdf:200 edit-pdf:200
+PASS  A1: the homepage states the same tool count /tools does  — homepage 32/32 vs /tools 32
+PASS  A2: the hero's own figures are the registry's, and its browser count is a subset  — ready 32, browser 18, canonical 32
+PASS  A3: the hero mock advertises no control for an unbuilt tool (Redact)  — redact:false mock-anchor:true
+PASS  A4: where the homepage names the AI assistant, it is marked Preview  — index 30, marked true
+PASS  A5: the homepage makes no absolute claim about checkout or billing  — page rendered:true
+PASS  A6: the jobs claim promises progress and cancellation, not retry  — 
+
+Jobs you can watch
+
+Server-side work reports progress while it runs and can be cancelled, instead of leaving you guessing.
+PASS  C1: the pricing page renders and its billing summary resolved  — status 200, summary 200, configured false, action unavailable
+PASS  C2: with no purchasable plan, the page renders no purchase control at all  — purchase control false, contact controls 2, action unavailable
+PASS  C3: the page states no absolute absence of checkout in either deployment  — page length 2567
+PASS  C4: Business is described as unbuilt and does not re-sell what Free includes  — bullets One invoice for the whole organization | Invitation emails for people without an account yet | Support with a response commitment
+PASS  C5: Free advertises the collaboration it actually grants, and promises no 'forever'  — Free | Available now |  | $0/today |  | Every tool that works today, plus a Workspace to keep documents in. |  | Every PDF tool that is available today | Browser tools without an account | Workspace w
+PASS  F: /tools/chat-with-pdf (AI) says it is not available and offers a way back  — Skip to content | PDFDadi | Tools | AI Assistant | PREVIEW | Edit | Convert | Compress | Pricing | Log in | Get Started Free | Home | Tools | Chat with PDF | Ch
+PASS  F: /tools/chat-with-pdf (AI) offers no upload, no dropzone and no start control  — inputs 0, dropzones 0, controls 
+PASS  F: /tools/redact-pdf (planned conventional) says it is not available and offers a way back  — Skip to content | PDFDadi | Tools | AI Assistant | PREVIEW | Edit | Convert | Compress | Pricing | Log in | Get Started Free | Home | Tools | Redact PDF | Redac
+PASS  F: /tools/redact-pdf (planned conventional) offers no upload, no dropzone and no start control  — inputs 0, dropzones 0, controls 
+PASS  G1: Merge discloses browser processing and local execution, with an upload control  — {"browser":true,"cloud":false,"local":true,"job":false,"cancellable":false,"upload":1,"anchor":1494}
+PASS  G2: Compress discloses secure-cloud processing AND that waiting means a background job  — {"browser":false,"cloud":true,"local":false,"job":true,"cancellable":true,"upload":1,"anchor":1632}
+PASS  G3: a second server tool makes the same two-part disclosure, not a vaguer one  — {"browser":false,"cloud":true,"local":false,"job":true,"cancellable":true,"upload":1,"anchor":1644}
+PASS  G4: no available tool route claims both browser and cloud processing  — merge-pdf:B compress-pdf:C word-to-pdf:C
+PASS  D0: a throwaway account reaches the authenticated app  — https://192.168.0.175:3001/workspaces
+PASS  D0: the Workspace that carries the usage card exists  — https://192.168.0.175:3001/workspaces/cmton6p7w000fuogvm8ivkhuz?organizationId=cmton6jo30009uogvqlzefy71
+PASS  D1: the usage card rendered with real figures, not an unavailable state  — mode observe, usage status 200, block Usage |  | Free |  | Monitoring | Heavy operations | 0 of 100 | Resets in 7 hours | Upload volume | 0 B of 5 GB | Resets in 7 hours |  | Largest file this plan 
+PASS  D2: in observe mode the card states no headroom figure — the recorded defect  — mode observe, headroom false, measured true, badge true
+PASS  D3: measured usage is still shown, so observe mode is not a blank card  — used-of-limit true, literal null false
+PASS  D4: the file-size figure says which ceiling it is  — plan ceiling true, caveat true
+PASS  E1: the membership control is 'Add member', never 'Invite'  — buttons CCapability Truth ProbeWorkspace/Collapse/CPCapability Probercapability.1788628419618@example.test//Save settings/Add member
+PASS  E2: the page says plainly that no invitation email is sent  — disclaimer present
+PASS  E3: the roles offered are the roles the domain implements  — roles Viewer/Commenter/Editor/Owner
+PASS  E4: no membership request was sent, so no email could have been sent to anyone  — none
+PASS  H0: the store volume and the sitemap are both readable, so this scenario can run  — store 1787b, sitemap 8159b
+PASS  H1: the catalog states the same count it stated before the CMS edit  — after 32/32 vs canonical 32
+PASS  H2: the set of tool links is byte-identical to the canonical inventory  — 32 links after vs 32 before
+PASS  H3: the invented tool is neither linked nor named anywhere in the catalog  — linked false, named false
+PASS  H4: the editorial override IS rendered — the fix did not disable the CMS  — renamed card present
+PASS  H5: the same record could not take that working tool offline  — merge-pdf still an active card
+PASS  H6: the tombstoned working tool is still listed, still active  — compress-pdf still an active card
+PASS  H7: the promoted AI tool's route still refuses to look operational  — named true, unavailable true, inputs 0, catalog link false
+PASS  H8: the invented route 404s — nothing PDFDadi rendered points at it  — status 404
+PASS  H9: the sitemap is unchanged: no invented URL, no promoted AI tool, merge-pdf kept  — 32 tool URLs after vs 32 before
+PASS  H10: an unauthenticated create is refused and writes nothing to the volume  — POST → 401, key written false
+PASS  H11: the store volume was restored byte-for-byte, so the probe left no test data  — 1787b restored
+PASS  H12: after restore the catalog states the canonical count again  — 32/32 vs canonical 32
+PASS  browser console: no React or page exceptions anywhere in the walk
+PASS  no document response in the whole walk was a 5xx
+
+49/49 checks passed

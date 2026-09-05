@@ -60,9 +60,10 @@ function record(id, label, pass, detail) {
  * Every value the production gate requires has to be composed here, not just the
  * ones this probe cares about: a process that is refused at boot answers 0 on
  * every port, which reads as "exclusion works" on the standby and as a broken
- * product on the holder. `STORAGE_LOCAL_ROOT` is set for that reason — the gate
- * gained it in Stage 4 of production acceptance and this launcher, which
- * hand-writes its own environment, stopped booting at all.
+ * product on the holder. `STORAGE_LOCAL_ROOT` and `ADMIN_STORE_DIR` are set for
+ * that reason — the gate gained them in Stages 4 and 7 of production acceptance,
+ * and this launcher, which hand-writes its own environment, stopped booting at all
+ * each time.
  */
 function start(port, entry = ENTRY) {
   const child = spawn(
@@ -72,6 +73,7 @@ function start(port, entry = ENTRY) {
       `set -a; . ./.env; set +a; export NODE_ENV=production DEPLOYMENT_TOPOLOGY=single-instance ` +
         `PORT=${port} HOSTNAME=127.0.0.1 DATABASE_URL='${DB}' ` +
         `STORAGE_LOCAL_ROOT="\${AUDIT_STORAGE_ROOT:-/tmp/audit-storage}" ` +
+        `ADMIN_STORE_DIR="\${AUDIT_ADMIN_STORE_DIR:-/tmp/audit-admin}" ` +
         `NEXT_PUBLIC_SITE_URL="\${AUDIT_SITE_URL:-https://172.20.10.2:3001}"; exec node ${entry}`,
     ],
     { stdio: ["ignore", "pipe", "pipe"] },

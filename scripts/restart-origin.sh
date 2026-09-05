@@ -14,6 +14,9 @@ set -e
 cd "$(dirname "$0")/.."
 rm -rf .next/standalone/.next/static
 cp -R .next/static .next/standalone/.next/static
+# Dead state from before ADMIN_STORE_DIR existed: a store the standalone entry used
+# to write into its own directory. Removed so nobody debugs a file nothing reads.
+rm -rf .next/standalone/data
 [ -d public ] && cp -R public .next/standalone/public 2>/dev/null || true
 set -a
 . ./.env
@@ -29,6 +32,18 @@ export DATABASE_URL="${AUDIT_DATABASE_URL:-file:/tmp/audit-final-db.db}"
 # production acceptance, when the Stage 4 gate change made this script's own
 # environment incomplete — `deploymentArtifact.test.ts` now feeds it to the gate.
 export STORAGE_LOCAL_ROOT="${AUDIT_STORAGE_ROOT:-/tmp/audit-storage}"
+# Absolute, and NOT under the repository's `.next`, because the standalone entry
+# below chdirs into `.next/standalone`: unset, the admin password hash and all CMS
+# content would be written into the build output and destroyed by the next build.
+# Added in Stage 7 of production acceptance, when the gate grew the requirement
+# this script's own chdir made unavoidable.
+export ADMIN_STORE_DIR="${AUDIT_ADMIN_STORE_DIR:-/tmp/audit-admin}"
+# Seeded from the repository's shipped store the way the image seeds its volume, so
+# the origin renders the content this build ships rather than code defaults. The
+# directory must exist before boot for a second reason: `/api/health/ready` checks
+# `fs.access(dirname(STORE_PATH))`, so an absent directory reports NOT READY.
+mkdir -p "$ADMIN_STORE_DIR"
+[ -f "$ADMIN_STORE_DIR/store.json" ] || cp data/admin/store.json "$ADMIN_STORE_DIR/store.json"
 export NEXT_PUBLIC_SITE_URL="${AUDIT_SITE_URL:-https://172.20.10.2:3001}"
 # The guarded entry, from the repository root — `ingress/server.mjs` installs the
 # guard around `http.createServer` and then loads `.next/standalone/server.js`,

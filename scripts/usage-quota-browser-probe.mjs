@@ -176,6 +176,12 @@ async function startServer({ dbUrl, storageRoot, siteUrl, mode, pipeline }) {
     ADMIN_SECRET: "probe-admin-secret-not-a-real-one",
     NEXT_PUBLIC_SITE_URL: siteUrl,
     STORAGE_LOCAL_ROOT: storageRoot,
+    // The admin store, beside the storage root and outside the repository. Required
+    // for the same reason as the two above: unset it resolves against the working
+    // directory, and `ingress/server.mjs` chdirs into `.next/standalone`, which the
+    // production gate refuses — the server would exit 1 and every check below would
+    // read as a product failure.
+    ADMIN_STORE_DIR: `${storageRoot}-admin`,
     PROCESSING_PIPELINE: pipeline,
     // `undefined` means "leave unset", so section 7 observes the DEFAULT rather
     // than a value this probe supplied.

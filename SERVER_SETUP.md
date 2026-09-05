@@ -50,7 +50,7 @@ and never echoes a value, because this text lands in logs and error trackers:
 
 ```
 [startup] PDFDadi refused to start.
-Refusing to start: 5 production configuration problems.
+Refusing to start: 6 production configuration problems.
   - DATABASE_URL is not set. Point it at a SQLite file on a persistent volume,
     e.g. file:/app/data/db/pdfdadi.db. There is no production default on
     purpose: a relative path would silently put the live database inside the
@@ -67,6 +67,11 @@ Refusing to start: 5 production configuration problems.
     the container's writable layer — and deleted by the next deploy. Point it at
     a persistent volume, e.g. STORAGE_LOCAL_ROOT=/app/data/storage, or configure
     all 4 R2 variables to store objects remotely.
+  - The admin store would be written to /app/.next/standalone/data/admin/store.json,
+    inside the .next build output — a directory the next build or deploy replaces.
+    It holds the admin password hash, so losing it re-opens /admin/setup to an
+    unauthenticated visitor, and it holds every CMS edit. Point ADMIN_STORE_DIR at
+    a persistent volume, e.g. ADMIN_STORE_DIR=/app/data/admin.
 ```
 
 The process then exits with code 1, so Docker, systemd or your orchestrator
@@ -80,6 +85,7 @@ reports a failed container rather than a running one that 500s.
 | `ADMIN_SECRET` | Signs admin session cookies *and* local storage download URLs. Must be ≥16 characters, and must not be the public dev fallback string that ships in this repo. |
 | `NEXT_PUBLIC_SITE_URL` | Signed download and multipart-upload URLs are built from it; a loopback value hands clients links to their own machine. Must be an absolute `http(s)` URL and not localhost/127.0.0.1/0.0.0.0/::1. |
 | `STORAGE_LOCAL_ROOT` | Required **unless** all four R2 variables are set. Must be **absolute**: the `.storage/local` default resolves against the working directory, so in a container every uploaded document lands in the image's writable layer and is deleted by the next deploy. `docker-compose.yml` sets `/app/data/storage`, on a volume. |
+| `ADMIN_STORE_DIR` | Required **unless** the server's working directory is already a persistent absolute path outside the build output — in practice, the shipped container and nothing else. It holds `store.json`: every CMS edit **and** the admin password hash. Unset, it resolves to `<working directory>/data/admin`, and `.next/standalone/server.js` chdirs into its own directory first, so `npm run start` and systemd deployments put the password inside the build output; the next build deletes it and `/admin/setup` re-opens to an unauthenticated visitor. The gate refuses a relative value or one inside a `.next` directory. |
 | `DEPLOYMENT_TOPOLOGY` | Must be exactly `single-instance`, the only supported value. It makes the operator declare what the rest of the build assumes: upload rate limits are counted in one process's memory, and the database is single-writer SQLite. See "Instance topology" below. |
 
 **Also refused**
@@ -332,19 +338,23 @@ database) and `pdfdadi-storage` (uploaded and generated documents). The app runs
 on a no-egress `internal` network (see "Docker volume & network isolation"
 below).
 
-Or with plain Docker — note that every one of these is required, and that
-without the two mounts the database and the documents live in the container:
+Or with plain Docker — note that every one of these is required, and that without
+the three mounts the database, the documents and the admin password live in the
+container and are gone the moment it is replaced:
 
 ```bash
 docker build -t pdfdadi .
 docker volume create pdfdadi-db && docker volume create pdfdadi-storage
+docker volume create pdfdadi-data
 docker run -p 3000:3000 --tmpfs /tmp \
   -e ADMIN_SECRET="$ADMIN_SECRET" \
   -e NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
   -e DATABASE_URL=file:/app/data/db/pdfdadi.db \
   -e STORAGE_LOCAL_ROOT=/app/data/storage \
+  -e ADMIN_STORE_DIR=/app/data/admin \
   -e DEPLOYMENT_TOPOLOGY=single-instance \
   -v pdfdadi-db:/app/data/db -v pdfdadi-storage:/app/data/storage \
+  -v pdfdadi-data:/app/data/admin \
   pdfdadi
 ```
 
@@ -371,6 +381,22 @@ npm run build
 npx prisma migrate deploy   # applies the schema; required before the first start
 npm run start               # serves on PORT (default 3000)
 ```
+
+`ADMIN_STORE_DIR` matters most in **this** deployment. `npm run start` loads
+`.next/standalone/server.js`, which chdirs into its own directory, so an unset
+value puts the admin store — CMS content and the admin password hash — inside
+`.next/standalone/`, which `npm run build` replaces. Point it somewhere `npm run
+build` never touches, outside the checkout:
+
+```bash
+sudo mkdir -p /var/lib/pdfdadi/admin && sudo chown "$USER" /var/lib/pdfdadi/admin
+export ADMIN_STORE_DIR=/var/lib/pdfdadi/admin
+```
+
+The gate refuses to start rather than accepting the default, so this cannot be
+forgotten silently — but it also means a first deploy stops here until it is set.
+Give `DATABASE_URL` and `STORAGE_LOCAL_ROOT` the same treatment: absolute paths
+outside the checkout, on storage your backups cover.
 
 ## Windows (local development)
 

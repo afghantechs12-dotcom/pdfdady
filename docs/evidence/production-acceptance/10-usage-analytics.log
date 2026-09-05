@@ -1,0 +1,103 @@
+
+1. UNAUTHENTICATED
+  ok   GET /api/admin/analytics is 401 with no admin cookie — status 401
+  ok   401 body carries no report data — {"error":"Unauthorized"}
+  ok   visiting /admin/analytics unauthenticated lands on login, not the dashboard — Skip to content PDFDadi ADMIN OVERVIEW Dashboard Analytics CONTENT Pages Blog FAQ Pricing 
+
+2. ADMIN — ZERO DATA
+  ok   admin login succeeds — status 200 {"ok":true}
+  ok   GET /api/admin/analytics is 200 with an admin cookie — status 200
+  ok   zero state: runs 0, successRate null, funnel present and empty — runs=0 rate=null steps=5
+  ok   zero state is not degraded (the query ran, it just found nothing) — degraded=false
+  ok   report body contains no subjectHash / ownerId / properties
+  ok   window is bounded server-side — 7 day(s), clamped=false
+  ok   an unbounded range is clamped and reports that it was — days=92 clamped=true
+  ok   dashboard renders its zero state without an error
+  ok   zero state says 'No activity in this window'
+  ok   no 'Analytics unavailable' error card
+
+3. MERGE RUN — SYNTHETIC DOCUMENT
+  ok   merge tool page loads
+  ok   file input accepted the synthetic assignment — {"ok":true,"count":0}
+  ok   both synthetic documents are listed in the tool UI — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Merg
+  ok   primary merge action clicked with a real mouse event — Merge PDFs via mouse
+  ok   merge produced a result the user can act on — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Merge PDF Merge PDF Comb
+  ok   download action clicked — Download via mouse
+
+4. ADMIN — AFTER THE RUN
+  ok   the run produced analytics activity the dashboard can see — funnel=[1,1,1,1,1] execution=[{"label":"local","count":1}]
+  ok   every local funnel step fired, including download — [1,1,1,1,1]
+  ok   funnel steps are in the canonical local order — ["tool_view","file_selected","tool_start","job_succeeded","download"]
+  ok   no funnel step exceeds the one before it
+  ok   every conversion ratio is within 0–1
+  ok   populated report still carries no identity
+  ok   the local run WAS recorded as local activity — execution=[{"label":"local","count":1}]
+  ok   ...and it consumed no server allowance (local is observational only) — server_operations.used=0
+  ok   dashboard renders the populated state
+  ok   dashboard labels the funnel unit honestly (events, not visitors)
+  ok   dashboard shows no raw hash-looking identifier
+
+4b. LOCAL COVERAGE — BEYOND MERGE
+  ok   remove-pdf-metadata accepted a synthetic document — {"ok":true,"count":0}
+  ok   remove-pdf-metadata's action button was actually clicked — {"ok":true,"label":"Remove Metadata","via":"mouse","x":720,"y":428}
+  ok   remove-pdf-metadata ran and offered a download — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Remove PDF Metadata Remo
+  ok   remove-pdf-metadata download clicked — Download
+  ok   add-page-numbers accepted a synthetic document — {"ok":true,"count":0}
+  ok   add-page-numbers's action button was actually clicked — {"ok":true,"label":"Add Page Numbers","via":"mouse","x":720,"y":428}
+  ok   add-page-numbers ran and offered a download — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Add Page Numbers Add Pag
+  ok   add-page-numbers download clicked — Download
+  ok   the corrupt run was started, so the failure below is a run's failure — {"ok":true,"label":"Remove Metadata","via":"mouse","x":720,"y":428}
+  ok   a corrupt document produces a visible failure from the RUN, not a silent no-op — ["We couldn't render \"synthetic-broken.pdf\". It may be corrupted or not a valid PDF.","We couldn't read \"synthetic-broken.pdf\". It may be corrupted or not a valid PDF."]
+  ok   the failure message names no internals — no stack, no path, no library
+  ok   the failure does not offer a download of nothing — Skip to content PDFDadi Tools AI Assistant PREVIEW Edit Convert Compress Pricing Log in Get Started Free Home Tools Remo
+
+4c. ADMIN — LOCAL COVERAGE
+  ok   the dashboard compares at least three LOCAL tools, not just Merge — local funnels: remove-pdf-metadata, add-page-numbers, merge-pdf
+  ok   each of those tools reached a download, so every step is real — [["remove-pdf-metadata",[2,2,2,1,1]],["add-page-numbers",[1,1,1,1,1]],["merge-pdf",[1,1,1,1,1]]]
+  ok   the in-browser failure was filed under a normalized category — [{"label":"corrupt_document","count":1}]
+  ok   no raw error text or filename reached the report
+  ok   the report still carries no identity after the failure walk
+
+5. USER USAGE VIEW
+  ok   a synthetic account signs in through the real form path — status 201 {"user":{"id":"cmtonx40o000juotisfaz6x2m","email":"slice4-smoke-5173336779@example.test","name":"Slice4 Smoke","provider":"local","createdAt":"2026-09-05T17:34:22.105Z"},"redirectTo":"/workspaces"}
+  ok   GET /api/usage answers for the signed-in visitor — plan=free
+  ok   the session is recognised (plan is no longer guest) — plan=free
+  ok   /api/usage is private, no-store — private, no-store
+  ok   /api/usage exposes no owner id or counter key
+  ok   the signed-in account has a workspace to render the card in — {"count":1,"id":"cmtonx40r000muoti1eb1ijkr"}
+  ok   the usage card is present as its own section on the dashboard
+  ok   the usage card is in its ready state, not its error state — Usage Free Monitoring Heavy operations 0 of 100 Resets in 6 hours Upload volume 0 B of 5 GB Resets in 6 hours Largest file this plan allows per upload: 100 MB I
+  ok   card shows the plan from /api/usage — planLabel=Free
+  ok   card shows the heavy-operations figure from /api/usage — expected "0 of 100"
+  ok   card states the limit mode rather than implying enforcement — mode=observe
+  ok   card shows no owner id, counter key, or hash
+  ok   a tool page still loads regardless of the usage surface — status 200
+
+6. REMOTE — AUTHORITATIVE METERING
+  ok   a signed-in visitor's operation count is readable before any remote run — [{"meter":"server_operations","unit":"operations","window":"day","used":0,"limit":100,"remaining":100,"resetAt":"2026-09-06T00:00:00.000Z"},{"meter":"server_input_bytes","unit":"bytes","window":"day","used":0,"limit":5368709120,"remaining":5368709120,"resetAt":"2026-09-06T00:00:00.000Z"}]
+  ok   the usage snapshot publishes operations, not per-attempt compute — server_operations, server_input_bytes
+  ok   the compress-pdf pipeline accepted a submission from the browser — status 202 {"jobId":"cmtonx7sf000vuotiov1cqdgr","job":{"id":"cmtonx7sf000vuotiov1cqdgr","toolSlug":"compress-pdf","status":"queued","stage":"queued","stageLabel":"Queued","progress":20,"attempt":0,"maxAttempts":
+  ok   submission returned a job id to poll — {"jobId":"cmtonx7sf000vuotiov1cqdgr","job":{"id":"cmtonx7sf000vuotiov1cqdgr","toolSlug":"compress-pdf","status":"queued","stage":"queued","stageLabel":"Queued","progress":20,"attempt":0,"maxAttempts":
+  ok   admission counted exactly one customer operation — before=0 after-admission=1
+  ok   admission counted the input bytes it actually validated — before=0 after=384
+  ok   the job reached a terminal state rather than hanging — completed stage=done
+  ok   the job's owner can read it, and its error field carries no internals
+  ok   settlement agrees with the outcome: a success keeps the one charge, a failure refunds it — status=completed before=0 after=1
+  ok   a legacy server tool ran through its own synchronous route — status 200 
+  ok   a legacy failure response leaks no internals
+  ok   the legacy tool was metered on the same shared seam, exactly once — status=200 before=1 after=2
+  ok   no remote run charged more than one operation for one submission — total moved 2 across two submissions
+  ok   the usage response still names no owner and no counter key
+
+7. ADMIN — BOTH EXECUTION MODES
+  ok   the dashboard shows local activity — {"local":4,"remote_job":2}
+  ok   the dashboard shows remote activity — {"local":4,"remote_job":2}
+  ok   the tool table names the remote tools that just ran — compress-pdf:1, repair-pdf:1
+  ok   a remote row carries a compute cost that is not its operation count — compress-pdf:cost=3/ops=1, repair-pdf:cost=4/ops=1
+  ok   the calibration verdict refuses to claim readiness on this much data — {"ready_for_enforcement":false,"reason":"insufficient_observation_data","gaps":["observed 1 of 14 required days","observed 2 of 500 required server operations","observed 2 of 3 required tools"],"thresholds":{"minObservationDays":14,"minOperations":500,"minTools":3},"observed":{"days":1,"operations":2,"excludedOperations":0,"operationsPerDay":2,"toolsObserved":2,"guestShare":0.6666666666666666,"wouldHaveBlocked":0}}
+  ok   calibration recommends no ceiling it cannot support — [{"status":"insufficient_data","meter":"server_operations","plan":"guest","currentLimit":30},{"status":"insufficient_data","meter":"server_input_bytes","plan":"guest","currentLimit":2147483648},{"status":"insufficient_data","meter":"server_operations","plan":"free","currentLimit":100},{"status":"insufficient_data","meter":"server_input_bytes","plan":"free","currentLimit":5368709120},{"status":"insufficient_data","meter":"server_operations","plan":"pro","currentLimit":2000},{"status":"insufficient_data","meter":"server_input_bytes","plan":"pro","currentLimit":107374182400},{"status":"insufficient_data","meter":"server_operations","plan":"business","currentLimit":20000},{"status":"insufficient_data","meter":"server_input_bytes","plan":"business","currentLimit":1099511627776}]
+  ok   observe mode is reported, not implied — observe
+  ok   the composed admin payload still exposes no identity
+  ok   no uncaught console error during the walk
+
+83/83 checks passed

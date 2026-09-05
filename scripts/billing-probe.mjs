@@ -405,6 +405,12 @@ async function startServer({ port, dbUrl, storageRoot, billing }) {
     // production's own behaviour that is under test here.
     NEXT_PUBLIC_SITE_URL: probeOrigin(base),
     STORAGE_LOCAL_ROOT: storageRoot,
+    // The admin store, beside the storage root and outside the repository. Required
+    // for the same reason as the two above: unset it resolves against the working
+    // directory, and `ingress/server.mjs` chdirs into `.next/standalone`, which the
+    // production gate refuses — the server would exit 1 and every check below would
+    // read as a product failure.
+    ADMIN_STORE_DIR: `${storageRoot}-admin`,
     // Deliberately absent, so the probe observes the DEFAULT rather than a value
     // it supplied: unset must resolve to observe, not enforce.
     USAGE_LIMIT_MODE: undefined,

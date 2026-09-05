@@ -1,0 +1,64 @@
+
+── 0. Environment
+  ok   Ghostscript is installed
+(node:24700) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   app is serving at https://192.168.0.175:3001
+
+── 1. The pilot page boots and offers the form
+  ok   the compress page rendered its upload form
+  ok   the button the user clicks is present
+  ok   no terminal state is claimed before anything ran
+  ok   the page states the execution mode it actually uses
+
+── 2. Submitting routes through the unified pipeline, not the legacy path
+  ok   the submit button was clickable
+  ok   the click produced a submission request
+  ok   it posts to /api/jobs (the pipeline), not /api/tools (the legacy route)
+  FAIL the page mounted the PIPELINE runner (its submit carries an Idempotency-Key) — headers: sec-ch-ua-platform, referer, user-agent, sec-ch-ua, content-type, sec-ch-ua-mobile
+  ok   the submission was accepted
+  ok   it was accepted with 202 (queued), not 200 (done inline)
+  ok   the job-creation request returned quickly (14ms < 2500ms)
+       submit round-trip: 14ms
+
+── 3. Progress is reported as real stages, and settles at a terminal one
+  ok   at least one real stage label was shown to the user
+       stages observed in the UI: Processing
+  ok   the page polled a job id
+       job id: cmtoncgub005ouogv0u72qsdy   settled in 308ms
+  FAIL a completed job reports the terminal stage 'done', not a stale one — status completed / stage undefined
+  ok   no numeric progress was invented
+
+── 4. The job reaches a terminal, successful state in the UI
+  ok   the job settled before the deadline
+  ok   the panel reports a finished result
+  ok   a Download BUTTON is offered (not merely the word in the page copy)
+  ok   the failure branch is not showing
+
+── 5. The result is real PDF bytes, and the size the UI advertises
+  FAIL the result route served the output — {"error":"result 404","finalUrl":"https://192.168.0.175:3001/api/jobs/cmtoncgub005ouogv0u72qsdy/result"}
+
+── 6. A LOCAL tool keeps the document in the browser
+  ok   the merge page rendered
+  ok   the merge page states local processing
+  ok   no terminal state is claimed before anything ran
+  ok   the merge button was clickable
+  ok   the local merge really produced a result in the browser
+  ok   the merge created no job
+  ok   the merge called no server tool route
+  ok   nothing but the funnel beacon carried a body while merging (the PDF bytes never left)
+  ok   the beacon body is a handful of declared dimensions, not a document
+  ok   the beacon body names no file and carries no PDF bytes
+       requests during the merge: 4 (/api/analytics/events, /_next/static/chunks/08vt3vfga_3_u.js, /api/workflow/save-target)
+       blob: anchor present: false
+
+── 7. No page errors along the way
+  ok   the browser reported no console errors
+
+────────────────────────────────────────────────────────────────
+checks passed: 30   failed: 3
+
+FAILURES:
+  • the page mounted the PIPELINE runner (its submit carries an Idempotency-Key) — headers: sec-ch-ua-platform, referer, user-agent, sec-ch-ua, content-type, sec-ch-ua-mobile
+  • a completed job reports the terminal stage 'done', not a stale one — status completed / stage undefined
+  • the result route served the output — {"error":"result 404","finalUrl":"https://192.168.0.175:3001/api/jobs/cmtoncgub005ouogv0u72qsdy/result"}

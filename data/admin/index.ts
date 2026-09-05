@@ -49,7 +49,31 @@ export { hashPassword, verifyPassword, isAdminPasswordSet } from "@/lib/admin/pa
 
 // ---------- File location -----------------------------------------------------
 
-export const STORE_PATH = path.join(process.cwd(), "data", "admin", "store.json");
+/**
+ * Where the admin store lives: the operator-set admin password hash and every
+ * CMS edit, in one JSON file (plus its `.bak`).
+ *
+ * `process.cwd()` is the wrong default in production and cannot be fixed here:
+ * `.next/standalone/server.js` chdirs into its own directory before app modules
+ * load, so an unconfigured deployment writes the admin password INSIDE THE BUILD
+ * OUTPUT — `.next/standalone/data/admin/store.json` — which the next build
+ * replaces. Losing the hash is not merely lost content: `isAdminPasswordSet()`
+ * goes false and `/admin/setup` re-opens to whoever reaches it first.
+ *
+ * The shipped image escapes that only because it assembles the standalone output
+ * at `/app` and mounts a volume at `/app/data/admin`. Every other supported
+ * deployment (`npm run start`, systemd, a PaaS) has to say where the directory
+ * is, which is why `productionProblems` refuses a relative one or one inside a
+ * `.next` directory instead of leaving the default to be discovered.
+ *
+ * Read from `process.env` rather than from `getConfig()` because this module is
+ * imported by server components on the render path and the config object is not
+ * needed for one path; the gate validates the same variable at boot.
+ */
+export const ADMIN_STORE_DIR =
+  process.env.ADMIN_STORE_DIR?.trim() || path.join(process.cwd(), "data", "admin");
+
+export const STORE_PATH = path.join(ADMIN_STORE_DIR, "store.json");
 
 export interface SiteSettings {
   name: string;

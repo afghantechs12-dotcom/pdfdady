@@ -289,6 +289,18 @@ describe("R3 — the compose file starts the app it describes", () => {
     expect(productionProblems(env as unknown as Parameters<typeof productionProblems>[0])).toEqual(
       [],
     );
+
+    // The gate cannot see a missing mount: `/app/data/admin` is an absolute path
+    // whether or not a volume is behind it, so a container that stores the admin
+    // password there without `-v` boots healthy and loses the password when it is
+    // replaced. This block did exactly that — it mounted the database and the
+    // documents and left the admin store in the container layer — so the mounts are
+    // asserted here, against the same three paths compose persists.
+    const targets = [...run!.matchAll(/-v\s+\S+?:(\S+)/g)].map(([, t]) => t);
+    for (const dir of ["/app/data/db", "/app/data/storage", "/app/data/admin"]) {
+      expect(targets, `the documented \`docker run\` stores live state in ${dir} without a volume`)
+        .toContain(dir);
+    }
   });
 
   /**
@@ -335,6 +347,14 @@ describe("R3 — the compose file starts the app it describes", () => {
     }
     // Sourced from `.env`, never from this file.
     env.ADMIN_SECRET = GATE_STANDIN.ADMIN_SECRET;
+    // Both launchers exec `node ingress/server.mjs`, which loads
+    // `.next/standalone/server.js`, and that entry chdirs into its own directory
+    // before the app reads anything — so an unset ADMIN_STORE_DIR resolves to the
+    // BUILD OUTPUT in those processes, not to the repository root this test runs
+    // in. Without this line the row passes on a launcher whose server exits 1 at
+    // boot, which is the Stage 4 failure again: a gate-refused process answers 0 on
+    // every port and every check reads as a product bug.
+    env.ADMIN_STORE_DIR ??= path.join(root, ".next", "standalone", "data", "admin");
     expect(env.NODE_ENV, `${file} must run the app in production mode`).toBe("production");
     expect(productionProblems(env as unknown as Parameters<typeof productionProblems>[0])).toEqual(
       [],
@@ -407,6 +427,10 @@ describe("R3 — the compose file starts the app it describes", () => {
     for (const [variable, mustLiveIn] of [
       ["DATABASE_URL", "/app/data/db"],
       ["STORAGE_LOCAL_ROOT", "/app/data/storage"],
+      // The admin password hash and all CMS content. Compose sets the variable
+      // explicitly even though the image's WORKDIR would resolve it to the same
+      // place, so moving the mount without moving the variable fails here.
+      ["ADMIN_STORE_DIR", "/app/data/admin"],
     ] as const) {
       const value = environment.get(variable) ?? "";
       // The value the app will resolve, not the compose interpolation around it.

@@ -5170,3 +5170,83 @@ itself — so the next requirement fails a 5 ms test instead of an audit run.
   acceptance (office conversion `NOT EXERCISED`, no `soffice`), security,
   reliability and recovery, observability (`MONITORING: NOT EXERCISED`) and the
   bounded performance smoke test.
+
+## The admin password hash lived in the build output
+
+### What was built
+
+`data/admin/index.ts` held the store path as
+`path.join(process.cwd(), "data", "admin", "store.json")`, which is correct under
+`next dev` and wrong in production for a reason nothing in the file said:
+`.next/standalone/server.js` **chdirs into its own directory** before any
+application module or `instrumentation.ts` loads. So in production `process.cwd()`
+is the build output, and `store.json` — every CMS edit **and**
+`settings.adminPasswordHash` — was written to `.next/standalone/data/admin/`, which
+the next `next build` or deploy replaces.
+
+The content loss is the smaller half. With no hash `isAdminPasswordSet()` is false,
+and `/admin/setup` is deliberately unauthenticated (it is the credential bootstrap),
+rate-limited 10/min with no other barrier — so the deploy that deletes the store
+hands the admin surface to whoever loads that URL first.
+
+The shipped container escaped it by accident of layout: the Dockerfile assembles
+standalone at `/app`, which is also `WORKDIR`, and compose mounts
+`pdfdadi-data:/app/data/admin`. Every other deployment — `npm run start`, systemd, a
+PaaS — got the build output.
+
+Now `ADMIN_STORE_DIR`, read by the store module, and the **sixth** required-shape key
+in `productionProblems`, which refuses a value that is relative or has `.next`
+anywhere in it and names the file that would be lost. That makes three instances of
+one class refused by the same gate: `DATABASE_URL`, `STORAGE_LOCAL_ROOT` and now the
+admin store, all of which resolve against a working directory that is not where the
+operator thinks it is.
+
+### Tests, and the fixture that could not see the bug
+
+- `src/infrastructure/config/env.test.ts` (+2, 35 total): the refusal fires for a
+  relative path, for `.next/standalone/data/admin` and for
+  `/srv/pdfdadi/.next/standalone/data/admin`; `/app/data/admin` is accepted; and the
+  message names the store's own path rather than a guess.
+- `data/admin/storeLocation.test.ts` (new, 2): the reader half — the variable is
+  honoured, and an empty value falls back to the cwd path.
+- `deploymentArtifact.test.ts` (14): the documented `docker run` must mount **all
+  three** state directories, parsed from its own `-v` targets, because the gate
+  cannot see a missing mount — `/app/data/admin` is a fine absolute path whether or
+  not a volume is behind it. The launcher rows now inject **the launcher's** cwd:
+  a fixture that inherits vitest's cwd cannot see a chdir the launcher performs, and
+  would have passed while `restart-origin.sh` could not boot.
+
+Falsified against the built artifact, not only in vitest: with the variable unset the
+production entry printed one problem naming
+`<repo>/.next/standalone/data/admin/store.json` and exited 1; with it set,
+`POST /api/admin/setup` put a throwaway hash in the configured directory while the
+repository's shipped store stayed empty and `.next/standalone/data/` was never
+created.
+
+### The probe that made a working tool look broken
+
+`usage-analytics-probe.mjs` reported Merge producing no result and no download
+control — a funnel of `[1,1,0,0,0]`. The tool was fine. The probe's own
+`clickByLabel` helper documents the hazard (scroll and rect read must be separate
+turns, or the coordinates are pre-scroll and the click lands on empty space below a
+1000px viewport); section 3 predated the helper and hand-rolled a same-turn read. Two
+things in the same run identified it as the probe rather than the product: the two
+tools driven *through* the helper walked to download, and `processing-pilot-probe.mjs`
+merged in a real browser with byte-count equality on the same artifact. Section 3 now
+uses the helper — **83/83**, the figure recorded for it above. The same file was also
+the only browser probe without `--ignore-certificate-errors` for an `https:` target,
+so against a self-signed audit terminator every one of its checks failed on Chrome's
+interstitial before reaching the product.
+
+- **Feature flags:** none new. `ADMIN_STORE_DIR` is configuration, required in
+  production unless the working directory is already a persistent absolute path
+  outside the build output — which in practice means the shipped container.
+- **Known limitations:** the gate checks the *shape* of the path, never whether a
+  volume is mounted there. An absolute path with a typo in it is a brand-new empty
+  directory that boots and serves, so first-boot mount verification stays an operator
+  step (now three directories: `/app/data/db`, `/app/data/storage`,
+  `/app/data/admin`). `/api/health/ready`'s `dataDir` check is still presence-only —
+  `fs.access(dirname(STORE_PATH))` — so a read-only volume reports ready.
+- **Next related step:** Stages 8–11 against the surrogate — security acceptance,
+  reliability and recovery, observability (`MONITORING: NOT EXERCISED`) and the
+  bounded performance smoke test.

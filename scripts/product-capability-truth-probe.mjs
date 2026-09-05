@@ -663,7 +663,19 @@ async function main() {
   // The adversarial record is written to the file rather than posted to
   // `/api/admin/tools`, because that route now refuses it (422) — the file is the
   // stricter test: it is the state a pre-fix deployment would already be in.
-  const STORE_PATH = join(process.cwd(), "data", "admin", "store.json");
+  // The file the RUNNING SERVER reads, which is not necessarily the one under this
+  // probe's working directory: the server resolves `ADMIN_STORE_DIR`, and unset it
+  // resolves against ITS working directory — `.next/standalone` for the standalone
+  // entry, because that entry chdirs into its own directory. Export the same value
+  // the origin was started with (the audit launcher uses
+  // AUDIT_ADMIN_STORE_DIR, default /tmp/audit-admin). Getting this wrong does not
+  // make the scenario vacuous — H4 asserts the edit IS rendered, so it fails — but
+  // it fails as "the CMS override is live" and costs an investigation, which is
+  // what it cost in Stage 7 of production acceptance.
+  const STORE_PATH = join(
+    process.env.ADMIN_STORE_DIR?.trim() || join(process.cwd(), "data", "admin"),
+    "store.json",
+  );
   const storeBackup = (() => {
     try {
       return readFileSync(STORE_PATH, "utf8");

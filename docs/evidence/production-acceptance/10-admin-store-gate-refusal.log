@@ -1,0 +1,9 @@
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:3002
+- Network:       http://127.0.0.1:3002
+✓ Ready in 0ms
+✓ Running next.config took 1.3ms
+[startup] PDFDadi refused to start.
+Refusing to start: 1 production configuration problem.
+  - The admin store would be written to <repo>/.next/standalone/data/admin/store.json, inside the .next build output — a directory the next build or deploy replaces. It holds the admin password hash, so losing it re-opens /admin/setup to an unauthenticated visitor, and it holds every CMS edit. Point ADMIN_STORE_DIR at a persistent volume, e.g. ADMIN_STORE_DIR=/app/data/admin.
+EXIT=1

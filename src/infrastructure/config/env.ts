@@ -170,6 +170,11 @@ const envSchema = z.object({
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE_URL: z.string().optional(),
   STORAGE_LOCAL_ROOT: z.string().default(".storage/local"),
+  // Admin store location. Optional with a working default in dev; the production
+  // gate refuses the default's *shape* when it lands in a build output, because
+  // that default is `<cwd>/data/admin` and in production `<cwd>` is the build
+  // output (see data/admin/index.ts).
+  ADMIN_STORE_DIR: z.string().optional(),
   STORAGE_SIGNING_SECRET: z.string().optional(),
   // Billing (Stripe). All optional — absent means billing is disabled and the
   // checkout/portal endpoints fail clearly instead of inventing a price.
@@ -428,6 +433,32 @@ export function productionProblems(e: z.infer<typeof envSchema>): string[] {
         `STORAGE_LOCAL_ROOT is ${localRoot ? "a relative path" : "empty"} and object storage is local, so uploaded documents would be written under the server's working directory — the container's writable layer — and deleted by the next deploy. Point it at a persistent volume, e.g. STORAGE_LOCAL_ROOT=/app/data/storage, or configure all ${R2_KEYS.length} R2 variables to store objects remotely.`,
       );
     }
+  }
+
+  // The admin store is the admin password hash plus all CMS content, and its
+  // default location is `<working directory>/data/admin` — which in production is
+  // inside the build output, because `.next/standalone/server.js` chdirs into its
+  // own directory before app modules load. That is the DATABASE_URL and
+  // STORAGE_LOCAL_ROOT failure a third time, with a worse consequence: the next
+  // build takes the password hash with it, `isAdminPasswordSet()` goes false, and
+  // `/admin/setup` re-opens to an unauthenticated visitor.
+  //
+  // The image is safe by construction (standalone assembled at /app, /app/data/admin
+  // mounted), so the check is on the shape rather than on the variable being set:
+  // absent-and-absolute-and-outside-.next is exactly the container's situation and
+  // must not be refused, while a relative value or a `.next` path segment is the
+  // shape that loses the password. `process.cwd()` is read here deliberately — the
+  // gate runs in the serving process, after the chdir, so it sees the true path.
+  const storeDir = e.ADMIN_STORE_DIR?.trim() || `${process.cwd()}/data/admin`;
+  const inBuildOutput = storeDir.split("/").includes(".next");
+  if (!storeDir.startsWith("/") || inBuildOutput) {
+    problems.push(
+      `The admin store would be written to ${storeDir}/store.json, ${
+        inBuildOutput
+          ? "inside the .next build output"
+          : "under the server's working directory"
+      } — a directory the next build or deploy replaces. It holds the admin password hash, so losing it re-opens /admin/setup to an unauthenticated visitor, and it holds every CMS edit. Point ADMIN_STORE_DIR at a persistent volume, e.g. ADMIN_STORE_DIR=/app/data/admin.`,
+    );
   }
 
   return problems;

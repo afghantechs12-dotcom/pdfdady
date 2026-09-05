@@ -26,6 +26,7 @@ const KEYS = [
   "TOOLS_MAX_BODY_BYTES",
   "STORAGE_SIGNING_SECRET",
   "STORAGE_LOCAL_ROOT",
+  "ADMIN_STORE_DIR",
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
@@ -84,6 +85,10 @@ function setValidProductionEnv(): void {
   // a relative one resolves against the working directory, which in a container
   // is the layer the next deploy replaces.
   env.STORAGE_LOCAL_ROOT = "/srv/pdfdadi/storage";
+  // Where the admin password hash and all CMS content live. Set explicitly rather
+  // than left to its default so this fixture does not depend on the directory
+  // vitest happens to run from: unset, the gate resolves it against `process.cwd()`.
+  env.ADMIN_STORE_DIR = "/srv/pdfdadi/admin";
 }
 
 /** The gate's message, or "" when the gate let the config through. */
@@ -294,6 +299,44 @@ describe("production configuration gate", () => {
     env.STORAGE_LOCAL_ROOT = "/app/data/storage";
     expect(gateError()).toBe("");
     expect(getConfig().storage.localRoot).toBe("/app/data/storage");
+  });
+
+  it("refuses an admin store the next build would delete", () => {
+    // The third instance of one failure: live state resolved against the server's
+    // working directory. In production that directory is the BUILD OUTPUT, because
+    // `.next/standalone/server.js` chdirs into itself before the app loads — so an
+    // unconfigured `npm run start` or systemd deployment writes the admin password
+    // hash into `.next/standalone/data/admin/` and `npm run build` deletes it.
+    // Losing that hash is not lost content: `isAdminPasswordSet()` goes false and
+    // `/admin/setup` re-opens to whoever reaches it first.
+    setValidProductionEnv();
+    env.ADMIN_STORE_DIR = ".next/standalone/data/admin";
+    expect(gateError()).toMatch(/admin store would be written to/);
+    expect(gateError()).toMatch(/re-opens \/admin\/setup to an unauthenticated visitor/);
+
+    // A relative path is the same failure with a less obvious name.
+    _resetConfigForTests();
+    env.ADMIN_STORE_DIR = "data/admin";
+    expect(gateError()).toMatch(/under the server's working directory/);
+
+    // Absolute but still inside a build output: the shape that a copy-pasted
+    // `pwd` from a running deployment produces, and the one the default lands on.
+    _resetConfigForTests();
+    env.ADMIN_STORE_DIR = "/srv/pdfdadi/.next/standalone/data/admin";
+    expect(gateError()).toMatch(/inside the \.next build output/);
+
+    // The container's own situation, which must NOT be refused.
+    _resetConfigForTests();
+    env.ADMIN_STORE_DIR = "/app/data/admin";
+    expect(gateError()).toBe("");
+  });
+
+  it("names the admin store's own path in the refusal, never a guess", () => {
+    // The operator has to know WHICH directory to move, and the value is a path,
+    // not a credential — the same reason DATABASE_URL is named but never echoed.
+    setValidProductionEnv();
+    env.ADMIN_STORE_DIR = "/opt/app/.next/standalone/data/admin";
+    expect(gateError()).toContain("/opt/app/.next/standalone/data/admin/store.json");
   });
 
   it("ignores the local storage root when R2 serves the objects", () => {

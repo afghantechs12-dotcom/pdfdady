@@ -76,6 +76,14 @@ async function main() {
       "--disable-gpu",
       "--hide-scrollbars",
       "--window-size=1440,1000",
+      // The production gate refuses a loopback `NEXT_PUBLIC_SITE_URL` and production
+      // cookies are `Secure`, so a production-mode origin has to be reached over
+      // HTTPS — in an audit that means a self-signed terminator. Without this flag
+      // every navigation lands on Chrome's interstitial and EVERY check below fails
+      // with a label like "Proceed to <host> (unsafe)", which reads as a total
+      // product failure. Every other browser probe in this directory already passes
+      // it; this one did not, and that is how it was found.
+      ...(BASE.startsWith("https:") ? ["--ignore-certificate-errors"] : []),
       "about:blank",
     ],
     { stdio: "ignore" },
@@ -371,22 +379,18 @@ async function main() {
     /synthetic-A/.test(selectionVisible ?? "") && /synthetic-B/.test(selectionVisible ?? ""),
     (selectionVisible ?? "").slice(0, 120));
 
-  // Click whatever the tool's primary action is, by its visible label.
-  const clicked = await evaluate(`(() => {
-    const buttons = [...document.querySelectorAll('button')];
-    const b = buttons.find((el) => /merge/i.test(el.textContent || "") && !el.disabled);
-    if (!b) return { ok: false, labels: buttons.filter(e=>!e.disabled).map(e=>(e.textContent||"").trim().slice(0,30)) };
-    const r = b.getBoundingClientRect();
-    return { ok: true, label: (b.textContent||"").trim().slice(0,40), x: r.x + r.width/2, y: r.y + r.height/2 };
-  })()`);
-  if (clicked?.ok) {
-    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: clicked.x, y: clicked.y, buttons: 0 });
-    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: clicked.x, y: clicked.y, button: "left", clickCount: 1, buttons: 1 });
-    await sleep(90);
-    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: clicked.x, y: clicked.y, button: "left", clickCount: 1, buttons: 0 });
-  }
+  // Click the tool's primary action through the shared helper, which scrolls first
+  // and reads the rect in a LATER turn. This section used to hand-roll the click
+  // from a rect read in the same turn as no scroll at all: on a 1000px viewport the
+  // Merge button sits below the fold, so the coordinates landed on empty space, the
+  // tool never started, and the only symptom was this probe reporting a funnel of
+  // [1,1,0,0,0] — which reads as "merge is broken in production" and is not. Found
+  // in Stage 7 of production acceptance; the two tools driven by `walkLocalTool`
+  // (which already used the helper) passed their whole walk in the same run, which
+  // is what identified the probe rather than the product.
+  const clicked = await clickByLabel("/merge/i");
   check("primary merge action clicked with a real mouse event", clicked?.ok === true,
-    clicked?.ok ? clicked.label : JSON.stringify(clicked?.labels ?? []));
+    clicked?.ok ? `${clicked.label} via ${clicked.via}` : JSON.stringify(clicked?.labels ?? clicked ?? {}));
   await sleep(5000);
 
   const merged = await text();
@@ -397,20 +401,9 @@ async function main() {
   // Click the download too: without it the last funnel step stays a structural
   // zero, and "download never fires" would be indistinguishable from "nobody
   // downloaded".
-  const dl = await evaluate(`(() => {
-    const els = [...document.querySelectorAll('button, a')];
-    const b = els.find((el) => /download/i.test(el.textContent || "") && !el.disabled);
-    if (!b) return { ok: false };
-    const r = b.getBoundingClientRect();
-    return { ok: true, label: (b.textContent||"").trim().slice(0,40), x: r.x + r.width/2, y: r.y + r.height/2 };
-  })()`);
-  if (dl?.ok) {
-    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: dl.x, y: dl.y, buttons: 0 });
-    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: dl.x, y: dl.y, button: "left", clickCount: 1, buttons: 1 });
-    await sleep(90);
-    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: dl.x, y: dl.y, button: "left", clickCount: 1, buttons: 0 });
-  }
-  check("download action clicked", dl?.ok === true, dl?.label ?? "no download control found");
+  const dl = await clickByLabel("/download/i");
+  check("download action clicked", dl?.ok === true,
+    dl?.ok ? `${dl.label} via ${dl.via}` : "no download control found");
   // The analytics hook batches; give the beacon time to flush.
   await sleep(7000);
 
