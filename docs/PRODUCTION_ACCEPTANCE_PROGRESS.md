@@ -303,8 +303,15 @@ Not established here: anything about a hosting provider, container execution
 (unchanged from Stage 3), soak behaviour, or the documented nginx body caps — the
 TLS front is a stand-in, not nginx.
 
+Re-run on the committed tree after this stage: `node scripts/final-prelaunch-audit.mjs`
+→ **PASS 68/68 exercised, PRODUCT FAILURE 0**, ENVIRONMENTAL 2, NOT EXERCISED 4,
+MANUAL REVIEW 11, 85 assertions. The only verdict that differs from the accepted
+baseline is **I4** (the image's runtime engine vs `engines.node`), which Stage 3
+closed from MANUAL REVIEW to PASS; the two failures seen mid-stage (A1 uncommitted
+paths, B4) are cleared.
+
 Evidence: `docs/evidence/production-acceptance/09-staging-surrogate.md`,
-`09-surrogate-runtime.log`, `09-csp.log`.
+`09-surrogate-runtime.log`, `09-csp.log`, `09-static-harness.json`.
 
 ## Remaining actions
 
