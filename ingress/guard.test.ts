@@ -118,6 +118,30 @@ describe("the installation seam", () => {
       expect(refused.headers.get("x-inner")).toBeNull();
       expect(await refused.json()).toEqual({ error: "Request body is too large." });
 
+      /*
+       * The same, as a GET. Node parses a body on any method, so a seam that
+       * consulted `req.method` before the policy would leave `GET /` with a
+       * 100 MiB body on the retained path — and `ingressDecision`'s own
+       * method-agnostic test cannot see that, because it never runs through the
+       * seam. `fetch` refuses to send a GET body, hence the raw request.
+       */
+      const getWithBody = await new Promise<{ status: number; inner: unknown }>(
+        (resolve, reject) => {
+          const r = http.request(
+            `${origin}/`,
+            { method: "GET", headers: { "content-length": "64" } },
+            (res) => {
+              res.resume();
+              resolve({ status: res.statusCode ?? 0, inner: res.headers["x-inner"] ?? null });
+            },
+          );
+          r.on("error", reject);
+          r.end("x".repeat(64));
+        },
+      );
+      expect(getWithBody.status).toBe(413);
+      expect(getWithBody.inner).toBeNull();
+
       ingressState.lease = "refused";
       const unready = await fetch(`${origin}/`);
       expect(unready.status).toBe(503);
