@@ -1,0 +1,113 @@
+{
+  "label": "pa-baseline",
+  "exitCode": 0,
+  "green": true,
+  "verdict": "GREEN",
+  "command": "npx vitest run --reporter=verbose --reporter=json --outputFile.json=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/production-acceptance/suite/pa-baseline.json --reporter=junit --outputFile.junit=/Users/faisalarifi/Downloads/pdfmaster/docs/evidence/production-acceptance/suite/pa-baseline.junit.xml",
+  "startedAt": "2026-09-05T12:34:32.761Z",
+  "durationMs": 10258,
+  "run": {
+    "seed": null,
+    "shuffled": false,
+    "maxWorkers": "vitest default",
+    "availableParallelism": 16,
+    "cpuCount": 16,
+    "cpuModel": "Apple M4 Max",
+    "loadavgAtExit": [
+      10.689453125,
+      4.064453125,
+      3.0947265625
+    ],
+    "totalMemBytes": 137438953472,
+    "node": "v26.7.0",
+    "platform": "Darwin darwin arm64",
+    "host": "Faisals-MacBook-Pro.local"
+  },
+  "counts": {
+    "totalTests": 7487,
+    "passed": 7487,
+    "failed": 0,
+    "pending": 0,
+    "totalSuites": 1957,
+    "totalFiles": 389
+  },
+  "reportError": null,
+  "failures": [],
+  "slowestTests": [
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "R24 — no private route is indexable advertises a route in the sitemap or marks it noindex, with nothing in between",
+      "durationMs": 4807.438083
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/seoIndexingTruth.test.ts",
+      "fullName": "page titles do not brand themselves twice uses title.absolute for any title that already carries the product name",
+      "durationMs": 2282.3199999999997
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R5 — ordering, seeds and parallelism cannot silently reintroduce cross-test interference runs the three files that failed, in the shuffled order that failed them",
+      "durationMs": 1866.5797920000002
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/workspaces/openedRoute.test.ts",
+      "fullName": "POST …/documents/:documentId/opened — the gates refuses a request with no same-origin evidence, and one from another origin",
+      "durationMs": 1519.920875
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/resultSaveIdempotency.test.ts",
+      "fullName": "C9/C10 — two concurrent saves of one result create one document hands both requests the same canonical document, and stores the bytes once",
+      "durationMs": 839.621875
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/api/workspaces/storedOutputFidelity.test.ts",
+      "fullName": "C14 — a local Merge result becomes the Workspace document stores the merged PDF: its bytes, its pages, and neither input",
+      "durationMs": 827.6124169999998
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed retains the test name, file, seed, worker count, timing and stack trace, and still exits nonzero",
+      "durationMs": 774.002166
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/scripts/usageReadinessCommand.test.ts",
+      "fullName": "running it reports the real verdict and leaves the database byte-identical",
+      "durationMs": 738.1495
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/pilotPipeline.integration.test.ts",
+      "fullName": "pilot pipeline: success path carries a real PDF from submission to a signed download",
+      "durationMs": 714.558833
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/finalReconciliation.test.ts",
+      "fullName": "R4 — a failing run leaves evidence that names what failed says ENVIRONMENTAL, not RED, when vitest never ran at all",
+      "durationMs": 673.9773749999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling aborts the processor's signal at the processor's own timeoutMs",
+      "durationMs": 601.7577090000001
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/auth/LocalSessionProvider.test.ts",
+      "fullName": "LocalSessionProvider.pruneExpired deletes expired rows, keeps live ones, and returns the count",
+      "durationMs": 544.299959
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/application/services/AccountProvisioningService.test.ts",
+      "fullName": "personalOrganizationName / Slug prefers the display name and falls back to the email local part",
+      "durationMs": 522.5954580000002
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/app/(marketing)/pricing/pricingTruth.test.ts",
+      "fullName": "U23 — Pricing consumes canonical plan truth renders every plan from the store, and nothing from a second source",
+      "durationMs": 513.4092909999999
+    },
+    {
+      "file": "/Users/faisalarifi/Downloads/pdfmaster/src/infrastructure/jobs/ProcessingJobHandler.test.ts",
+      "fullName": "the execution ceiling publishes no output when the ceiling fires",
+      "durationMs": 482.33475
+    }
+  ]
+}
