@@ -83,7 +83,7 @@ function ingestArg(): IngestCall {
 let ipCounter = 0;
 function freshIp(): Record<string, string> {
   ipCounter += 1;
-  return { "x-forwarded-for": `10.0.0.${ipCounter % 250}` };
+  return { "x-pdfdadi-peer": `10.0.0.${ipCounter % 250}` };
 }
 
 beforeEach(() => {
@@ -166,7 +166,7 @@ describe("POST /api/analytics/events", () => {
   });
 
   it("rate-limits a flood from one address with 429 and Retry-After", async () => {
-    const ip = { "x-forwarded-for": "203.0.113.9" };
+    const ip = { "x-pdfdadi-peer": "203.0.113.9" };
     let limited: Response | null = null;
     for (let i = 0; i < 200; i += 1) {
       const res = await ingestPost(post({ events: [{ name: "tool_view" }] }, ip));

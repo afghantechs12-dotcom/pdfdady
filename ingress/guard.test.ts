@@ -1,9 +1,15 @@
+import { mkdtemp } from "node:fs/promises";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { PEER_ADDR_HEADER as APP_PEER_HEADER } from "@/lib/server/rateLimit";
+
 import {
+  PEER_ADDR_HEADER,
   assertInstalled,
   guardDecision,
   ingressState,
@@ -87,8 +93,13 @@ describe("the lease gate", () => {
 /** One live server through the real seam, torn down by the caller. */
 async function guardedServer(): Promise<{ origin: string; close: () => Promise<void> }> {
   installIngress();
-  const server = http.createServer((_req, res) => {
-    res.writeHead(200, { "content-type": "text/plain", "x-inner": "reached" });
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, {
+      "content-type": "text/plain",
+      "x-inner": "reached",
+      // What the application would key its rate limiters on, echoed back.
+      "x-saw-peer": String(req.headers[PEER_ADDR_HEADER] ?? "absent"),
+    });
     res.end("inner");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -148,6 +159,68 @@ describe("the installation seam", () => {
       expect(unready.headers.get("x-inner")).toBeNull();
     } finally {
       await close();
+    }
+  });
+
+  it("stamps the peer address the application keys on, and overwrites the client's", async () => {
+    /*
+     * The property: a rate-limit key the caller cannot choose. `clientIp` prefers a
+     * verified proxy's `X-Forwarded-For` and falls back to this header, so if a
+     * client could write it, every limiter keyed on it would be rotatable again —
+     * which is the defect this stamp fixes. Both halves are here: the value arrives,
+     * and a forged one does not survive.
+     */
+    ingressState.installed = false;
+    const { origin, close } = await guardedServer();
+    try {
+      ingressState.lease = "held";
+      expect(PEER_ADDR_HEADER, "the guard and the app must agree on the name").toBe(
+        APP_PEER_HEADER,
+      );
+
+      const plain = await fetch(`${origin}/`);
+      expect(plain.headers.get("x-saw-peer")).toBe("127.0.0.1");
+
+      const forged = await fetch(`${origin}/`, { headers: { [PEER_ADDR_HEADER]: "9.9.9.9" } });
+      expect(forged.headers.get("x-saw-peer")).toBe("127.0.0.1");
+    } finally {
+      await close();
+    }
+  });
+
+  it("leaves no forged peer behind when the connection has no address", async () => {
+    /*
+     * The `delete` in `stampPeer` is only reachable here. Over TCP the assignment
+     * that follows it overwrites whatever the client sent, so the delete looks
+     * inert — until the connection is a Unix domain socket, where Node reports no
+     * `remoteAddress` at all and there is nothing to overwrite with. Then the
+     * client's own `x-pdfdadi-peer` would be the rate-limit key, chosen by the
+     * caller, which is the whole defect this stamp exists to close.
+     */
+    ingressState.installed = false;
+    const socketPath = path.join(await mkdtemp(path.join(tmpdir(), "pdfdadi-ingress-")), "s");
+    installIngress();
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { "x-saw-peer": String(req.headers[PEER_ADDR_HEADER] ?? "absent") });
+      res.end();
+    });
+    await new Promise<void>((resolve) => server.listen(socketPath, resolve));
+    try {
+      ingressState.lease = "held";
+      const saw = await new Promise<string>((resolve, reject) => {
+        const r = http.request(
+          { socketPath, path: "/", headers: { [PEER_ADDR_HEADER]: "9.9.9.9" } },
+          (res) => {
+            res.resume();
+            resolve(String(res.headers["x-saw-peer"]));
+          },
+        );
+        r.on("error", reject);
+        r.end();
+      });
+      expect(saw).toBe("absent");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 

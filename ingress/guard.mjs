@@ -130,6 +130,40 @@ const UNREADY = {
 const SERVING = new Set(["held", "disabled"]);
 
 /**
+ * The header the application reads the client's real address from.
+ *
+ * Duplicated as `PEER_ADDR_HEADER` in `lib/server/rateLimit.ts` — this file is
+ * loaded before the Next bundle exists and cannot import from it, so the two are
+ * pinned equal by a test instead.
+ */
+export const PEER_ADDR_HEADER = "x-pdfdadi-peer";
+
+/**
+ * Stamp the connection's peer address, and delete anything the client sent under
+ * that name.
+ *
+ * This is the only point in the deployment that sees a socket: Next 16 gives a
+ * route handler a `Request`, which has no peer address, so before this the only
+ * client identity available to a rate limiter pre-auth was `X-Forwarded-For` — a
+ * header the client writes. `lib/server/rateLimit.ts` trusted it, which made every
+ * limiter keyed on it rotatable by an unauthenticated caller.
+ *
+ * The delete is the security half of the function, not tidiness: without it a
+ * client sends its own `x-pdfdadi-peer` and is back to a key it controls. Node
+ * lowercases incoming header names, so one delete covers every spelling of it, and
+ * it happens whether or not a peer address is available to replace it.
+ *
+ * Not a forwarding header: it says who connected to THIS process, which behind a
+ * proxy is the proxy. That is why it is the second choice in `clientIp` and a
+ * verified `X-Forwarded-For` is the first.
+ */
+function stampPeer(req) {
+  delete req.headers[PEER_ADDR_HEADER];
+  const peer = req.socket?.remoteAddress;
+  if (peer) req.headers[PEER_ADDR_HEADER] = peer;
+}
+
+/**
  * The decision for one request: `null` to pass it to Next.
  *
  * Exported for the tests, which drive it with plain header objects — the same
@@ -164,6 +198,7 @@ function guardServer(server) {
   server.on("request", (req, res) => {
     const decision = guardDecision(req);
     if (decision) return refuse(res, decision);
+    stampPeer(req);
     return inner.call(server, req, res);
   });
 

@@ -31,14 +31,19 @@
  * the operational reason for each.
  */
 
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { getConfig } from "@/src/infrastructure/config/env";
 
-import { RateLimiter } from "./rateLimit";
+import { PROXY_SECRET_HEADER, RateLimiter, trustedClientAddress } from "./rateLimit";
 
-/** Header a trusted reverse proxy must send for its forwarding headers to count. */
-export const PROXY_SECRET_HEADER = "x-pdfdadi-proxy-secret";
+/*
+ * The proxy-secret header and the forwarded-address reader moved down into
+ * `rateLimit.ts` in Stage 5 of production acceptance, unchanged. They were only
+ * ever here because this was their first caller, and while they lived here the
+ * process had two trust rules for one question: `clientIp` — which keys the admin
+ * and user login limiters — read `X-Forwarded-For` unconditionally. Re-exported so
+ * every existing importer of this module keeps working.
+ */
+export { PROXY_SECRET_HEADER, trustedClientAddress };
 
 const WINDOW_MS = 60_000;
 
@@ -74,31 +79,6 @@ function limiters(): Buckets {
 /** Drops both the cached limiters and their counts. For tests only. */
 export function _resetUploadLimitsForTests(): void {
   buckets = null;
-}
-
-/**
- * Constant-time secret comparison over digests, so unequal lengths are handled
- * without leaking the expected length through an early return.
- */
-function secretMatches(presented: string, expected: string): boolean {
-  const a = createHash("sha256").update(presented).digest();
-  const b = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(a, b);
-}
-
-/**
- * The forwarded client address, or null when the forwarding headers are not
- * trustworthy — which is the default, because this repository ships no reverse
- * proxy. Null means "fall back to the global bucket", never "trust the header".
- */
-export function trustedClientAddress(request: Request): string | null {
-  const expected = getConfig().upload.trustedProxySecret;
-  if (!expected) return null;
-  const presented = request.headers.get(PROXY_SECRET_HEADER);
-  if (!presented || !secretMatches(presented, expected)) return null;
-  const fwd = request.headers.get("x-forwarded-for");
-  const first = fwd?.split(",")[0].trim();
-  return first || request.headers.get("x-real-ip")?.trim() || null;
 }
 
 /**

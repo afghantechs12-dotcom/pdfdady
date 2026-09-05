@@ -411,12 +411,29 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
   (`UPLOAD_ANON_RATE_LIMIT_PER_MIN`), 240/min per process overall
   (`UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN`), 60-second window. An invalid value is a
   **fatal** configuration error, not a silent fallback.
-- **Forwarding headers are not trusted by default.** `X-Forwarded-For` and
-  `X-Real-IP` are read *only* when the request carries `x-pdfdadi-proxy-secret`
-  matching `TRUSTED_PROXY_SECRET` (≥16 characters). Without it every unauthenticated
-  caller is counted in one global bucket, which is exactly the bucket a spoofed or
-  rotated header cannot escape. If you deploy behind a proxy, set the secret **and**
-  configure the proxy to send it; if you do not, change nothing.
+- **The rate-limit key is one the caller cannot choose.** Three sources, in order:
+  a verified proxy's `X-Forwarded-For` (or `X-Real-IP`) first hop, read *only* when
+  the request carries `x-pdfdadi-proxy-secret` matching `TRUSTED_PROXY_SECRET`
+  (≥16 characters, compared with `timingSafeEqual`); otherwise the connection's
+  peer address, which `ingress/guard.mjs` stamps into `x-pdfdadi-peer` after
+  deleting any copy the client sent; otherwise the literal `unknown`. An unvouched
+  forwarding header is ignored at **every** call site — admin login, user login,
+  signup, admin setup, the tool API, jobs, analytics, csp-report, billing — and the
+  `ip` on an auth audit row is that same resolved address, not a header value.
+
+  This bullet used to state the rule without scoping it, and the rule held only in
+  the upload limiter: `lib/server/rateLimit.ts`'s `clientIp()` trusted
+  `X-Forwarded-For` from anyone. Because a browser sends no such header, honest
+  callers shared one bucket while a caller who sent a counter got a fresh bucket per
+  request — the limits were strictest on the traffic that was not attacking. Fixed
+  in Stage 5 of production acceptance
+  (`docs/evidence/production-acceptance/08-network-proxy-topology.md`).
+
+  **Behind a proxy, set the secret.** Without it every request arrives from the
+  proxy's address, so all callers share one key: still unspoofable, but one caller
+  can spend another's budget on the credential endpoints. The app warns once per
+  process when `X-Forwarded-For` arrives and no secret is configured. Directly
+  exposed — the container publishing a port — change nothing.
 - **The upload limiter is process-local**, like every other limiter here — which is
   why `DEPLOYMENT_TOPOLOGY=single-instance` is required in production and is the only
   accepted value. Behind N instances the request ceiling would become N × the

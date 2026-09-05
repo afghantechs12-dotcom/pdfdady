@@ -26,6 +26,7 @@ import { toPublicUser } from "@/src/domain/entities/User";
 import type { IAuditLogRepository } from "@/src/application/ports/auth/AuditLogRepository";
 import type { IMetrics } from "@/src/application/ports/observability/Metrics";
 import type { IAnalytics } from "@/src/application/ports/observability/Analytics";
+import { clientIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
     actorType: "user",
     actorId: result.user.id,
     action: "user.login",
-    ip: req.headers.get("x-forwarded-for") ?? null,
+    ip: clientIp(req),
   });
 
   // The redirect target is resolved server-side so a tampered `next` cannot

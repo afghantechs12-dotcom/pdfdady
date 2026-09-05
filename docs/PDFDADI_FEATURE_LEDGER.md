@@ -5047,3 +5047,60 @@ removed from the documented command.
 - **Next related step:** Stage 5 proxy topology, then the local production-mode
   surrogate for Stages 6–11. Container execution is still **NOT EXERCISED**: no
   runtime and no image scanner on this host.
+
+## The rate-limit key a caller could choose
+
+Every rate limiter except the upload limiter, plus five audit `ip` fields, was
+keyed on `X-Forwarded-For` — a header the caller writes. Two functions answered
+"who is calling": `uploadRateLimit.ts`'s `trustedClientAddress()` read forwarding
+headers only after a `timingSafeEqual` match of `x-pdfdadi-proxy-secret`, while
+`rateLimit.ts`'s `clientIp()` read them from anyone, with a comment calling a
+trusted extractor "future work".
+
+### What was built
+
+`ingress/guard.mjs` deletes any client-sent `x-pdfdadi-peer` and stamps
+`req.socket.remoteAddress` into it, before Next sees the request. `clientIp()` now
+resolves in order: a **verified** proxy's `X-Forwarded-For` (or `X-Real-IP`) first
+hop → the stamped peer → `"unknown"`. The trust rule itself moved *down* from
+`uploadRateLimit.ts` into `rateLimit.ts` and is re-exported, so no importer changed
+and the existing dependency direction (`uploadRateLimit` → `RateLimiter`) is not
+reversed into a module-scope TDZ crash. The three auth routes now record
+`ip: clientIp(req)` instead of the raw header.
+
+The severity is the inversion, not the bypass: a browser sends **no**
+`X-Forwarded-For`, so honest callers all shared the `"unknown"` bucket while a
+caller sending `1`, `2`, `3` got a fresh bucket per request — strictest on the
+traffic that was not attacking. Behind it sits a measured **22.2 ms median** of
+blocked event loop per password attempt (`scryptSync`), which
+`lib/admin/passwords.ts` justifies by citing the very limit that was rotatable.
+
+The earlier audit had accepted a dilemma — spoofable, or one global bucket that is
+itself a denial of service. The third source is the socket: production refuses to
+serve when the ingress guard is not installed, so a stamped peer address is always
+available and cannot be forged.
+
+### Tests, and the one that was inert until a Unix socket
+
+`ingress/guard.test.ts` pins the header name against the app's own constant (the
+string is duplicated because the guard loads before the Next bundle exists),
+proves a client's copy is overwritten over TCP, and connects over a **Unix domain
+socket** to make the `delete` bite: over TCP the assignment that follows overwrites
+the forged value anyway, so deleting that line left the suite green. Six mutations
+were run and every one went red — including the two that check the nginx caps
+documented in `SERVER_SETUP.md` against `STREAMING_ROUTE_PATTERNS`, a set the guide
+had asked readers to keep in step by hand.
+
+Six route-test helpers were rotating `X-Forwarded-For` to isolate the in-process
+limiters; they now rotate `x-pdfdadi-peer`. The three suites that assert
+`X-Forwarded-For` is *not* trusted were left exactly as they were.
+
+- **Known limitations:** behind a reverse proxy with no `TRUSTED_PROXY_SECRET`
+  every request arrives from the proxy's address, so all callers share one key —
+  unspoofable, but one caller can spend another's budget on the credential
+  endpoints. The server now warns once per process, naming the variable and never
+  the address. Runtime confirmation that the stamped header reaches a route handler
+  is static only (Next 16.3.4's `NextRequestAdapter` builds the handler's `Request`
+  from the mutated headers); the end-to-end row is owed by the rebuilt surrogate.
+- **Next related step:** Stages 6–11 against the local production-mode surrogate,
+  which needs a rebuild and will therefore change `BUILD_ID`.

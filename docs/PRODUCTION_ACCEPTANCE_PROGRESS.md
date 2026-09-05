@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T17:15:00Z (UTC) |
+| Last updated | 2026-09-05T15:44:46Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `98appVCcbyMxzlhk26zya` (accepted cold artifact; **not** rebuilt yet in this acceptance) |
@@ -22,7 +22,7 @@ what it produced, and what is still owed.
 | 2 | Production environment contract | **DONE** |
 | 3 | Container build | **DONE (static)** — `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
 | 4 | Persistent database and storage | **DONE** — 1 P2 and 1 P3 found and fixed |
-| 5 | Network and proxy topology | NOT STARTED |
+| 5 | Network and proxy topology | **DONE** — 1 P1 and 1 P3 found and fixed |
 | 6 | Staging deployment (local production-mode surrogate) | NOT STARTED |
 | 7 | Production-like user acceptance | NOT STARTED |
 | 8 | Security acceptance | NOT STARTED |
@@ -192,18 +192,65 @@ Available: node v26.7.0, npm 11.19.0, gs, qpdf, pdftoppm, pdfinfo, tesseract,
 ocrmypdf, python3, openssl, sqlite3, Playwright chromium-1234, Chrome, LAN IP
 `172.20.10.2`.
 
+## Stage 5 — network and proxy topology (DONE)
+
+Found and fixed a **P1**: `lib/server/rateLimit.ts`'s `clientIp()` trusted
+`X-Forwarded-For` from anyone, so the key for **thirteen** call sites — eight rate
+limiters (admin login 5/min, admin setup 10/min, user login 10/min, signup
+10/hour, billing session 6/min, csp-report 60/min, analytics 120/min, tools and
+jobs 20/min) and five audit `ip` fields — was a string the caller writes. Only the
+upload limiter checked `x-pdfdadi-proxy-secret` first.
+
+The inversion is the severity: a browser sends no `X-Forwarded-For`, so honest
+callers shared one bucket while a caller sending a counter got a fresh bucket per
+request. A password attempt costs a measured **22.2 ms median** of blocked event
+loop (`scryptSync`), and `lib/admin/passwords.ts` justifies that blocking call by
+citing the bypassable limit.
+
+Fixed at the root: `ingress/guard.mjs` deletes any client-sent `x-pdfdadi-peer`
+and stamps the socket's peer address; `clientIp()` resolves a **verified** proxy's
+hop → the stamped peer → `"unknown"`. Production cannot serve without the guard
+(`assertInstalled()` + the startup gate), so the third source is always there.
+Also fixed a **P3**: the nginx caps documented in `SERVER_SETUP.md` had no guard
+against `STREAMING_ROUTE_PATTERNS` drifting; they are now pinned in both
+directions. `SERVER_SETUP.md` and `.env.example` said forwarding headers were
+never trusted, which was true only of the upload limiter.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `npx vitest run ingress lib/server app/api deploymentArtifact.test.ts deploymentTopology.test.ts src/infrastructure/config` | 0 | 38 files, 458 tests, 0 failures |
+| `npx tsc --noEmit` | 0 | clean |
+| `npx eslint` (changed files) | 0 | clean |
+| 6 mutations, each restored | 1 each | every new guard fails when its property is removed (M1 3/9, M2 2/13, M3 1/13, M4 1/13, M5 1/13, M6 1/13) |
+
+M3 is worth remembering: over TCP the `delete` in the stamp is inert, because the
+assignment overwrites the client's copy anyway. It only bites on a Unix domain
+socket, so the test that covers it connects over one — without that test the
+security half of the stamp was unguarded.
+
+**Deferred to Stage 6, deliberately:** runtime confirmation that the stamped
+header reaches a route handler. The link is verified statically in Next 16.3.4's
+`NextRequestAdapter`; the accepted cold artifact predates these route changes, so
+only a rebuilt surrogate can prove it end to end.
+
+Evidence: `docs/evidence/production-acceptance/08-network-proxy-topology.md`,
+`08-network-proxy-topology.log`.
+
 ## Remaining actions
 
-1. Stage 5 — proxy topology validation (`TRUSTED_PROXY_SECRET`,
-   `X-Forwarded-For`, `HOSTNAME` binding, proxy body limits).
-3. Stages 6–11 — stand up the production-mode surrogate on
-   `https://172.20.10.2:3001` and re-run the probe fleet against it.
-4. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
+1. Stages 6–11 — stand up the production-mode surrogate on
+   `https://172.20.10.2:3001` and re-run the probe fleet against it. A **rebuild is
+   required** (the https origin must be exported at build time, and the cold
+   artifact predates Stage 5's route changes), so `BUILD_ID` will change. Stage 6
+   additionally owes the two runtime rows Stage 5 deferred: rotating
+   `X-Forwarded-For` against `/api/admin/login` is refused at the 6th attempt, and
+   the audit row records the peer rather than the sent header.
+2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
    `VISUAL ACCEPTANCE PENDING`.
-5. Stage 13 — decision register from the 12 manual rows and 14 owner decisions.
-6. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
+3. Stage 13 — decision register from the 12 manual rows and 14 owner decisions.
+4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-7. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 4; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 5; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,

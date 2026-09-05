@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { binaryInfo } from "@/lib/server/dependencyCheck";
 import { productionProblems } from "@/src/infrastructure/config/env";
+import { STREAMING_ROUTE_PATTERNS, classifyPath } from "./ingress/policy.mjs";
 
 /**
  * R3 — the containerized deployment path, checked against the repository it
@@ -288,6 +289,34 @@ describe("R3 — the compose file starts the app it describes", () => {
     );
   });
 
+  /**
+   * The local production surrogate, checked against the same gate as the two
+   * container paths.
+   *
+   * `scripts/restart-origin.sh` is what every probe from Stage 6 on runs the app
+   * with, in production mode — so it meets the gate, and Stage 4's new
+   * STORAGE_LOCAL_ROOT requirement silently made its environment incomplete. A
+   * surrogate that cannot boot is discovered at the start of an audit run, hours
+   * from the change that broke it; the gate can say so here instead.
+   */
+  it("exports every variable the audit origin needs to boot in production mode", () => {
+    const script = readFileSync(path.join(root, "scripts", "restart-origin.sh"), "utf8");
+    const env: Record<string, string | number> = { ...SCHEMA_DEFAULTS };
+    for (const [, key, raw] of script.matchAll(/^export ([A-Z][A-Z0-9_]*)=(\S+)/gm)) {
+      // `${AUDIT_X:-default}` is the default; a bare `$X` or `${X}` comes from the
+      // shell, and `. ./.env` supplies the secrets this test must not read.
+      const value = raw.replace(/^"|"$/g, "");
+      const fallback = /^\$\{[A-Za-z0-9_]+:-([^}]*)\}$/.exec(value);
+      env[key] = fallback ? fallback[1] : (GATE_STANDIN[key] ?? value);
+    }
+    // Sourced from `.env`, never from this file.
+    env.ADMIN_SECRET = GATE_STANDIN.ADMIN_SECRET;
+    expect(env.NODE_ENV, "the surrogate must run in production mode").toBe("production");
+    expect(productionProblems(env as unknown as Parameters<typeof productionProblems>[0])).toEqual(
+      [],
+    );
+  });
+
   it("names a database URL this Prisma schema can actually open", () => {
     const schema = readFileSync(path.join(root, "prisma", "schema.prisma"), "utf8");
     const provider = /datasource\s+db\s*\{[^}]*provider\s*=\s*"([^"]+)"/.exec(schema)?.[1];
@@ -314,6 +343,37 @@ describe("R3 — the compose file starts the app it describes", () => {
     const args = composeText.slice(composeText.indexOf("\n      args:"));
     const buildValue = /NEXT_PUBLIC_SITE_URL:\s*(\S+)/.exec(args)?.[1];
     expect(buildValue).toBe(environment.get("NEXT_PUBLIC_SITE_URL"));
+  });
+
+  /**
+   * The sample proxy config in SERVER_SETUP.md raises `client_max_body_size` on the
+   * paths that take a large upload, and the guide asks the reader to keep that list
+   * in step with the matcher exclusions by hand. `ingress/policy.test.ts` pins those
+   * exclusions against the matcher; nothing pinned the documented nginx list against
+   * either, so a sixth streaming route would pass every existing test and then fail
+   * at the proxy for anyone who runs one — with a 413 the app never sent.
+   */
+  it("the documented nginx caps cover exactly the streaming upload paths", () => {
+    const guide = readFileSync(path.join(root, "SERVER_SETUP.md"), "utf8");
+    const locations = [...guide.matchAll(/^\s*location ~ (\S+)/gm)].map(([, re]) => new RegExp(re));
+    expect(locations.length, "no nginx `location ~` blocks found in the guide").toBeGreaterThan(0);
+
+    // A concrete path per pattern: the regexes are anchored literals with `[^/]+`
+    // segments, so one substitution yields a path the app really classifies.
+    const streaming = STREAMING_ROUTE_PATTERNS.map((p) =>
+      p.replace(/^\^/, "").replace(/\$$/, "").replace(/\[\^\/\]\+/g, "x"),
+    );
+
+    for (const p of streaming) {
+      expect(classifyPath(p), `${p} is no longer a streaming path`).toBe("C");
+      expect(locations.some((re) => re.test(p)), `no documented cap raises the proxy limit for ${p}`).toBe(true);
+    }
+    // And nothing else: a cap on a class B path would let 120 MiB reach an app that
+    // refuses it at 2 MiB, which is the proxy absorbing a body for nothing.
+    for (const p of ["/", "/api/admin/login", "/api/analytics/events", "/api/workspaces/w/documents/d"]) {
+      expect(classifyPath(p), `${p} is not class C`).not.toBe("C");
+      expect(locations.some((re) => re.test(p)), `a documented cap also matches ${p}`).toBe(false);
+    }
   });
 
   it("keeps the database and the stored documents outside the container layer", () => {

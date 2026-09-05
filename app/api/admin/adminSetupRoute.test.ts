@@ -45,7 +45,7 @@ const ORIGIN = "http://localhost:3000";
 function post(body: unknown, query = "", ip = "203.0.113.1"): Request {
   return new Request(`${ORIGIN}/api/admin/setup${query}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": ip },
+    headers: { "content-type": "application/json", "x-pdfdadi-peer": ip },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }

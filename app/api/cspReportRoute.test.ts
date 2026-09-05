@@ -35,7 +35,7 @@ function post(
   const raw = typeof body === "string" ? body : JSON.stringify(body);
   return new Request(`${ORIGIN}/api/csp-report`, {
     method: "POST",
-    headers: { "content-type": "application/csp-report", "x-forwarded-for": from, ...headers },
+    headers: { "content-type": "application/csp-report", "x-pdfdadi-peer": from, ...headers },
     body: raw,
   });
 }

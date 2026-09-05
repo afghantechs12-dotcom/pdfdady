@@ -5,6 +5,7 @@ import { AuthService, USER_SESSION_COOKIE } from "@/src/application/services/Aut
 import { clearedSessionCookieOptions } from "@/src/application/services/authHttp";
 import { requireSameOrigin } from "@/src/application/services/workspaceCsrf";
 import type { IAuditLogRepository } from "@/src/application/ports/auth/AuditLogRepository";
+import { clientIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
         actorType: "user",
         actorId: user.id,
         action: "user.logout",
-        ip: req.headers.get("x-forwarded-for") ?? null,
+        ip: clientIp(req),
       });
     }
     // Deletes the row, so the token is dead even if the cookie survives.

@@ -75,7 +75,7 @@ function makeRequest(url: string, options: RequestOptions = {}) {
   const headers = new Headers({ "Content-Type": "application/json", ...options.headers });
   if (options.origin !== null) headers.set("origin", options.origin ?? ORIGIN);
   if (options.cookie) headers.set("cookie", options.cookie);
-  headers.set("x-forwarded-for", options.ip ?? `10.1.0.${Math.floor(Math.random() * 250) + 1}`);
+  headers.set("x-pdfdadi-peer", options.ip ?? `10.1.0.${Math.floor(Math.random() * 250) + 1}`);
 
   const body = options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body));
   const request = new Request(url, { method: "POST", headers, body });

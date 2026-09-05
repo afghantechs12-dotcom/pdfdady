@@ -1,0 +1,72 @@
+# Stage 5 — network and proxy topology. 2026-09-05T15:41:51Z
+# node v26.7.0 · branch production-acceptance · base d688d79
+
+## 1. Cost of a credential verification, i.e. what the rate limit protects
+scryptSync N=16384 r=8 p=1, 5 runs (ms): 22.2 21.8 21.9 22.2 22.4
+median: 22.2 ms of blocked event loop per password attempt
+
+## 2. Call sites that key on clientIp() — every one of them was spoofable
+app/api/tools/[slug]/route.ts:82:  if (toolLimiter.hit(clientIp(request))) {
+app/api/auth/signup/route.ts:90:      ip: clientIp(req),
+app/api/auth/logout/route.ts:38:        ip: clientIp(req),
+app/api/auth/login/route.ts:95:    ip: clientIp(req),
+app/api/admin/setup/route.ts:30:  if (setupLimiter.hit(clientIp(req))) {
+app/api/admin/login/route.ts:17:  if (loginLimiter.hit(clientIp(req))) {
+app/api/csp-report/route.ts:107:  if (reportLimiter.hit(clientIp(request))) {
+app/api/jobs/route.ts:69:  if (jobLimiter.hit(clientIp(request))) {
+app/api/billing/portal/route.ts:41:      ip: clientIp(req),
+app/api/billing/checkout/route.ts:61:      ip: clientIp(req),
+app/api/analytics/events/route.ts:69:  if (beaconLimiter.hit(clientIp(request))) {
+lib/server/rateLimit.ts:13: *   if (limiter.hit(clientIp(req))) return new NextResponse(..., { status: 429 });
+src/application/services/authHttp.ts:116:  if (!limiter.hit(clientIp(req))) return null;
+src/application/services/billingHttp.ts:106:  if (!billingSessionRateLimiter.hit(clientIp(req))) return null;
+
+## 3. Every new guard removed one at a time (each restored afterwards)
+
+### M1 — clientIp trusts X-Forwarded-For again (the defect, reintroduced)
+ ❯ lib/server/rateLimit.test.ts (9 tests | 3 failed) 7ms
+ ❯ lib/server/rateLimit.test.ts:85:77
+ ❯ lib/server/rateLimit.test.ts:93:54
+ ❯ lib/server/rateLimit.test.ts:122:20
+      Tests  3 failed | 6 passed (9)
+### M2 — the ingress guard does not stamp the peer address
+ ❯ ingress/guard.test.ts (13 tests | 2 failed) 93ms
+ ❯ ingress/guard.test.ts:182:47
+ ❯ ingress/guard.test.ts:221:19
+      Tests  2 failed | 11 passed (13)
+### M3 — the stamp keeps a client-sent copy (delete removed)
+ ❯ ingress/guard.test.ts (13 tests | 1 failed) 94ms
+ ❯ ingress/guard.test.ts:221:19
+      Tests  1 failed | 12 passed (13)
+### M4 — the audit surrogate stops exporting STORAGE_LOCAL_ROOT
+ ❯ deploymentArtifact.test.ts (13 tests | 1 failed) 7ms
+ ❯ deploymentArtifact.test.ts:315:92
+      Tests  1 failed | 12 passed (13)
+### M5 — the guide's cap for one streaming path deleted
+     → no documented cap raises the proxy limit for /api/workspaces/x/documents/x/attachments: expected false to be true // Object.is equality
+      Tests  1 failed | 12 passed (13)
+### M6 — the guide's cap broadened to all of /api/
+     → a documented cap also matches /api/admin/login: expected true to be false // Object.is equality
+      Tests  1 failed | 12 passed (13)
+
+## 4. Nothing in the application reads a proxy's host or protocol claim
+$ grep -rn 'x-forwarded-proto|x-forwarded-host|headers.get("host")' (app, src, lib, ingress)
+src/application/services/workspaceCsrfProxyOrigin.test.ts:252:    ["x-forwarded-host", { "x-forwarded-host": "evil.example" }],
+src/application/services/workspaceCsrfProxyOrigin.test.ts:253:    ["x-forwarded-proto + host", { "x-forwarded-proto": "https", host: "evil.example" }],
+src/application/services/workspaceCsrfProxyOrigin.test.ts:256:    ["x-forwarded-host naming the real site", { "x-forwarded-host": "pdfdadi.example" }],
+src/application/services/workspaceCsrfProxyOrigin.test.ts:259:      "x-forwarded-host": "evil.example",
+src/application/services/workspaceCsrfProxyOrigin.test.ts:260:      "x-forwarded-proto": "https",
+src/application/services/workspaceCsrfProxyOrigin.test.ts:274:      "x-forwarded-host": "evil.example",
+src/application/services/workspaceCsrfProxyOrigin.test.ts:275:      "x-forwarded-proto": "http",
+
+## 5. Bind contract as shipped
+Dockerfile:39:ENV PORT=3000
+docker-compose.yml:18:      - PORT=3000
+(no HOSTNAME anywhere: Next's standalone server defaults to 0.0.0.0, which is
+ what a published container port requires. A host install behind a proxy sets it.)
+
+## 6. Restored tree — the suites this stage touched
+ Test Files  38 passed (38)
+      Tests  458 passed (458)
+$ npx tsc --noEmit
+exit 0

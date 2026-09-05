@@ -23,6 +23,12 @@ export NODE_ENV=production PORT="${PORT:-3002}" HOSTNAME=127.0.0.1
 # rather than a code path only containers reach.
 export DEPLOYMENT_TOPOLOGY="${DEPLOYMENT_TOPOLOGY:-single-instance}"
 export DATABASE_URL="${AUDIT_DATABASE_URL:-file:/tmp/audit-final-db.db}"
+# Absolute, and outside the repository, for the same reason as the database: the
+# production gate refuses a relative object-storage root because `path.resolve()`
+# would put stored documents under the working directory. Added in Stage 5 of
+# production acceptance, when the Stage 4 gate change made this script's own
+# environment incomplete — `deploymentArtifact.test.ts` now feeds it to the gate.
+export STORAGE_LOCAL_ROOT="${AUDIT_STORAGE_ROOT:-/tmp/audit-storage}"
 export NEXT_PUBLIC_SITE_URL="${AUDIT_SITE_URL:-https://172.20.10.2:3001}"
 # The guarded entry, from the repository root — `ingress/server.mjs` installs the
 # guard around `http.createServer` and then loads `.next/standalone/server.js`,

@@ -30,6 +30,7 @@ import { toPublicUser } from "@/src/domain/entities/User";
 import { DomainError } from "@/src/domain/errors";
 import type { IAuditLogRepository } from "@/src/application/ports/auth/AuditLogRepository";
 import type { IMetrics } from "@/src/application/ports/observability/Metrics";
+import { clientIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
       actorType: "user",
       actorId: user.id,
       action: "user.register",
-      ip: req.headers.get("x-forwarded-for") ?? null,
+      ip: clientIp(req),
     });
     metrics.increment("auth.signup.success", 1);
 

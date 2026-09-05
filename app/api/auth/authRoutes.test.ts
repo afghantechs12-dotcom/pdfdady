@@ -67,8 +67,10 @@ function makeRequest(url: string, method: string, options: RequestOptions = {}) 
   if (options.origin !== null) headers.set("origin", options.origin ?? ORIGIN);
   if (options.referer) headers.set("referer", options.referer);
   if (options.cookie) headers.set("cookie", options.cookie);
-  // A distinct IP per test keeps the shared in-process rate limiters isolated.
-  headers.set("x-forwarded-for", options.ip ?? `10.0.0.${Math.floor(Math.random() * 250) + 1}`);
+  // A distinct client per test keeps the shared in-process rate limiters isolated.
+  // The peer header, not `x-forwarded-for`: the limiters stopped trusting a header a
+  // client can write (`clientIp`), and this is the one the ingress guard stamps.
+  headers.set("x-pdfdadi-peer", options.ip ?? `10.0.0.${Math.floor(Math.random() * 250) + 1}`);
 
   const request = new Request(url, {
     method,
@@ -272,7 +274,7 @@ describe("POST /api/auth/login", () => {
   it("rejects malformed JSON", async () => {
     const request = new Request(`${ORIGIN}/api/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", origin: ORIGIN, "x-forwarded-for": "10.9.9.1" },
+      headers: { "Content-Type": "application/json", origin: ORIGIN, "x-pdfdadi-peer": "10.9.9.1" },
       body: "{not json",
     });
     const response = await loginPost(request);
