@@ -6,10 +6,10 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T22:10:00Z (UTC) |
+| Last updated | 2026-09-05T23:05:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
-| Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
+| Build artifact | `.next/BUILD_ID` = `LK-prgSvGFf1hyM1etdkD` — **the final candidate**, rebuilt in **Stage 14** from `1b45f1b` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`, on a page **and** on `/_next/static/chunks/*.js`, which the proxy does not serve). Supersedes `MniplDUweIbeIPYT_CM5N` (Stage 9), `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. `git diff 209b1ca..HEAD` over `app lib src ingress next.config.mjs proxy.ts instrumentation.ts prisma package.json package-lock.json data` is **empty**, so Stages 6–12's measurements describe this tree and this artifact is a refresh, not a new subject. |
 | `package-lock.json` | sha256 `43558cef02ddf3ed8a579b82a995bb8e080e29c26da50ef2a91da1119a9fd039` |
 | Production deployment | **NOT AUTHORIZED.** Stage 15 requires explicit owner authorization and has not begun. |
 | Remote | none configured. Nothing pushed. `main` untouched. |
@@ -31,7 +31,7 @@ what it produced, and what is still owed.
 | 11 | Bounded performance smoke test | **DONE** — 0 new defects; P2-2 reproduced, **P2-6 diagnosed**; memory peak and cold start measured |
 | 12 | Human visual acceptance package | **DONE (machine half)** — compare **PASS 156/156**; 1 P3 found; `VISUAL ACCEPTANCE PENDING` — owner approval not recorded |
 | 13 | Manual decision register | **DONE** — 33 open rows (22 owner decisions, 11 verifications), **0 decided**; 4 earlier rows retired by measurement; 1 guard added |
-| 14 | Go/no-go checkpoint | NOT STARTED |
+| 14 | Go/no-go checkpoint | **DONE** — 0 new defects; 29 rows: **12 PASS**, 2 PASS-for-the-pattern, 4 NOT EXERCISED, 4 MANUAL REVIEW, 7 OWNER APPROVAL REQUIRED, **0 FAIL**; verdict **NOT READY FOR PRODUCTION — ACCEPTANCE BLOCKERS REMAIN** |
 | 15 | Production deployment | **BLOCKED — OWNER AUTHORIZATION REQUIRED** |
 
 ## Stage 1 — repository and release-candidate safety (DONE)
@@ -678,6 +678,53 @@ Secrets: none requested, echoed or written. The register names variables only
 `STORAGE_SIGNING_SECRET`, `ADMIN_SECRET`) and says which subsystem each switches on; the
 consolidated owner-input table belongs to the Stage 14 report.
 
+## Stage 14 — go/no-go checkpoint (DONE)
+
+Deliverable: [`docs/PRODUCTION_GO_LIVE_CHECKLIST.md`](PRODUCTION_GO_LIVE_CHECKLIST.md).
+Evidence: [`evidence/production-acceptance/17-go-no-go.md`](evidence/production-acceptance/17-go-no-go.md).
+**No product code changed and no test was added in this stage.**
+
+**The final candidate, re-measured at `1b45f1b`:**
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `scripts/suite-evidence.mjs --label pa-final` | 0 | **393 files, 7 556 tests, 0 failures** (`GREEN`, 9.9 s) |
+| `NEXT_PUBLIC_SITE_URL=… npm run build` | 0 | 63 pages, `BUILD_ID` `LK-prgSvGFf1hyM1etdkD` |
+| restart + `curl` | 0 | health **200** 30 ms; origin `/`, front `/`, `/tools` all **200**; static chunk carries the baked `reporting-endpoints` |
+| `curl /api/health/ready` | — | **503 `degraded`** — `toolchain:false` only, the host's absent `soffice` |
+| `npm audit` / `--omit=dev` | 0 | **0 of 486** · **0 of 158** |
+| `final-prelaunch-audit.mjs --json 17-static-harness.json` | 0 | **PASS 68/68 exercised**, PRODUCT FAILURE **0**, 85 rows |
+
+Suite delta from the accepted baseline (389 files / 7 487 tests): **four new files, none
+lost** — `envContract.test.ts`, `processorRegistry.test.ts`, `storeLocation.test.ts`,
+`monitoringSignals.test.ts`, plus cases inside `deploymentArtifact.test.ts` and `env.test.ts`.
+
+**Classification of the 29 checklist rows** (the brief forbids counting ENVIRONMENTAL,
+NOT EXERCISED, FAIL or an unresolved launch-critical MANUAL row as a PASS):
+
+| Class | Count | Rows |
+| --- | --- | --- |
+| PASS | **12** | C-1, C-3…C-10, A-2, A-3, A-4 |
+| PASS for the *pattern*, not the deployment | 2 | I-4, A-1 |
+| NOT EXERCISED | 4 | C-2, C-6b, I-2, I-3 |
+| MANUAL REVIEW | 4 | I-6, I-7, I-10, I-13 |
+| OWNER APPROVAL REQUIRED | 7 | I-1, I-8, I-11, I-12, I-14, A-5, A-6 |
+| FAIL | **0** | — |
+
+`N3` stays qualified (peak memory measured, not a ceiling — register **V10**) and
+`VISUAL ACCEPTANCE PENDING` stays open: 156/156 pixels is not approval.
+
+**The 14 missing inputs are consolidated into one table** in the evidence file — container
+runtime, image scanner, staging host, domain/TLS, proxy, `TRUSTED_PROXY_SECRET`, `soffice`,
+Stripe test credentials, monitoring provider, backup destination, two hostile fixtures, a
+second browser engine, a Git remote, and the owner. **Secret names only; no value was
+requested, echoed or written anywhere in this acceptance.**
+
+**Verdict: `NOT READY FOR PRODUCTION — ACCEPTANCE BLOCKERS REMAIN`.** Nothing is red in the
+code — 0 P0/P1, a green suite, 0 vulnerabilities — but the image has never been built, no
+container has ever run, there is no domain, TLS, proxy, monitoring or scheduled backup, and
+no human has approved a screen.
+
 ## Remaining actions
 
 1. The surrogate the browser stages measure is **still running**: origin
@@ -698,8 +745,10 @@ consolidated owner-input table belongs to the Stage 14 report.
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stages 8–13 are done; **Stage 14** is next and needs no server either — a
-   checklist, one full-suite run and the report.
+   default. Stages 8–14 are done. **Stage 15 is the only stage left and it is
+   BLOCKED on owner authorization** — nothing further should be run against this
+   surrogate; it can be SIGTERM'd (which releases the singleton lease) whenever the
+   evidence is no longer being re-read.
    If a visual re-run is ever needed, it MUST pass
    `--baseline-dir docs/screenshots/final-prelaunch/baseline` and
    `--sheets docs/evidence/production-acceptance/visual` — without the first it
@@ -708,22 +757,25 @@ consolidated owner-input table belongs to the Stage 14 report.
    `scripts/perf-load-probe.mjs` for pages/workflow/fan-out, `scripts/perf-soak-probe.mjs`
    for sustained load and cold start. `--cold-start` restarts the origin, so pass the
    same four `AUDIT_*` variables or it comes back on different throwaway state.
-3. **Stage 13 is done** — register at
+3. **Stages 13 and 14 are done** — register at
    `docs/evidence/production-acceptance/16-manual-decision-register.md`, **33 open rows,
    0 decided**. Stage 14 must classify all 33 as `OWNER APPROVAL REQUIRED` (22) or
    `MANUAL REVIEW` (11) and **none as PASS**; the 18 marked `BEFORE GO-LIVE` are the
-   go/no-go set, and **D4** (markets) gates two of the others. Four rows earlier
-   documents called open are retired there — **P2-1**, **P2-5**, **F5**, **R2** — so the
-   open-P2 set is **P2-2, P2-3, P2-4, P2-6**, and Stage 14's counts must use the
-   retired list, not §35's original six.
-4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md` (it must carry the first-boot
-   mount-verification row for `/app/data/db`, `/app/data/storage` and
-   `/app/data/admin`, and the **1 GB** memory-limit row from Stage 11), the full suite
-   re-run at the final candidate, and the 26-section report. `VISUAL ACCEPTANCE
-   PENDING` is an open row there — it cannot be counted as a PASS, and neither can
-   `N3`, which is only partly answered. The report also owes the **consolidated table of
-   every missing owner input**, secret **names** only.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 13; update it again
+   go/no-go set, and **D4** (markets) gates two of the others. Stage 14 did exactly that
+   and decided none of them. Four rows earlier documents called open are retired there —
+   **P2-1**, **P2-5**, **F5**, **R2** — so the open-P2 set is **P2-2, P2-3, P2-4, P2-6**.
+4. **Stage 14 is done** — [`docs/PRODUCTION_GO_LIVE_CHECKLIST.md`](PRODUCTION_GO_LIVE_CHECKLIST.md)
+   carries the first-boot mount-verification row (`I-10`, for `/app/data/db`,
+   `/app/data/storage` and `/app/data/admin`) and the **1 GB** memory row (`I-11`), the full
+   suite was re-run at the final candidate, and the 26-section report was delivered ending
+   `NOT READY FOR PRODUCTION — ACCEPTANCE BLOCKERS REMAIN`. **Stage 15 must not be started**
+   without explicit owner authorization *and* an identified production target; when it is
+   authorized, its report is a separate one ending with exactly
+   `PRODUCTION DEPLOYED — ACCEPTANCE PASS` or
+   `PRODUCTION DEPLOYMENT ROLLED BACK — BLOCKER FOUND`. The nine-step sequence the checklist
+   ends with is the running order for that stage.
+
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 14; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 6. **P2-6 has a recommendation attached, not a decision.** Stage 11 diagnosed it as a
    measurement artifact and amended its row in `docs/FINAL_PRELAUNCH_AUDIT.md`; it is

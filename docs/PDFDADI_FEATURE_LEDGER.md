@@ -5472,3 +5472,33 @@ rendered-layout assertions (**R2**) were satisfied in Stage 12. So the open-P2 s
   the product launches in; **no consent banner was added**.
 - **Next related step:** Stage 14, the go/no-go checkpoint — the go-live checklist, one
   final full-suite run at the release candidate, and the report.
+
+## The go/no-go checkpoint: 0 P0/P1, 0 FAIL, and still not ready
+
+Stage 14 of production acceptance produced
+[`docs/PRODUCTION_GO_LIVE_CHECKLIST.md`](PRODUCTION_GO_LIVE_CHECKLIST.md) — 29 rows under
+Code, Infrastructure and Acceptance — plus
+[`evidence/production-acceptance/17-go-no-go.md`](evidence/production-acceptance/17-go-no-go.md).
+**No product code changed and no test was added.**
+
+The final candidate at `1b45f1b`: **393 files / 7 556 tests / 0 failures**, artifact
+`LK-prgSvGFf1hyM1etdkD` serving (health 200, front 200, and the CSP `reporting-endpoints`
+baked into `/_next/static/chunks/*.js` — proof the *build* needs the production
+`NEXT_PUBLIC_SITE_URL`, because the proxy never sees that path), harness **PASS 68/68
+exercised** of 85 rows, `npm audit` **0 of 486** and **0 of 158**. `git diff 209b1ca..HEAD`
+over the compiled paths is **empty**, so Stages 6–12's runtime numbers describe this tree.
+
+Row classification: **12 PASS**, 2 PASS-for-the-pattern-not-the-deployment (I-4, A-1),
+4 NOT EXERCISED, 4 MANUAL REVIEW, 7 OWNER APPROVAL REQUIRED, **0 FAIL**.
+
+- **Feature flags:** none new.
+- **Known limitations:** the verdict is **`NOT READY FOR PRODUCTION — ACCEPTANCE BLOCKERS
+  REMAIN`**, and not because of a defect. The image has never been built or run (no
+  container runtime, no scanner), there is no domain, TLS certificate, reverse proxy,
+  monitoring destination or scheduled off-host backup, `VISUAL ACCEPTANCE PENDING` stands,
+  and 33 register rows are open with 0 decided. `N3` stays qualified: memory was measured as
+  a peak, never as a ceiling. Fourteen missing inputs are consolidated into one table —
+  **secret names only; no secret value was requested, echoed or written anywhere in this
+  acceptance.**
+- **Next related step:** Stage 15, production deployment — **blocked on explicit owner
+  authorization and an identified production target.** Its report is a separate one.
