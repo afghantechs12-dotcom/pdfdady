@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Trash2, Save, X } from "lucide-react";
+import { persistPricingPlans } from "./pricingPersistence";
 import { Card } from "@/components/admin/Card";
 import {
   Field,
   inputClass,
-  SaveButton,
+  SaveStatus,
 } from "@/components/admin/SaveStatus";
 import type { PricingPlan } from "@/data/pricing";
 import { useRouter } from "next/navigation";
@@ -17,43 +18,47 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
+  const inFlight = useRef(false);
+  const [savedPlans, setSavedPlans] = useState(() => Object.fromEntries(initial.map(p => [p.id, JSON.stringify(p)])));
+  const dirtyPlans = plans.filter(p => savedPlans[p.id] !== JSON.stringify(p));
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function save(plan: PricingPlan) {
-    if (!plan.id || !plan.name || !plan.price) {
-      setError("ID, name and price are required");
+  async function saveBatch(pending: PricingPlan[]) {
+    if (inFlight.current || pending.length === 0) return;
+    if (pending.some(p => !p.id || !p.name || !p.price)) {
+      setError("ID, name and price are required for each changed plan");
+      setStatus("error");
       return;
     }
-    setBusyId(plan.id);
+    inFlight.current = true;
     setStatus("saving");
     setError(null);
     try {
-      const res = await fetch(`/api/admin/pricing/${plan.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(plan),
+      await persistPricingPlans(pending, {
+        save: (id, snapshot) => {
+          setBusyId(id);
+          return fetch(`/api/admin/pricing/${encodeURIComponent(id)}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" }, body: snapshot,
+          });
+        },
+        onSaved: (id, snapshot) => setSavedPlans(current => ({ ...current, [id]: snapshot })),
       });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(j.error ?? "Failed");
-        setStatus("error");
-        return;
-      }
       setStatus("saved");
       router.refresh();
-    } catch {
-      setError("Network error");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed. Your changes are still here.");
       setStatus("error");
     } finally {
-      setBusyId(plan.id);
-      setTimeout(() => setStatus("idle"), 1500);
+      inFlight.current = false;
       setBusyId(null);
     }
   }
 
   async function remove(id: string) {
+    if (inFlight.current) return;
     if (!confirm(`Delete the "${id}" plan?`)) return;
+    inFlight.current = true;
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/pricing/${id}`, { method: "DELETE" });
@@ -66,6 +71,7 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
     } catch {
       setError("Network error");
     } finally {
+      inFlight.current = false;
       setBusyId(null);
     }
   }
@@ -91,12 +97,11 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
       <Card
         title="Pricing plans"
         description="Shown on the /pricing page."
-        status={status}
-        errorMessage={error ?? undefined}
         toolbar={
           <button
             type="button"
             onClick={addPlan}
+            disabled={busyId !== null}
             className="inline-flex items-center gap-1.5 rounded-button bg-primary px-3 py-2 text-xs font-semibold text-white shadow-card hover:bg-primary-hover"
           >
             <Plus size={14} />
@@ -104,6 +109,7 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
           </button>
         }
       >
+        <fieldset disabled={busyId !== null}>
         <ul className="space-y-4">
           {plans.map((plan, planIndex) => (
             <li
@@ -258,7 +264,7 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
                 <button
                   type="button"
                   onClick={() => remove(plan.id)}
-                  disabled={busyId === plan.id || !plan.id}
+                  disabled={busyId !== null || !plan.id}
                   className="inline-flex items-center gap-1.5 rounded-button border border-softborder bg-white px-3 py-1.5 text-xs font-semibold text-navy-soft hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                 >
                   <Trash2 size={13} />
@@ -266,8 +272,8 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => save(plan)}
-                  disabled={busyId === plan.id}
+                  onClick={() => saveBatch([plan])}
+                  disabled={busyId !== null}
                   className="inline-flex items-center gap-1.5 rounded-button bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover disabled:opacity-60"
                 >
                   <Save size={13} />
@@ -277,8 +283,19 @@ export function PricingManager({ initial }: { initial: PricingPlan[] }) {
             </li>
           ))}
         </ul>
+        </fieldset>
       </Card>
-      <SaveButton status={status} busy={status === "saving"} />
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-card border border-softborder bg-white p-4 shadow-card">
+        <div className="text-sm text-navy">
+          <p role="status">{dirtyPlans.length ? `${dirtyPlans.length} plan${dirtyPlans.length === 1 ? "" : "s"} with unsaved changes` : "All plan changes saved"}</p>
+          {status !== "idle" && <SaveStatus status={status} errorMessage={error ?? undefined} />}
+        </div>
+        <button type="button" onClick={() => saveBatch(dirtyPlans)} disabled={busyId !== null || dirtyPlans.length === 0}
+          aria-busy={status === "saving" || undefined}
+          className="min-h-11 rounded-button bg-primary px-4 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60">
+          {status === "saving" ? "Saving plans…" : "Save changed plans"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -11,15 +11,15 @@ export function SaveStatus({
   if (status === "idle") return null;
   if (status === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary">
-        <Loader2 size={13} className="animate-spin" />
+      <span role="status" className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary">
+        <Loader2 size={13} className="animate-spin motion-reduce:animate-none" />
         Saving…
       </span>
     );
   }
   if (status === "saved") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+      <span role="status" className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
         <CheckCircle2 size={13} />
         Saved
       </span>
@@ -27,6 +27,7 @@ export function SaveStatus({
   }
   return (
     <span
+      role="status"
       title={errorMessage}
       className="inline-flex max-w-[16rem] items-center gap-1.5 truncate rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700"
     >
@@ -51,7 +52,7 @@ export function Field({
 }) {
   return (
     <label className={cn("block", className)}>
-      <span className="text-xs font-semibold text-navy">{label}</span>
+      <span className="text-sm font-semibold text-navy">{label}</span>
       {hint && <p className="mb-1.5 text-[11px] text-navy-soft">{hint}</p>}
       {children}
       {error && (
@@ -90,7 +91,8 @@ export const SaveButton = ({
 }) => (
   <button
     type="submit"
-    disabled={busy}
+    disabled={busy || status === "saving"}
+    aria-busy={busy || status === "saving" || undefined}
     className={cn(
       "inline-flex items-center gap-2 rounded-button bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-primary-hover disabled:opacity-60",
       status === "saved" && "bg-green-600 hover:bg-green-600",
@@ -98,7 +100,7 @@ export const SaveButton = ({
   >
     {busy ? (
       <>
-        <Loader2 size={15} className="animate-spin" />
+        <Loader2 size={15} className="animate-spin motion-reduce:animate-none" />
         Saving…
       </>
     ) : status === "saved" ? (
