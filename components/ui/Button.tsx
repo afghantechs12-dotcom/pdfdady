@@ -48,7 +48,7 @@ export function Button({
   const content = (
     <>
       {loading ? (
-        <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+        <Loader2 size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
       ) : (
         leadingIcon
       )}

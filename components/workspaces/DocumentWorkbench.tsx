@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Columns2, FileText, Loader2, X } from "lucide-react";
+import { ArrowLeft, Columns2, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { EditorOpeningSkeleton } from "@/components/editor/EditorOpeningSkeleton";
 import { EditorWorkspace } from "@/components/editor/EditorWorkspace";
 import { EditorErrorBoundary } from "@/components/editor/EditorErrorBoundary";
 import { workspaceHref } from "@/components/app/appShellLogic";
@@ -441,17 +442,7 @@ export function DocumentWorkbench({
   );
 
   if (busy && !session) {
-    return (
-      <div className="flex h-[calc(100vh-56px)] items-center justify-center bg-app-bg">
-        <span className="flex items-center gap-2 text-sm text-app-muted">
-          <Loader2 size={16} aria-hidden="true" className="animate-spin" />
-          Opening document…
-        </span>
-        <span className="sr-only" role="status" aria-live="polite">
-          Opening document
-        </span>
-      </div>
-    );
+    return <EditorOpeningSkeleton fileName={documentName} />;
   }
 
   return (
