@@ -267,6 +267,23 @@ describe("R3 — the container image can be built and can serve", () => {
     expect(new Set(majors).size).toBe(1);
   });
 
+  it("has LF line endings in every deploy-critical file", () => {
+    /*
+     * `docker build` tolerates CRLF, so the failure is not the build — it is the
+     * `RUN` continuations, where a trailing \r joins the next line as part of the
+     * shell word, and the CMD, where it lands inside the argv the container execs.
+     * The whole Dockerfile was CRLF for its entire history (88 of 88 lines at
+     * `388e8af`) and was normalized incidentally by an edit that had another
+     * purpose, which is exactly the state that regresses on the next edit from a
+     * Windows checkout. Recorded as open P2-5 by the prelaunch audit; pinned here
+     * rather than closed in prose.
+     */
+    for (const file of ["Dockerfile", "docker-compose.yml", ".dockerignore", "ingress/server.mjs"]) {
+      const text = readFileSync(path.join(root, file), "utf8");
+      expect(text.includes("\r\n"), `${file} has CRLF line endings`).toBe(false);
+    }
+  });
+
   it("does not carry a developer database into the build context", () => {
     const ignored = readFileSync(path.join(root, ".dockerignore"), "utf8")
       .split("\n")

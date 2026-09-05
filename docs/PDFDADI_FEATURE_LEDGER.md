@@ -5426,3 +5426,49 @@ targets `/api/health`, so a container correctly waiting for a lease reports unhe
   the sweep measured Chrome's TLS interstitial, not the product).
 - **Next related step:** Stage 13, the manual decision register — where the 401/404
   console noise, the lease-503 observability gap and harness row **R3** are owner rows.
+
+## Two open findings were closed by measurement, and the accidental one is now a guard
+
+Stage 13 changed no product behaviour and decided nothing: it collected every row four
+earlier documents left to a human into one register,
+`docs/evidence/production-acceptance/16-manual-decision-register.md` — **33 open rows, 22
+owner decisions and 11 verifications, none answered here**. Its only value to the ledger is
+what checking its own inputs turned up: two of the six findings the prelaunch audit records
+as open **P2** are not open at this tree.
+
+**P2-1**, nine dependency advisories, is closed and already pinned. `npm audit` reports **0
+of 486** packages and **0** with `--omit=dev`; the bumps landed in `77d45b1`, an ancestor of
+this branch's base, and `finalReconciliation.test.ts` R1–R3 re-derive the installed
+inventory from npm's own JSON rather than trusting a written list, with an anti-vacuity
+check that each pre-fix version really did fall inside its advisory's window.
+
+**P2-5**, CRLF line endings in the `Dockerfile`, is closed too — **by accident**, which is
+why it is the one thing this stage added code for. The file was **88 of 88 CRLF lines** at
+`388e8af` and is **0 of 119** today, normalized by an edit that had another purpose
+entirely; nothing stops the next edit from a Windows checkout putting them back. The hazard
+was never `docker build`, which tolerates them: it is a trailing `\r` inside a `RUN`
+continuation, where it becomes part of the next shell word, and inside `CMD`, where it
+lands in the argv the container execs. One assertion in the existing
+`deploymentArtifact.test.ts` now requires LF in `Dockerfile`, `docker-compose.yml`,
+`.dockerignore` and `ingress/server.mjs` (17 tests, was 16). Converted back to CRLF it
+fails by filename; restored, green.
+
+Two further rows retired without any change: cross-tenant Workspace isolation (**F5**) was
+exercised end-to-end in Stage 7 with two real accounts — an outsider gets the same
+controlled 404 for a Workspace that rendered for its owner seconds earlier — and the
+rendered-layout assertions (**R2**) were satisfied in Stage 12. So the open-P2 set is
+**P2-2, P2-3, P2-4, P2-6**: four, not six.
+
+- **Feature flags:** none new.
+- **Known limitations:** the register answers nothing by design. Eighteen of its rows are
+  marked `BEFORE GO-LIVE`, and six of those need work rather than a recorded answer — human
+  visual acceptance, an actual container build and first boot on real mounts, the missing
+  zip-bomb and malformed-xref fixtures, image-retention (the honest answer today is that no
+  image is retained anywhere), the log/metric/error destination that gates two unwritten
+  adapters, and a backup schedule with an off-host copy. Six recommendations are attached
+  and **none applied**, including a 45 s healthcheck `start_period` (a `SIGKILL` handover
+  costs 11 731 ms) and a 1 GB memory limit. Account erasure/export and whether first-party
+  measurement needs consent are recorded as legal questions conditional on which markets
+  the product launches in; **no consent banner was added**.
+- **Next related step:** Stage 14, the go/no-go checkpoint — the go-live checklist, one
+  final full-suite run at the release candidate, and the report.

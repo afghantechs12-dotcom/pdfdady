@@ -1901,6 +1901,25 @@ P2-7), is closed too — with its own evidence, tests and live measurements in �
 | P2-6 | server processing takes ≈3 s largely independent of input size | an observation from §18, not a diagnosis. No retries appear in the log; it is recorded so it is not mistaken for a per-megabyte cost — **diagnosed in production-acceptance Stage 11** (`docs/evidence/production-acceptance/14-performance.md` §4): the 3 s is the probe's 500ms poll granularity plus contention with the Chrome instance it drives on the same machine. Re-measured with a 25ms poll on an idle host, the same inputs complete in 512ms and 1010ms and both scale with size (Ghostscript 80ms and 490ms of that); the user-facing path streams progress at 400ms rather than polling. Recommend closing |
 | P2-7 | the three Workspace upload routes `await request.formData()` with only `requireSameOrigin` ahead of it, so an **anonymous** caller's multipart body is buffered and parsed before any authentication. Measured live, no session cookie: a 13-byte and an **8 MiB** well-formed body both reached *field* validation (`422 "Invalid attachment fields."`), which is downstream of the parse | bounded per request and unbounded only in request count. The ceiling holds and holds cheaply — 26 MiB declared and sent returned `413 PAYLOAD_TOO_LARGE` in **0.03 s**, i.e. refused on content-length before the body was read, at `maxAttachmentBytes` = 25 MiB. Nothing is bypassed: authorization still precedes every read and every write, and `versions/upload/route.ts:81`'s documented *AUTHORIZATION BEFORE STORAGE* invariant is intact. Nothing is disclosed: an invalid-fields answer is what a non-existent workspace returns too. The missing piece is a **rate limit** — six shipped routes construct one, including the *public* tool route, and none of these *private* ones does — and its values are a policy decision, so it is §37's fourteenth open decision rather than a change made here |
 
+> **P2-1 AND P2-5 ARE BOTH CLOSED, and neither was closed by this audit.** The rows above
+> stay exactly as written; this is the correction. **P2-1:** the nine advisories were
+> remediated by `77d45b1`, before the production-acceptance branch was cut — `next`
+> 16.2.12→16.3.4, `pdfjs-dist` 6.1.200→6.3.289, `postcss` 8.4.31/8.5.18→8.5.23/8.5.28,
+> `nanoid` 3.3.16→3.3.18, `brace-expansion` 5.0.8→5.0.9, `deepmerge-ts` 7.1.5→8.0.2 via
+> `overrides`, `sharp` 0.34.5→0.35.4, `browserslist` 4.28.4→4.28.9. Measured at that tree:
+> `npm audit` **0 of 486**, `npm audit --omit=dev` **0**. It is not merely fixed but
+> pinned — `finalReconciliation.test.ts` R1–R3 re-derive the inventory from npm's own JSON
+> and assert no installed copy sits inside any advisory's vulnerable window, with an
+> anti-vacuity check that each pre-fix version *did*. **P2-5:** the `Dockerfile` was 88 of
+> 88 CRLF lines at `388e8af` and is 0 of 119 today, normalized incidentally by an edit with
+> another purpose — which is the state that regresses on the next edit from a Windows
+> checkout, so `deploymentArtifact.test.ts` now asserts LF across `Dockerfile`,
+> `docker-compose.yml`, `.dockerignore` and `ingress/server.mjs`. **The open-P2 set is
+> therefore P2-2, P2-3, P2-4 and P2-6** — and P2-6 carries a recommendation to close
+> (production-acceptance Stage 11), which is an owner decision, not an edit.
+> Both retirements, and the guard, are recorded in
+> `docs/evidence/production-acceptance/16-manual-decision-register.md` §1 and §5.
+
 **None of the open P2 items predates or postdates its way out of this list.** Three of them
 (P2-1, P2-5, P2-7) were already true at the baseline; per the brief they are not downgraded
 for that reason, and equally they are not promoted to blockers because this audit noticed them.
@@ -2047,6 +2066,14 @@ none is invented here.
 | 13 | SQLite now, or PostgreSQL before launch | SQLite is correct for one host and is the ceiling on the next one |
 | 14 | Rate limits on the Workspace upload routes — and whether a limiter in one process is the right layer at all | the *public* tool route is limited; the three *private* upload routes are not, and each will parse an anonymous 25 MiB body (P2-7). The values (requests per IP per window, and whether the limit belongs in the app or in front of it) are a capacity and cost choice, not a defect |
 | 14 (resolved in code) | *superseded* — the app-layer limit now exists and is on by default: `UPLOAD_RATE_LIMIT_PER_MIN` 120 / `UPLOAD_ANON_RATE_LIMIT_PER_MIN` 20 / `UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN` 240, 60 s window (§38). What remains a decision is only the **numbers** and whether a second limit belongs in front of the app for multi-instance deployments — not whether any limit exists |
+
+> **ALL FOURTEEN ARE CARRIED, none answered.** Production-acceptance Stage 13 restates them
+> once each alongside the harness's manual rows, the rollback runbook's Case B and four rows
+> that acceptance itself opened, with the cost of each: 33 open rows, 22 owner decisions,
+> 11 verifications, 0 decided. Mapping to that register: 1→D3 · 2→D2 · 3→D5 · 4→D1 · 5→D4 ·
+> 6→D16 · 7→D10 · 8→D6 · 9→D7 (with harness `J3`) · 10→D9 · 11→D13 · 12→D12 (with the
+> runbook's `LAUNCH DECISION REQUIRED`) · 13→D14 · 14→D15.
+> `docs/evidence/production-acceptance/16-manual-decision-register.md`.
 
 Items 1–8 are carried from `LAUNCH-PROFILE.md`; 9–13 were opened by later sections, and 14
 by the last check this audit ran (§35, P2-7) — and 14 is now a *tuning* decision rather

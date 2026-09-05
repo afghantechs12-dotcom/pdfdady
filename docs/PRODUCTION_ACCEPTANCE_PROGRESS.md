@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T21:45:00Z (UTC) |
+| Last updated | 2026-09-05T22:10:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
@@ -30,7 +30,7 @@ what it produced, and what is still owed.
 | 10 | Observability and operations | **DONE** — 0 defects; `MONITORING: NOT EXERCISED — NO PROVIDER`; template + alert-set test |
 | 11 | Bounded performance smoke test | **DONE** — 0 new defects; P2-2 reproduced, **P2-6 diagnosed**; memory peak and cold start measured |
 | 12 | Human visual acceptance package | **DONE (machine half)** — compare **PASS 156/156**; 1 P3 found; `VISUAL ACCEPTANCE PENDING` — owner approval not recorded |
-| 13 | Manual decision register | NOT STARTED |
+| 13 | Manual decision register | **DONE** — 33 open rows (22 owner decisions, 11 verifications), **0 decided**; 4 earlier rows retired by measurement; 1 guard added |
 | 14 | Go/no-go checkpoint | NOT STARTED |
 | 15 | Production deployment | **BLOCKED — OWNER AUTHORIZATION REQUIRED** |
 
@@ -615,6 +615,69 @@ Secrets: none requested, echoed or written. The throwaway account is
 `@|cookie|token|secret|password|authorization|bearer|sk_|whsec_` with no matches
 before inclusion.
 
+## Stage 13 — manual decision register (DONE)
+
+**Nothing was decided.** Full register:
+`docs/evidence/production-acceptance/16-manual-decision-register.md`. No server was
+needed and none was used; every number below was measured at this tree.
+
+Four documents each knew about some of the open rows, several under different names, so the
+register de-duplicates them: **43 source rows → 37 destinations** (six merge into four)
+= **33 open + 4 retired**.
+
+| | Verify | Decision | Total |
+| --- | --- | --- | --- |
+| `BEFORE GO-LIVE` | 8 | 10 | **18** |
+| Conditional on the markets decision (**D4**) | 0 | 2 | **2** |
+| `SCHEDULABLE` | 3 | 10 | **13** |
+| **Total** | **11** | **22** | **33** |
+
+**Four rows earlier documents call open are not open, and that changes Stage 14's count:**
+
+| Row | Measured now | Disposition |
+| --- | --- | --- |
+| **P2-1** nine npm advisories | `npm audit` **0 of 486**; `--omit=dev` **0**. Remediated by `77d45b1`, *before* this branch's base (`next` 16.2.12→16.3.4, `pdfjs-dist` 6.1.200→6.3.289, `postcss`, `nanoid`, `brace-expansion`, `deepmerge-ts` 7.1.5→8.0.2 via `overrides`, `sharp` 0.34.5→0.35.4, `browserslist`) | **CLOSED and pinned** — `finalReconciliation.test.ts` R1–R3, 18/18, with an anti-vacuity check |
+| **P2-5** `Dockerfile` CRLF | **88 of 88 CRLF lines at `388e8af`; 0 of 119 today.** No deploy-critical file has CRLF | **CLOSED — by accident**, so now pinned (below) |
+| **F5** cross-tenant read refused end-to-end | Exercised in **Stage 7**: `10-workspace-reliability.log` rows 12–13, **29/29**, two real accounts in one browser | **PASS** |
+| **R2** 111 rendered-layout assertions | Retired in Stage 12 (125 premium + 63 responsive) | **PASS** |
+
+So the open-P2 set is **P2-2, P2-3, P2-4, P2-6** — four, not six.
+
+**One test added, and it bites.** P2-5 was closed by an edit with another purpose, and an
+accident is not a guard. One assertion in the existing `deploymentArtifact.test.ts` —
+`Dockerfile`, `docker-compose.yml`, `.dockerignore`, `ingress/server.mjs` must have LF
+endings. Converted the `Dockerfile` back to CRLF: red, naming the file. Restored: **17/17**
+(was 16). No product code touched. This is the brief's "deployment configuration that
+previously had no guard" category.
+
+**The rows that need work rather than a recorded answer**, so Stage 14 does not treat all
+18 `BEFORE GO-LIVE` rows as equal: **V7** human visual acceptance · **V8/V9** the container
+build and a first boot on real mounts · **V4** zip-bomb and malformed-xref fixtures, which
+do not exist in the repository · **D13** image retention, whose answer today is *zero
+images anywhere* · **D16** the log/metric/error destination, which gates two adapters ·
+**D10** a backup schedule with an off-host copy.
+
+**Six recommendations are attached, none of them applied:** 1 GB memory limit (**V10**);
+one paired database+storage restore drill on the container host (**D11**); choose the
+observability destination before writing either adapter (**D16**); accept presence-only
+readiness for launch rather than change it during acceptance (**D17**); a healthcheck
+`start_period` of **45 s**, not 20 s, because a `SIGKILL` handover costs 11 731 ms
+(**D19**); and leave the 401/404 console noise alone (**D20**).
+
+**Two rows are recorded and deliberately unanswered:** **D7** account erasure and export
+(`model User` has no relations; a user id appears in 23 columns across 22 models with no
+cascade) and **D8** whether first-party measurement needs consent. Both are conditional on
+**D4** (markets), both are legal questions, and **no consent banner was added**.
+
+`docs/FINAL_PRELAUNCH_AUDIT.md` is amended in place — a blockquote retiring P2-1 and P2-5
+beside the original rows, and a §37 blockquote mapping all fourteen owner decisions to
+their register ids. Neither original row was rewritten.
+
+Secrets: none requested, echoed or written. The register names variables only
+(`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `TRUSTED_PROXY_SECRET`,
+`STORAGE_SIGNING_SECRET`, `ADMIN_SECRET`) and says which subsystem each switches on; the
+consolidated owner-input table belongs to the Stage 14 report.
+
 ## Remaining actions
 
 1. The surrogate the browser stages measure is **still running**: origin
@@ -635,7 +698,8 @@ before inclusion.
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stages 8–12 are done; **Stage 13** is next and needs no server.
+   default. Stages 8–13 are done; **Stage 14** is next and needs no server either — a
+   checklist, one full-suite run and the report.
    If a visual re-run is ever needed, it MUST pass
    `--baseline-dir docs/screenshots/final-prelaunch/baseline` and
    `--sheets docs/evidence/production-acceptance/visual` — without the first it
@@ -644,25 +708,27 @@ before inclusion.
    `scripts/perf-load-probe.mjs` for pages/workflow/fan-out, `scripts/perf-soak-probe.mjs`
    for sustained load and cold start. `--cold-start` restarts the origin, so pass the
    same four `AUDIT_*` variables or it comes back on different throwaway state.
-3. **Stage 13 — next.** Decision register from the manual rows (11 harness rows plus
-   **S1**, the unexplained page exception from Stage 7), the 4 NOT EXERCISED and 2
-   ENVIRONMENTAL rows, and §37's 14 owner decisions. **R2 is now PASS** (Stage 12);
-   **R3** stays MANUAL REVIEW. Stage 12 adds four rows: the 401/404 console noise
-   (P3, three options), the lease-503 observability gap, `/api/health` refusal vs the
-   `Dockerfile` healthcheck, and whether the storage volume needs a restore drill of
-   its own. `N3` is only *partly* answered and `L3` (readiness presence-only) and the
-   rollback runbook's Case B are owner decisions. Do not decide legal/tax/privacy/
-   billing/business-risk rows, and do not silently add a consent banner for `Q4`.
+3. **Stage 13 is done** — register at
+   `docs/evidence/production-acceptance/16-manual-decision-register.md`, **33 open rows,
+   0 decided**. Stage 14 must classify all 33 as `OWNER APPROVAL REQUIRED` (22) or
+   `MANUAL REVIEW` (11) and **none as PASS**; the 18 marked `BEFORE GO-LIVE` are the
+   go/no-go set, and **D4** (markets) gates two of the others. Four rows earlier
+   documents called open are retired there — **P2-1**, **P2-5**, **F5**, **R2** — so the
+   open-P2 set is **P2-2, P2-3, P2-4, P2-6**, and Stage 14's counts must use the
+   retired list, not §35's original six.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md` (it must carry the first-boot
    mount-verification row for `/app/data/db`, `/app/data/storage` and
    `/app/data/admin`, and the **1 GB** memory-limit row from Stage 11), the full suite
    re-run at the final candidate, and the 26-section report. `VISUAL ACCEPTANCE
-   PENDING` is an open row there — it cannot be counted as a PASS.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 12; update it again
+   PENDING` is an open row there — it cannot be counted as a PASS, and neither can
+   `N3`, which is only partly answered. The report also owes the **consolidated table of
+   every missing owner input**, secret **names** only.
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 13; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 6. **P2-6 has a recommendation attached, not a decision.** Stage 11 diagnosed it as a
-   measurement artifact and amended its row in `docs/FINAL_PRELAUNCH_AUDIT.md`;
-   whether the finding is closed is a Stage 13/14 line item, not a silent edit.
+   measurement artifact and amended its row in `docs/FINAL_PRELAUNCH_AUDIT.md`; it is
+   now register row **D22**, `SCHEDULABLE` — closing it is bookkeeping and the
+   owner's call, not a silent edit here.
 
 **Not to be done without explicit owner authorization:** deploying to production,
 changing production DNS, running migrations against a production database,
