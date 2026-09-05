@@ -38,7 +38,8 @@ const env = process.env as unknown as Record<string, string | undefined>;
 // Cleared rather than remembered: a value inherited from the developer's shell
 // must not decide whether the gate fires.
 const KEYS = ["NODE_ENV", "NEXT_PHASE", "DEPLOYMENT_TOPOLOGY", "ADMIN_SECRET", "DATABASE_URL", "NEXT_PUBLIC_SITE_URL",
-  "UPLOAD_RATE_LIMIT_PER_MIN", "UPLOAD_ANON_RATE_LIMIT_PER_MIN", "UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN"];
+  "UPLOAD_RATE_LIMIT_PER_MIN", "UPLOAD_ANON_RATE_LIMIT_PER_MIN", "UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN",
+  "STORAGE_LOCAL_ROOT"];
 const ORIG: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -64,6 +65,7 @@ function validProduction(): void {
   env.ADMIN_SECRET = "0123456789abcdef0123456789abcdef";
   env.NEXT_PUBLIC_SITE_URL = "https://pdfdadi.com";
   env.DEPLOYMENT_TOPOLOGY = "single-instance";
+  env.STORAGE_LOCAL_ROOT = "/srv/pdfdadi/storage";
 }
 
 /** The gate's message, or "" when it let the configuration through. */
@@ -137,7 +139,7 @@ describe("R6 — production refuses to boot until the instance topology is decla
     expect(msg).toContain("DEPLOYMENT_TOPOLOGY");
     expect(msg).toContain("DATABASE_URL");
     expect(msg).toContain("ADMIN_SECRET");
-    expect(msg).toMatch(/4 production configuration problems/);
+    expect(msg).toMatch(/5 production configuration problems/);
   });
 
   it("is a gate problem rather than a warning, when asked directly", () => {
@@ -156,7 +158,7 @@ describe("R6 — production refuses to boot until the instance topology is decla
       UPLOAD_RATE_LIMIT_PER_MIN: 120,
       UPLOAD_ANON_RATE_LIMIT_PER_MIN: 20,
       UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN: 240,
-      STORAGE_LOCAL_ROOT: ".storage/local",
+      STORAGE_LOCAL_ROOT: "/srv/pdfdadi/storage",
     } as Parameters<typeof productionProblems>[0]);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("DEPLOYMENT_TOPOLOGY");

@@ -31,7 +31,10 @@ shapes everything below: rolling the image back does not roll the schema back.
 2. Snapshot the database **while it is open**, using the procedure proven in
    `migration-restore-drill.log` (`node:sqlite`'s online `backup()`; 950272 bytes /
    232 pages; restored to a byte-for-byte content match). A file copy of an open
-   SQLite database in WAL mode is not a backup.
+   SQLite database is not a backup — this deployment runs on the default rollback
+   journal (`journal_mode = delete`, measured in Stage 4), where a copy taken
+   mid-transaction captures a database whose journal did not come with it. Not a
+   WAL-only hazard, so "we are not on WAL" is not permission to `cp`.
 3. Snapshot `pdfdadi-storage` if the release touches stored objects. The database
    references keys inside it; restoring one without the other produces documents
    whose bytes are gone.

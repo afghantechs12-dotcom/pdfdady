@@ -25,6 +25,7 @@ const KEYS = [
   "TOOLS_RATE_LIMIT_PER_MIN",
   "TOOLS_MAX_BODY_BYTES",
   "STORAGE_SIGNING_SECRET",
+  "STORAGE_LOCAL_ROOT",
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
@@ -79,6 +80,10 @@ function setValidProductionEnv(): void {
   // the gate makes the operator say which topology this is. R6 in
   // `deploymentTopology.test.ts` owns that rule; here it is just part of "valid".
   env.DEPLOYMENT_TOPOLOGY = "single-instance";
+  // Local storage is the default provider, and its root has to be a real volume:
+  // a relative one resolves against the working directory, which in a container
+  // is the layer the next deploy replaces.
+  env.STORAGE_LOCAL_ROOT = "/srv/pdfdadi/storage";
 }
 
 /** The gate's message, or "" when the gate let the config through. */
@@ -265,6 +270,45 @@ describe("production configuration gate", () => {
     expect(getConfig().storage.provider).toBe("local");
   });
 
+  it("refuses a local storage root that is not on a persistent volume", () => {
+    // The default `.storage/local` is right for `next dev` and loses every
+    // uploaded document in production: `LocalFileStorage` resolves it against the
+    // working directory, so in the image it lands in the writable layer and the
+    // next deploy deletes it. Same failure as a relative DATABASE_URL, one
+    // directory over, and it presents as data loss rather than as a config error.
+    setValidProductionEnv();
+    delete env.STORAGE_LOCAL_ROOT;
+    expect(gateError()).toMatch(/STORAGE_LOCAL_ROOT is a relative path/);
+
+    _resetConfigForTests();
+    env.STORAGE_LOCAL_ROOT = "data/storage";
+    expect(gateError()).toMatch(/STORAGE_LOCAL_ROOT is a relative path/);
+
+    // Explicitly empty is worse, not better: it resolves to the working
+    // directory itself, so objects would be written among the application files.
+    _resetConfigForTests();
+    env.STORAGE_LOCAL_ROOT = "";
+    expect(gateError()).toMatch(/STORAGE_LOCAL_ROOT is empty/);
+
+    _resetConfigForTests();
+    env.STORAGE_LOCAL_ROOT = "/app/data/storage";
+    expect(gateError()).toBe("");
+    expect(getConfig().storage.localRoot).toBe("/app/data/storage");
+  });
+
+  it("ignores the local storage root when R2 serves the objects", () => {
+    // With all four R2 variables set the local adapter is never constructed, so
+    // refusing its root would be a false positive that blocks a valid deployment.
+    setValidProductionEnv();
+    delete env.STORAGE_LOCAL_ROOT;
+    env.R2_ACCOUNT_ID = "acct";
+    env.R2_ACCESS_KEY_ID = "akid";
+    env.R2_SECRET_ACCESS_KEY = "secret";
+    env.R2_BUCKET = "bucket";
+    expect(gateError()).toBe("");
+    expect(getConfig().storage.provider).toBe("r2");
+  });
+
   it("reports every problem at once rather than one per restart", () => {
     env.NODE_ENV = "production";
     // Nothing else set: DATABASE_URL, ADMIN_SECRET, the site URL and the instance
@@ -274,7 +318,8 @@ describe("production configuration gate", () => {
     expect(msg).toMatch(/ADMIN_SECRET/);
     expect(msg).toMatch(/NEXT_PUBLIC_SITE_URL/);
     expect(msg).toMatch(/DEPLOYMENT_TOPOLOGY/);
-    expect(msg).toMatch(/4 production configuration problems/);
+    expect(msg).toMatch(/STORAGE_LOCAL_ROOT/);
+    expect(msg).toMatch(/5 production configuration problems/);
   });
 
   it("never echoes a secret value into the error message", () => {

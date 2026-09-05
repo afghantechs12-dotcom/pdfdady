@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { binaryInfo } from "@/lib/server/dependencyCheck";
+import { productionProblems } from "@/src/infrastructure/config/env";
 
 /**
  * R3 — the containerized deployment path, checked against the repository it
@@ -74,6 +75,50 @@ const environment = new Map(
 );
 
 /**
+ * Compose's `environment:` block as the gate will see it, resolved the way Docker
+ * resolves it with nothing set in the operator's shell.
+ *
+ * `${X:-default}` becomes the default. `${X:?message}` has no default — compose
+ * refuses to start at all without it — so it becomes a value the gate accepts,
+ * because what is under test is this file's contribution and not the operator's.
+ * Every key compose does not mention is left absent, which is the point: the gate
+ * then sees exactly what a `docker compose up` with an empty shell would produce.
+ */
+const GATE_STANDIN: Record<string, string> = {
+  ADMIN_SECRET: "0123456789abcdef0123456789abcdef",
+  // Deferred to the shell by the documented `docker run`; compose has a default.
+  NEXT_PUBLIC_SITE_URL: "https://pdfdadi.example",
+};
+/**
+ * The schema defaults for keys a deployment need not set, because the gate reads
+ * PARSED env: absent here they would be `undefined`, and the gate quotes the
+ * upload budgets back at the operator in its topology message. Only the values it
+ * inspects, so this stays a stand-in for zod and not a second copy of it.
+ */
+const SCHEMA_DEFAULTS: Record<string, string | number> = {
+  STORAGE_LOCAL_ROOT: ".storage/local",
+  UPLOAD_RATE_LIMIT_PER_MIN: 120,
+  UPLOAD_ANON_RATE_LIMIT_PER_MIN: 20,
+  UPLOAD_GLOBAL_RATE_LIMIT_PER_MIN: 240,
+};
+function composeEnvForGate(): Parameters<typeof productionProblems>[0] {
+  const resolved: Record<string, string> = {};
+  for (const [key, raw] of environment) {
+    const interp = /^\$\{([A-Za-z0-9_]+)(?::([-?])([\s\S]*))?\}$/.exec(raw);
+    if (!interp) {
+      resolved[key] = raw;
+    } else if (interp[2] === "-") {
+      resolved[key] = interp[3];
+    } else {
+      const standin = GATE_STANDIN[key];
+      expect(standin, `no stand-in for operator-supplied ${key}`).toBeTypeOf("string");
+      resolved[key] = standin;
+    }
+  }
+  return { ...SCHEMA_DEFAULTS, ...resolved } as unknown as Parameters<typeof productionProblems>[0];
+}
+
+/**
  * The source of every `COPY`, resolved to the path in THIS repository that it
  * ultimately names.
  *
@@ -131,6 +176,16 @@ describe("R3 — the container image can be built and can serve", () => {
     expect(cmd).toContain("migrate deploy");
     expect(cmd).toContain("exec node ingress/server.mjs");
     expect(cmd.indexOf("migrate deploy")).toBeLessThan(cmd.indexOf("exec node ingress/server.mjs"));
+
+    // The CMD names the CLI's entry FILE, not the `prisma` bin, because
+    // node_modules/.bin is not copied into the image. A version bump that moves
+    // that file leaves the build green and the container dead at boot with
+    // "Cannot find module" — after the image is built and pushed. The package's
+    // own `bin` field is the authority for where it is.
+    const cliBin = JSON.parse(
+      readFileSync(path.join(root, "node_modules", "prisma", "package.json"), "utf8"),
+    ).bin.prisma;
+    expect(cmd).toContain(`node_modules/prisma/${cliBin}`);
   });
 
   it("starts through the ingress guard, and ships it", () => {
@@ -196,13 +251,41 @@ describe("R3 — the container image can be built and can serve", () => {
 
 describe("R3 — the compose file starts the app it describes", () => {
   it("supplies every variable the production gate refuses to start without", () => {
-    // Read off the gate rather than restated: ADMIN_SECRET, NEXT_PUBLIC_SITE_URL
-    // and DATABASE_URL are the three `productionProblems` treats as fatal when
-    // absent. DATABASE_URL was missing here, so the container exited 1.
-    for (const required of ["ADMIN_SECRET", "NEXT_PUBLIC_SITE_URL", "DATABASE_URL"]) {
-      expect(environment.has(required), `compose does not set ${required}`).toBe(true);
-      expect(environment.get(required)).not.toBe("");
+    // Asked of the gate, not restated as a list. A hardcoded set of names here
+    // passes forever while the gate grows a new requirement — which is how this
+    // file came to set neither DATABASE_URL (container exited 1) nor, later,
+    // a storage root outside the image layer. Handing `productionProblems` the
+    // values compose itself resolves means the assertion is "the gate accepts
+    // this file", and a requirement added tomorrow fails here tomorrow.
+    expect(productionProblems(composeEnvForGate())).toEqual([]);
+  });
+
+  /**
+   * The documented plain-`docker run`, checked against the same gate.
+   *
+   * SERVER_SETUP.md offers it as the compose-free path and says every variable in
+   * it is required — and it omitted DEPLOYMENT_TOPOLOGY, so the command as printed
+   * exited 1 before serving a request. Compose is guarded above; an operator who
+   * copies the other block gets no such help, and the failure arrives at their
+   * boot rather than in this suite. Same gate, same question, so the two paths
+   * cannot diverge again.
+   */
+  it("prints a plain `docker run` the gate would actually boot", () => {
+    const guide = readFileSync(path.join(root, "SERVER_SETUP.md"), "utf8");
+    const run = /```bash\n([^`]*docker run[^`]*)```/.exec(guide)?.[1];
+    expect(run, "SERVER_SETUP.md no longer contains a `docker run` block").toBeTypeOf("string");
+    const flags = [...run!.matchAll(/-e\s+([A-Z][A-Z0-9_]*)=("?)([^"\n\\]*)\2/g)];
+    const env: Record<string, string | number> = { ...SCHEMA_DEFAULTS, NODE_ENV: "production" };
+    for (const [, key, , raw] of flags) {
+      // Trimmed because the capture runs to the line continuation, not because a
+      // real `-e` would carry the space.
+      const value = raw.trim();
+      // `"$VAR"` means "from the operator's shell", exactly as in compose.
+      env[key] = value.startsWith("$") ? (GATE_STANDIN[key] ?? value) : value;
     }
+    expect(productionProblems(env as unknown as Parameters<typeof productionProblems>[0])).toEqual(
+      [],
+    );
   });
 
   it("names a database URL this Prisma schema can actually open", () => {

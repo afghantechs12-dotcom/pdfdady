@@ -82,6 +82,7 @@ const KEYS = [
   "NEXT_PUBLIC_SITE_URL",
   "DATABASE_URL",
   "STORAGE_SIGNING_SECRET",
+  "STORAGE_LOCAL_ROOT",
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
@@ -138,6 +139,8 @@ function deployBehindProxy(siteUrl: string = PUBLIC_ORIGIN): void {
   // The gate requires the topology to be declared; the limiter it protects counts
   // in process memory. See `deploymentTopology.test.ts` R6.
   env.DEPLOYMENT_TOPOLOGY = "single-instance";
+  // Local objects have to land on a volume, not in the image layer.
+  env.STORAGE_LOCAL_ROOT = "/srv/pdfdadi/storage";
   _resetConfigForTests();
 }
 

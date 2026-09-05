@@ -4981,3 +4981,69 @@ kept as defence in depth.
   `CMD` is covered statically and by `deploymentArtifact.test.ts` (mutation M12). Then human
   visual acceptance (Entry Gate B) and production acceptance. None is code, and none was
   performed here.
+
+## The third path that could put live data in the image layer
+
+**Date:** 2026-09-05 · **Scope:** production configuration gate, deployment
+documentation, and the two probes that check them. Found during the production
+acceptance (Stages 2–4), not by a report.
+
+### What was built
+
+The gate refused a **relative `DATABASE_URL`** with a message naming the exact
+consequence — "a relative path would silently put the live database inside the
+container's writable layer and delete it on the next deploy" — and refused
+**half-configured R2** because it falls back to local disk and "uploads would land
+on an ephemeral container disk and vanish on redeploy". The third path with that
+same failure mode, **local storage with a relative root**, had no guard at all:
+`LocalFileStorage` does `path.resolve()`, so the `.storage/local` default resolves
+against the working directory, which in the image is `/app`. `docker-compose.yml`
+sets an absolute root onto the `pdfdadi-storage` volume, so this repository's own
+deployment was never exposed; a `docker run`, a PaaS or a systemd unit was.
+`productionProblems` now refuses a relative **or empty** `STORAGE_LOCAL_ROOT` when
+object storage is local — empty is the same branch because it resolves to the
+working directory itself, which would write documents among the application files.
+
+Two things the same acceptance found in the deployment artifacts:
+
+- `SERVER_SETUP.md`'s compose-free `docker run` said every variable in it was
+  required and **omitted `DEPLOYMENT_TOPOLOGY`**, so the command as printed exited
+  1 before serving a request.
+- `PROCESSING_COMPRESS_TIMEOUT_MS` was read unguarded into `setTimeout`, where
+  `""`, a typo or a negative value means ~1 ms: every pipeline compress job would
+  abort on its first tick and report a timeout. Guarded the way its three
+  neighbours already were.
+
+### Tests, and why they ask instead of restating
+
+`deploymentArtifact.test.ts` asserted three variable names by hand — which is how
+it stayed green while the gate grew two more requirements. It now resolves the
+compose `environment:` block the way Docker would (`${X:-default}` to the default,
+`${X:?…}` to a stand-in, because that value is the operator's contribution and not
+the file's) and hands the result to **`productionProblems` itself**; it does the
+same with the `-e` flags parsed out of the documented `docker run`. A requirement
+added to the gate tomorrow fails both deployment paths tomorrow.
+
+`scripts/migration-restore-drill.mjs` derived the head migration dynamically but
+compared against a **hardcoded table name** from an earlier phase. Once
+`20260905090000_add_instance_lease` became head, the "absent before" row failed and
+the "present afterwards" row passed for the wrong reason — a vacuous green next to
+a red one. Both now derive the table from the head migration's own SQL, and the
+drill is PASS 16/16 against throwaway copies.
+
+Every new guard was verified to **fail** with the property removed: the gate branch
+deleted (two cases red), the storage root removed from compose, the topology flag
+removed from the documented command.
+
+- **Known limitations:** the gate checks the *shape* of a path, not that it is a
+  mount point. Prisma **creates** a missing directory, so an absolute
+  `DATABASE_URL` with a typo in it applies all 24 migrations to a brand-new empty
+  database, exits 0 and serves — indistinguishable from a first deploy. Verifying
+  the mounts is an operator step at first boot, now a row in the go-live checklist.
+  `/api/health/ready`'s `dataDir` check remains `fs.access(dirname(STORE_PATH))`:
+  presence of `/app/data/admin` only, no writability probe, nothing about the
+  database directory or the storage root (manual row L3) — changing it changes when
+  a load balancer drains, so it is an owner decision rather than a silent edit.
+- **Next related step:** Stage 5 proxy topology, then the local production-mode
+  surrogate for Stages 6–11. Container execution is still **NOT EXERCISED**: no
+  runtime and no image scanner on this host.

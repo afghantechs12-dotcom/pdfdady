@@ -410,6 +410,26 @@ export function productionProblems(e: z.infer<typeof envSchema>): string[] {
     );
   }
 
+  // Local storage is a supported production choice, but only onto a persistent
+  // volume. `LocalFileStorage` does `path.resolve(rootDir)`, so the default
+  // `.storage/local` — and any other relative value — resolves against the
+  // server's working directory: `/app/.storage/local` in the image, i.e. the
+  // writable layer, deleted by the next deploy. That is the same failure the
+  // DATABASE_URL check above refuses, one directory over, and it presents the
+  // same way: every stored document gone, with the app reporting healthy.
+  // docker-compose.yml sets an absolute root onto a volume; a deployment that is
+  // not this compose file (raw `docker run`, a PaaS, systemd) gets no such help,
+  // so the gate asks rather than assuming. An empty value is caught by the same
+  // branch: it resolves to the working directory itself.
+  if (r2Present.length < R2_KEYS.length) {
+    const localRoot = e.STORAGE_LOCAL_ROOT.trim();
+    if (!localRoot.startsWith("/")) {
+      problems.push(
+        `STORAGE_LOCAL_ROOT is ${localRoot ? "a relative path" : "empty"} and object storage is local, so uploaded documents would be written under the server's working directory — the container's writable layer — and deleted by the next deploy. Point it at a persistent volume, e.g. STORAGE_LOCAL_ROOT=/app/data/storage, or configure all ${R2_KEYS.length} R2 variables to store objects remotely.`,
+      );
+    }
+  }
+
   return problems;
 }
 

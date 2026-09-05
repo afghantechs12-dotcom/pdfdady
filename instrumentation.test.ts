@@ -33,6 +33,7 @@ const KEYS = [
   "ADMIN_SECRET",
   "DATABASE_URL",
   "NEXT_PUBLIC_SITE_URL",
+  "STORAGE_LOCAL_ROOT",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_PRICE_PRO",
@@ -73,6 +74,9 @@ function setValidProductionEnv(): void {
   // Declared, because the gate makes the operator declare it: the upload limiter
   // counts in process memory. See `deploymentTopology.test.ts` R6.
   env.DEPLOYMENT_TOPOLOGY = "single-instance";
+  // Where local objects land, which the gate requires to be a volume rather than
+  // the image layer the next deploy replaces.
+  env.STORAGE_LOCAL_ROOT = "/srv/pdfdadi/storage";
   // A production boot goes through `ingress/server.mjs`, which installs the
   // request-body guard before Next creates its HTTP server. The gate refuses a
   // production process that did not — see the dedicated test below.
@@ -123,7 +127,7 @@ describe("instrumentation register()", () => {
   });
 
   it("exits non-zero on a misconfigured production deployment", async () => {
-    // Production with nothing else set: the gate has three complaints.
+    // Production with nothing else set: the gate has a complaint per required value.
     env.NODE_ENV = "production";
     const c = captureConsole();
     // process.exit is mocked, so control falls through to the rethrow — which is

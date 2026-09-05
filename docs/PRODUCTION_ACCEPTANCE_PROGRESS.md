@@ -21,7 +21,7 @@ what it produced, and what is still owed.
 | 1 | Repository and release-candidate safety | **DONE** |
 | 2 | Production environment contract | **DONE** |
 | 3 | Container build | **DONE (static)** — `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
-| 4 | Persistent database and storage | NOT STARTED |
+| 4 | Persistent database and storage | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 5 | Network and proxy topology | NOT STARTED |
 | 6 | Staging deployment (local production-mode surrogate) | NOT STARTED |
 | 7 | Production-like user acceptance | NOT STARTED |
@@ -119,6 +119,60 @@ developer database and `.env*` out of the build context.
 
 Evidence: `docs/evidence/production-acceptance/05-container-static.md`.
 
+## Stage 4 — persistent database and storage (DONE)
+
+All measurements on throwaway paths under `/tmp`; no real database, no real
+storage root, and not the repository's own `prisma/dev.db`.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `DATABASE_URL="file:$TMP/db/pdfdadi.db" node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma` | 0 | `All migrations have been successfully applied.` — 24 rows in `_prisma_migrations`, 43 tables, `integrity_check ok` |
+| the same command, immediately again | 0 | `No pending migrations to apply.` |
+| `node -e '<node:sqlite pragmas>'` | 0 | `journal_mode = delete` (not WAL), 4096 × 234 = 958 464 bytes |
+| `npx tsx <storage probe> $TMP/storage` | 0 | put/get round trip, nested-key mkdir, mode `0644`, traversal key refused, delete — all PASS |
+| the same probe on a **non-existent** root | 0 | the adapter creates it — a freshly attached empty volume works |
+| `DATABASE_URL="file:$TMP/absent2/pdfdadi.db" … migrate deploy` | 0 | **prisma creates the directory**: a typo'd absolute path boots healthy on a new empty database |
+| `node scripts/migration-restore-drill.mjs` | 0 | **PASS 16/16** — online `backup()` while open, rows destroyed, byte-for-byte content restore, restored file at head |
+| `npx vitest run` (full suite, interim) | 0 | 391 files, 7 503 tests, 0 failures, 10.0 s |
+| `npm run typecheck` | 0 | clean |
+| `npx eslint <touched files>` | 0 | clean |
+
+Two defects found, both deployment configuration with no prior guard:
+
+1. **P2** the production gate refused a relative `DATABASE_URL` and refused
+   half-configured R2 — both because live data would land in the container's
+   writable layer — but had **no check on `STORAGE_LOCAL_ROOT`**, whose
+   `.storage/local` default resolves to `/app/.storage/local` for exactly the same
+   reason. `docker-compose.yml` sets an absolute root, so this repo's own
+   deployment was safe; any non-compose deployment was not. Now refused, empty
+   values included. `src/infrastructure/config/env.ts`.
+2. **P3** `SERVER_SETUP.md`'s compose-free `docker run` omitted
+   `DEPLOYMENT_TOPOLOGY`, so the documented command exited 1 before serving.
+   Both deployment paths — the compose `environment:` block and that `docker run` —
+   are now handed to `productionProblems` itself by `deploymentArtifact.test.ts`,
+   replacing a hand-written list of three variable names that had gone stale twice.
+
+Also fixed: `scripts/migration-restore-drill.mjs` compared the dynamically derived
+head migration against a **hardcoded** table name, so once
+`20260905090000_add_instance_lease` became head one row failed and its companion
+passed vacuously. The head table is now derived from the head migration's SQL.
+
+Corrected in accepted evidence: `rollback-runbook.md` attributed the "a file copy
+of an open database is not a backup" hazard to WAL mode specifically. This
+deployment runs the default rollback journal, where the hazard is the same, and
+"we are not on WAL" must not read as permission to `cp`.
+
+Not established here, carried forward: that the **mounts are mounted** (a shape
+check cannot see a mount point — operator verification at first boot, now a go-live
+checklist row); that readiness notices a broken volume (`dataDir` is
+`fs.access(dirname(STORE_PATH))` — presence of `/app/data/admin` only, manual row
+**L3**, an owner decision because it changes when a load balancer drains); restore
+of the **storage volume**, which has no drill and must be snapshotted with the
+database.
+
+Evidence: `docs/evidence/production-acceptance/07-database-storage.md`,
+`07-database-storage.log`, `06-migration-restore-drill.log`.
+
 ## Environmental limitations (consolidated)
 
 These are host facts, not product defects. They determine which stages can be
@@ -149,8 +203,8 @@ ocrmypdf, python3, openssl, sqlite3, Playwright chromium-1234, Chrome, LAN IP
 5. Stage 13 — decision register from the 12 manual rows and 14 owner decisions.
 6. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-7. Update `docs/PDFDADI_FEATURE_LEDGER.md` for the changes made in Stage 2
-   (CLAUDE.md requirement).
+7. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 4; update it again
+   if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,
 changing production DNS, running migrations against a production database,

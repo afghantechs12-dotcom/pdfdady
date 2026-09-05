@@ -50,7 +50,7 @@ and never echoes a value, because this text lands in logs and error trackers:
 
 ```
 [startup] PDFDadi refused to start.
-Refusing to start: 4 production configuration problems.
+Refusing to start: 5 production configuration problems.
   - DATABASE_URL is not set. Point it at a SQLite file on a persistent volume,
     e.g. file:/app/data/db/pdfdadi.db. There is no production default on
     purpose: a relative path would silently put the live database inside the
@@ -62,6 +62,11 @@ Refusing to start: 4 production configuration problems.
   - DEPLOYMENT_TOPOLOGY is not set to "single-instance". PDFDadi's upload rate
     limits are counted in process memory, so N instances behind one address
     admit N times those budgets ...
+  - STORAGE_LOCAL_ROOT is a relative path and object storage is local, so
+    uploaded documents would be written under the server's working directory —
+    the container's writable layer — and deleted by the next deploy. Point it at
+    a persistent volume, e.g. STORAGE_LOCAL_ROOT=/app/data/storage, or configure
+    all 4 R2 variables to store objects remotely.
 ```
 
 The process then exits with code 1, so Docker, systemd or your orchestrator
@@ -74,6 +79,7 @@ reports a failed container rather than a running one that 500s.
 | `DATABASE_URL` | No production default. Must be an **absolute** `file:` path — see "Which database" below. A relative path would put the live database inside the container's writable layer and lose it on redeploy. |
 | `ADMIN_SECRET` | Signs admin session cookies *and* local storage download URLs. Must be ≥16 characters, and must not be the public dev fallback string that ships in this repo. |
 | `NEXT_PUBLIC_SITE_URL` | Signed download and multipart-upload URLs are built from it; a loopback value hands clients links to their own machine. Must be an absolute `http(s)` URL and not localhost/127.0.0.1/0.0.0.0/::1. |
+| `STORAGE_LOCAL_ROOT` | Required **unless** all four R2 variables are set. Must be **absolute**: the `.storage/local` default resolves against the working directory, so in a container every uploaded document lands in the image's writable layer and is deleted by the next deploy. `docker-compose.yml` sets `/app/data/storage`, on a volume. |
 | `DEPLOYMENT_TOPOLOGY` | Must be exactly `single-instance`, the only supported value. It makes the operator declare what the rest of the build assumes: upload rate limits are counted in one process's memory, and the database is single-writer SQLite. See "Instance topology" below. |
 
 **Also refused**
@@ -337,6 +343,7 @@ docker run -p 3000:3000 --tmpfs /tmp \
   -e NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
   -e DATABASE_URL=file:/app/data/db/pdfdadi.db \
   -e STORAGE_LOCAL_ROOT=/app/data/storage \
+  -e DEPLOYMENT_TOPOLOGY=single-instance \
   -v pdfdadi-db:/app/data/db -v pdfdadi-storage:/app/data/storage \
   pdfdadi
 ```

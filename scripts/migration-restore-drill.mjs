@@ -151,8 +151,35 @@ async function main() {
     const all = readdirSync(MIGRATIONS).filter((d) => /^\d/.test(d)).sort();
     const head = all[all.length - 1];
     const earlier = all.slice(0, -1);
+
+    /*
+     * The table the HEAD migration creates, read out of its own SQL.
+     *
+     * This name was hardcoded as `workspace_save_intents`, which was the head when
+     * the drill was written. `20260905090000_add_instance_lease` then landed and the
+     * hardcode went stale in BOTH directions at once: the "does NOT yet contain the
+     * migration under test" row failed, because the table it named is now created by
+     * one of the earlier migrations — and the "table exists afterwards" row kept
+     * passing while proving nothing, for exactly the same reason. A green row that
+     * cannot fail is worse than the red one, so the name is derived and both rows
+     * track whatever the head migration actually is.
+     *
+     * A head migration that creates no table (an added column, an index) leaves this
+     * null; the presence rows then rest on the table count and on Prisma's own ledger
+     * rows below, which is what already carries "the upgrade really happened".
+     */
+    const headSql = readFileSync(join(MIGRATIONS, head, "migration.sql"), "utf8");
+    const HEAD_TABLE =
+      /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`'[]?([A-Za-z_][A-Za-z0-9_]*)/i.exec(headSql)?.[1] ??
+      null;
+    const hasTable = (db, name) =>
+      db
+        .prepare(`SELECT count(*) n FROM sqlite_master WHERE type = 'table' AND name = ?`)
+        .get(name).n === 1;
+
     console.log(`MIGRATION + RESTORE DRILL in ${root}`);
-    console.log(`  ${earlier.length} migration(s) to reach the pre-Phase-5 schema, then ${head}\n`);
+    console.log(`  ${earlier.length} migration(s) to reach the schema before ${head}, then ${head}`);
+    console.log(`  migration under test creates: ${HEAD_TABLE ?? "(no table)"}\n`);
 
     /*
      * ---- 0. the blank chain (R5) -----------------------------------------------
@@ -185,16 +212,12 @@ async function main() {
     const blankTables = blankDb
       .prepare(`SELECT count(*) n FROM sqlite_master WHERE type = 'table'`)
       .get().n;
-    const blankIntents = blankDb
-      .prepare(
-        `SELECT count(*) n FROM sqlite_master WHERE type='table' AND name='workspace_save_intents'`,
-      )
-      .get().n;
+    const blankHasHead = HEAD_TABLE === null || hasTable(blankDb, HEAD_TABLE);
     blankDb.close();
     record(
       "and the schema it produced is the current one, table for table",
-      blankTables > 30 && blankIntents === 1,
-      `${blankTables} tables, workspace_save_intents present=${blankIntents === 1}`,
+      blankTables > 30 && blankHasHead,
+      `${blankTables} tables, ${HEAD_TABLE ?? "head table"} present=${blankHasHead}`,
     );
 
     // ---- 1. the database the last release shipped ------------------------------
@@ -203,14 +226,14 @@ async function main() {
     const preTables = db
       .prepare(`SELECT count(*) n FROM sqlite_master WHERE type = 'table'`)
       .get().n;
-    const hadSaveIntents = db
-      .prepare(`SELECT count(*) n FROM sqlite_master WHERE type='table' AND name='workspace_save_intents'`)
-      .get().n;
+    const preHasHead = HEAD_TABLE !== null && hasTable(db, HEAD_TABLE);
     db.close();
     record(
-      "the pre-Phase-5 schema builds, and does NOT yet contain the migration under test",
-      preTables > 30 && hadSaveIntents === 0,
-      `${preTables} tables, workspace_save_intents present=${hadSaveIntents === 1}`,
+      `the schema before ${head} builds, and does NOT yet contain the migration under test`,
+      preTables > 30 && !preHasHead,
+      HEAD_TABLE === null
+        ? `${preTables} tables, head migration creates no table — tracked by the ledger rows below`
+        : `${preTables} tables, ${HEAD_TABLE} present=${preHasHead}`,
     );
 
     // ---- 2. Prisma's own baseline record --------------------------------------
@@ -245,7 +268,7 @@ async function main() {
 
     const deploy = prisma(["migrate", "deploy"], url);
     record(
-      "migrate deploy applies the Phase 5 migration to the populated database",
+      `migrate deploy applies ${head} to the populated database`,
       deploy.code === 0 && deploy.out.includes(head),
       deploy.code === 0
         ? `exit 0, applied ${head}`
@@ -260,15 +283,13 @@ async function main() {
       after === before ? `content sha256 ${before.slice(0, 16)}… before and after` : `${before.slice(0, 16)}… → ${after.slice(0, 16)}…`,
     );
     const post = new DatabaseSync(live, { readOnly: true });
-    const newTable = post
-      .prepare(`SELECT count(*) n FROM sqlite_master WHERE type='table' AND name='workspace_save_intents'`)
-      .get().n;
+    const postHasHead = HEAD_TABLE === null || hasTable(post, HEAD_TABLE);
     const docsStill = post.prepare(`SELECT name, revision FROM document_records`).all();
     post.close();
     record(
       "the migration's own table exists afterwards, so the upgrade really happened",
-      newTable === 1,
-      `workspace_save_intents present=${newTable === 1}`,
+      postHasHead,
+      `${HEAD_TABLE ?? "head table"} present=${postHasHead}`,
     );
     record(
       "the document still carries its name and its revision",
@@ -343,7 +364,15 @@ if (stage) {
     record(
       "the restored database is at migration head, not at the schema it was baselined from",
       /up to date|No pending migrations/i.test(restoredStatus.out),
-      restoredStatus.out.trim().split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160) ?? "",
+      // The line that answers the question, not the last line printed: prisma
+      // writes "Environment variables loaded from .env" to stderr, which lands
+      // after stdout in the combined buffer and made this row report it.
+      (restoredStatus.out
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .find((l) => /up to date|No pending migrations|pending|drift/i.test(l)) ?? "")
+        .slice(0, 160),
     );
     void url;
   } finally {

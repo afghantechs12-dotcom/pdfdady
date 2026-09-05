@@ -1,0 +1,76 @@
+Stage 4 — persistent database and storage: measurement transcript
+=================================================================
+2026-09-05, branch production-acceptance. Every path below is a throwaway
+directory under /tmp created by `mktemp -d`; nothing here touched a real
+database, a real storage root, or the repository's own prisma/dev.db.
+
+$TMP = /tmp/pa-stage4-XXXX   (mktemp -d, removed after the run)
+
+Prisma's per-migration progress lines are trimmed to the last few lines of each
+command; two aborted attempts at the sqlite pragma probe (a shell quoting
+mistake of mine, not product behaviour) are omitted. Exit codes are as reported
+by the shell.
+
+### 1. the exact command the container CMD runs, against an empty database
+$ DATABASE_URL="file:$TMP/db/pdfdadi.db" \
+    node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+  └─ 20260902100000_add_workspace_save_intents/
+    └─ migration.sql
+  └─ 20260905090000_add_instance_lease/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+exit=0
+
+### 2. the same command again — a redeploy has to be a no-op
+$ DATABASE_URL="file:$TMP/db/pdfdadi.db" \
+    node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+
+No pending migrations to apply.
+exit=0
+
+### 3. what the deployed database looks like afterwards
+$ node -e '<node:sqlite pragmas>' "$TMP/db/pdfdadi.db"
+journal_mode       = delete
+_prisma_migrations = 24 rows
+tables             = 43
+integrity_check    = ok
+page_size/count    = 4096 / 234
+$ ls -l $TMP/db
+-rw-r--r--  1  958464  pdfdadi.db          # 234 x 4096 = 958464
+
+### 4. local storage adapter round trip on a throwaway root
+$ npx tsx /tmp/pa-storage-probe.mts "$TMP/storage"
+put+get round trip:      PASS (38 bytes)
+nested key created dirs: PASS $TMP/storage/documents/ab/cd/abcdef0123.pdf
+file mode:               0644
+traversal key refused:   PASS (Invalid storage key (escapes root): ../../es…)
+delete removes the file: PASS
+exit=0
+
+### 5. a storage root that does not exist yet (a freshly attached empty volume)
+$ npx tsx /tmp/pa-storage-probe.mts "$TMP/fresh-root/nested"
+put+get round trip:      PASS (38 bytes)
+nested key created dirs: PASS $TMP/fresh-root/nested/documents/ab/cd/abcdef0123.pdf
+file mode:               0644
+traversal key refused:   PASS (Invalid storage key (escapes root): ../../es…)
+delete removes the file: PASS
+exit=0
+
+### 6. a DATABASE_URL that is absolute but points outside every mount
+$ DATABASE_URL="file:$TMP/absent2/pdfdadi.db" \
+    node node_modules/prisma/build/index.js migrate deploy --schema prisma/schema.prisma
+All migrations have been successfully applied.
+exit=0
+$ ls -l $TMP/absent2
+-rw-r--r--  1  958464  pdfdadi.db
+migrations applied in the wrong-but-absolute location: 24
+
+=> Prisma CREATES the directory. An absolute path with a typo in it boots
+   healthy on a brand-new empty database; nothing in the process can tell that
+   apart from a first deploy. See the Stage 4 note on mount verification.
+
+### 7. backup and restore drill (full run in 06-migration-restore-drill.log)
+$ node scripts/migration-restore-drill.mjs
+MIGRATION + RESTORE DRILL — PASS 16/16
+exit=0
