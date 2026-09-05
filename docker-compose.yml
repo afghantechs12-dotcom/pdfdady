@@ -3,6 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Build-time copy of the runtime value below. `next.config.mjs` bakes the CSP
+      # report-to endpoint for `/_next/static/*` from it, and that header is part of
+      # the image — setting it only under `environment:` would leave the asset routes
+      # reporting nowhere. Same default, so the two cannot drift silently.
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://pdfdadi.com}
     image: pdfdadi:latest
     container_name: pdfdadi
     ports:

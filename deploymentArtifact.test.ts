@@ -215,6 +215,24 @@ describe("R3 — the compose file starts the app it describes", () => {
     expect(environment.get("DATABASE_URL")).toContain("file:");
   });
 
+  /**
+   * The origin is baked, not only injected.
+   *
+   * `next.config.mjs` builds the CSP `report-to` endpoint from
+   * NEXT_PUBLIC_SITE_URL at BUILD time and Next writes it into the static headers
+   * for `/_next/static/*` — the one route group `proxy.ts` deliberately does not
+   * run for, so no runtime value can supply it later. Set under `environment:`
+   * alone (which is where it was), the image serves documents with a reporting
+   * endpoint and assets without one, and violations on the asset routes read as
+   * silence. Both places, one default, or the two drift.
+   */
+  it("passes the public origin to the build as well as the runtime", () => {
+    expect(dockerfile).toMatch(/^ARG NEXT_PUBLIC_SITE_URL$/m);
+    const args = composeText.slice(composeText.indexOf("\n      args:"));
+    const buildValue = /NEXT_PUBLIC_SITE_URL:\s*(\S+)/.exec(args)?.[1];
+    expect(buildValue).toBe(environment.get("NEXT_PUBLIC_SITE_URL"));
+  });
+
   it("keeps the database and the stored documents outside the container layer", () => {
     const mounts = serviceVolumes.map((v) => v.split(":")[1]);
     const declared = declaredVolumes();

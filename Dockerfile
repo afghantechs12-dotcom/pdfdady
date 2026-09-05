@@ -12,6 +12,23 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# The public origin, needed at BUILD time as well as at runtime.
+#
+# `next.config.mjs` reads NEXT_PUBLIC_SITE_URL to bake the CSP `report-to`
+# endpoint into the static response headers for `/_next/static/*` — the one route
+# group `proxy.ts` deliberately does not run for, so those headers cannot be
+# rebuilt per request. Absent here, `reportingEndpointFor` returns null and the
+# image ships static assets with no reporting endpoint while every document served
+# by the proxy has one: violations on the asset routes are then indistinguishable
+# from no violations at all. Runtime env cannot fix it after the fact.
+#
+# Left unset the build still succeeds (null endpoint, http-origin behaviour), so
+# this is a build ARG rather than a required value; compose passes the same value
+# it later sets at runtime.
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
 RUN npm run build
 
 # ---------- Runtime ----------
