@@ -1,6 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { register } from "./instrumentation";
 import { _resetConfigForTests } from "@/src/infrastructure/config/env";
+import { ingressState } from "@/src/infrastructure/config/ingressState";
+
+/**
+ * The lease is mocked, and only its CALL is asserted here.
+ *
+ * `instanceLease.test.ts` owns what acquisition does; what this file owns is that
+ * `register()` starts it at all, awaits it, and does so only after the config gate
+ * has passed — the ordering is the wiring, and the real module would open a
+ * database connection to prove it.
+ */
+const lease = vi.hoisted(() => ({ started: 0 }));
+vi.mock("@/src/infrastructure/config/instanceLease", () => ({
+  startInstanceLease: async () => {
+    lease.started += 1;
+    return "held";
+  },
+}));
 
 /**
  * The startup hook is pure wiring, and wiring is exactly where a green policy
@@ -30,6 +47,8 @@ beforeEach(() => {
     delete env[k];
   }
   _resetConfigForTests();
+  lease.started = 0;
+  ingressState().installed = false;
   // register() short-circuits on any runtime but nodejs; every test below wants
   // the Node path, so opt in explicitly rather than relying on the ambient value.
   env.NEXT_RUNTIME = "nodejs";
@@ -54,6 +73,10 @@ function setValidProductionEnv(): void {
   // Declared, because the gate makes the operator declare it: the upload limiter
   // counts in process memory. See `deploymentTopology.test.ts` R6.
   env.DEPLOYMENT_TOPOLOGY = "single-instance";
+  // A production boot goes through `ingress/server.mjs`, which installs the
+  // request-body guard before Next creates its HTTP server. The gate refuses a
+  // production process that did not — see the dedicated test below.
+  ingressState().installed = true;
 }
 
 /** Mocks the three sinks register() writes to, plus process.exit. */
@@ -82,6 +105,21 @@ describe("instrumentation register()", () => {
     expect(c.error).not.toHaveBeenCalled();
     expect(c.info).toHaveBeenCalledOnce();
     expect(c.text()).toMatch(/configuration OK/);
+    // Awaited, so nothing is served before this process knows whether it is the
+    // one instance.
+    expect(lease.started).toBe(1);
+  });
+
+  it("refuses a production boot that did not install the ingress guard", async () => {
+    setValidProductionEnv();
+    ingressState().installed = false;
+    const c = captureConsole();
+    await expect(register()).rejects.toThrow(/ingress guard is not installed/);
+    expect(c.exit).toHaveBeenCalledWith(1);
+    // The config was fine; the topology was not. Nothing said OK...
+    expect(c.text()).not.toMatch(/configuration OK/);
+    // ...and no lease was taken by a process that must not serve.
+    expect(lease.started).toBe(0);
   });
 
   it("exits non-zero on a misconfigured production deployment", async () => {

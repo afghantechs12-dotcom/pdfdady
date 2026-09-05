@@ -1,0 +1,42 @@
+PASS  M1 class A refuses every body
+      ingress/policy.test.ts exit 1, 4 test(s) failed — the decision > refuses any body on a class A path | the decision > is method-agnostic: a GET with a body is still bounded | the decision > ignores every other header, including the ones a client might forge
+      reverted: true
+PASS  M2 a chunked body on A or B is 411, unread
+      ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > refuses a chunked body on class A and B with 411, unread
+      reverted: true
+PASS  M3 the ceiling is inclusive — exactly the limit still reaches the app
+      ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > accepts a class B body at the ceiling and refuses one byte more
+      reverted: true
+PASS  M4 Content-Length is read the way Node's parser reads it
+      ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > refuses a malformed Content-Length with 400
+      reverted: true
+PASS  M5 class C is exactly the matcher's five exclusions
+      ingress/policy.test.ts exit 1, 4 test(s) failed — class boundaries > puts exactly the five streaming paths in class C | class boundaries > agrees with proxy.ts about which paths the matcher excludes | class boundaries > has the same number of exclusions as proxy.ts has anchored api carve-outs
+      reverted: true
+PASS  M6 the seam applies the policy to every method, GET included
+      ingress/guard.test.ts exit 1, 1 test(s) failed — the installation seam > wraps the server Next creates, refusing bodies and passing everything else through
+      reverted: true
+PASS  M7 a refusal discloses nothing about the path it refused
+      ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > answers identically for a page, a real route and a path with no route
+      reverted: true
+PASS  M8 shutdown releases the lease while it still reads held
+      ingress/guard.test.ts exit 1, 1 test(s) failed — shutdown > calls the release while the lease still reads held, not after
+      reverted: true
+PASS  M9 the exit waits for the release, but not forever
+      ingress/guard.test.ts exit 1, 1 test(s) failed — shutdown > holds the exit until the release settles, then exits with the given code
+      reverted: true
+PASS  M10 acquisition is a compare-and-swap, not a read then a write
+      src/infrastructure/config/instanceLease.test.ts exit 1, 1 test(s) failed — acquisition > takes over a lease that expired more than the grace margin ago
+      reverted: true
+PASS  M11 an unguarded production process refuses to start
+      src/infrastructure/config/ingressState.test.ts exit 1, 1 test(s) failed — assertIngressInstalled > refuses a production process that was not started through ingress/server.mjs
+      reverted: true
+PASS  M12 the container starts the entry that installs the guard
+      deploymentArtifact.test.ts exit 1, 2 test(s) failed — R3 — the container image can be built and can serve > carries the migration toolchain the standalone output leaves behind | R3 — the container image can be built and can serve > starts through the ingress guard, and ships it
+      reverted: true
+PASS  M13 a new body-consuming route cannot appear without a body policy
+      ingress/bodyRoutes.test.ts exit 1, 1 test(s) failed — body policy ledger > lists every route that can receive a request body
+      reverted: true
+
+13/13 mutations were caught
+json → docs/evidence/final-prelaunch/ingress/mutations.json

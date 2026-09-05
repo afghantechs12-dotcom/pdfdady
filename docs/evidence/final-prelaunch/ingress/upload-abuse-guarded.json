@@ -1,0 +1,562 @@
+{
+  "direct": "http://127.0.0.1:3002",
+  "front": null,
+  "origin": "https://172.20.10.2:3001",
+  "account": {
+    "workspaceId": "cmto9g1tz0007uox8fuww40dz",
+    "documentId": "cmto9g1uf000cuox8vwcz7vba"
+  },
+  "rowsBefore": {
+    "document_records": 0,
+    "document_versions": 0,
+    "attachment_records": 0,
+    "audit_logs": 0,
+    "stored_files": 0,
+    "document_ingestions": 0,
+    "workspace_save_intents": 0,
+    "storageFiles": 0
+  },
+  "rowsAfter": {
+    "document_records": 4,
+    "document_versions": 5,
+    "attachment_records": 1,
+    "audit_logs": 6,
+    "stored_files": 6,
+    "document_ingestions": 4,
+    "workspace_save_intents": 0,
+    "storageFiles": 6
+  },
+  "checks": [
+    {
+      "id": "L0",
+      "label": "control: a signed-in 8 MiB upload IS parsed, so it answers only after the last chunk",
+      "pass": true,
+      "detail": "201 in 5291ms, sent 8.00/8.00 MiB — the whole body had to arrive first, at 64 KiB every 40ms",
+      "measured": {
+        "status": 201,
+        "writtenAtResponse": 8388931,
+        "totalBytes": 8388931,
+        "latencyMs": 5290.891791
+      }
+    },
+    {
+      "id": "L1",
+      "label": "anonymous 8 MiB -> 401 with the body still arriving (attachments, direct)",
+      "pass": true,
+      "detail": "401 in 4ms, sent 0.06/8.00 MiB · \"Authentication is required.\" · cache-control no-store",
+      "measured": {
+        "status": 401,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "latencyMs": 3.75375,
+        "body": {
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication is required.",
+            "requestId": "ab58cea2-2fe0-4a68-a9e6-03f155ac6d19"
+          }
+        }
+      }
+    },
+    {
+      "id": "L1",
+      "label": "anonymous 8 MiB -> 401 with the body still arriving (documents/upload, direct)",
+      "pass": true,
+      "detail": "401 in 1ms, sent 0.06/8.00 MiB · \"Authentication is required.\" · cache-control no-store",
+      "measured": {
+        "status": 401,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "latencyMs": 1.115792,
+        "body": {
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication is required.",
+            "requestId": "f55363d4-48a7-45d4-a63c-8fb3dabcf70f"
+          }
+        }
+      }
+    },
+    {
+      "id": "L1",
+      "label": "anonymous 8 MiB -> 401 with the body still arriving (versions/upload, direct)",
+      "pass": true,
+      "detail": "401 in 3ms, sent 0.06/8.00 MiB · \"Authentication is required.\" · cache-control no-store",
+      "measured": {
+        "status": 401,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "latencyMs": 2.770292,
+        "body": {
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication is required.",
+            "requestId": "1aee5f55-8fcc-4ec8-b8c7-ec5a0eeb094a"
+          }
+        }
+      }
+    },
+    {
+      "id": "L2",
+      "label": "declared 200 MiB -> 413 before the body (attachments)",
+      "pass": true,
+      "detail": "413 in 1ms · \"This attachment is too large.\" · cache-control no-store",
+      "measured": {
+        "status": 413,
+        "latencyMs": 1.115167,
+        "body": {
+          "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": "This attachment is too large.",
+            "requestId": "3f570528-07f2-4d4e-9890-c5f0ff85a714"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L2",
+      "label": "declared 200 MiB -> 413 before the body (documents/upload)",
+      "pass": true,
+      "detail": "413 in 1ms · \"Upload too large.\" · cache-control no-store",
+      "measured": {
+        "status": 413,
+        "latencyMs": 1.298708,
+        "body": {
+          "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": "Upload too large.",
+            "requestId": "65760d52-fb27-4482-aa59-80c631f43809"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L2",
+      "label": "declared 200 MiB -> 413 before the body (versions/upload)",
+      "pass": true,
+      "detail": "413 in 1ms · \"Upload too large.\" · cache-control no-store",
+      "measured": {
+        "status": 413,
+        "latencyMs": 1.251,
+        "body": {
+          "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": "Upload too large.",
+            "requestId": "65a34cb4-c8d6-494f-b44d-80b5527d9b8e"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L5",
+      "label": "foreign origin -> 403 with the body still arriving (attachments)",
+      "pass": true,
+      "detail": "403 in 1ms, sent 0.06/8.00 MiB · \"CSRF_ORIGIN_REJECTED\" · cache-control no-store",
+      "measured": {
+        "status": 403,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "body": {
+          "error": {
+            "code": "CSRF_ORIGIN_REJECTED",
+            "message": "Request origin is not allowed.",
+            "requestId": "csrf-check"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L5",
+      "label": "foreign origin -> 403 with the body still arriving (documents/upload)",
+      "pass": true,
+      "detail": "403 in 1ms, sent 0.06/8.00 MiB · \"CSRF_ORIGIN_REJECTED\" · cache-control no-store",
+      "measured": {
+        "status": 403,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "body": {
+          "error": {
+            "code": "CSRF_ORIGIN_REJECTED",
+            "message": "Request origin is not allowed.",
+            "requestId": "csrf-check"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L5",
+      "label": "foreign origin -> 403 with the body still arriving (versions/upload)",
+      "pass": true,
+      "detail": "403 in 1ms, sent 0.06/8.00 MiB · \"CSRF_ORIGIN_REJECTED\" · cache-control no-store",
+      "measured": {
+        "status": 403,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931,
+        "body": {
+          "error": {
+            "code": "CSRF_ORIGIN_REJECTED",
+            "message": "Request origin is not allowed.",
+            "requestId": "csrf-check"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L6",
+      "label": "application/json -> 415 (attachments)",
+      "pass": true,
+      "detail": "415 · \"Expected a multipart/form-data upload.\" · cache-control no-store",
+      "measured": {
+        "status": 415,
+        "body": {
+          "error": {
+            "code": "INVALID_INPUT",
+            "message": "Expected a multipart/form-data upload.",
+            "requestId": "ba6b57a3-c125-4679-aaf6-8cc7b0a51be4"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L6",
+      "label": "application/json -> 415 (documents/upload)",
+      "pass": true,
+      "detail": "415 · \"Expected a multipart/form-data upload.\" · cache-control no-store",
+      "measured": {
+        "status": 415,
+        "body": {
+          "error": {
+            "code": "INVALID_INPUT",
+            "message": "Expected a multipart/form-data upload.",
+            "requestId": "69b85689-d434-48a4-9ace-aa00af5e67d2"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L6",
+      "label": "application/json -> 415 (versions/upload)",
+      "pass": true,
+      "detail": "415 · \"Expected a multipart/form-data upload.\" · cache-control no-store",
+      "measured": {
+        "status": 415,
+        "body": {
+          "error": {
+            "code": "INVALID_INPUT",
+            "message": "Expected a multipart/form-data upload.",
+            "requestId": "51452788-1fb7-4f57-a67c-21f40087b38f"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L11",
+      "label": "8 concurrent anonymous 8 MiB (64 MiB offered) -> all 401, RSS bounded",
+      "pass": true,
+      "detail": "statuses 401 · sent 0.5 of 64.0 MiB · RSS 230.6 -> peak 230.6 -> 231.5 MiB",
+      "measured": {
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401
+        ],
+        "writtenAtResponse": [
+          65536,
+          65536,
+          65536,
+          65536,
+          65536,
+          65536,
+          65536,
+          65536
+        ],
+        "rssBefore": 230.6,
+        "peak": 230.6,
+        "rssAfter": 231.5
+      }
+    },
+    {
+      "id": "L12",
+      "label": "Expect: 100-continue on an over-ceiling declared length",
+      "pass": true,
+      "detail": "100 Continue after 1ms (by the runtime, not the route) · final 413 in 3ms · \"PAYLOAD_TOO_LARGE\"",
+      "measured": {
+        "status": 413,
+        "continueMs": 1.462083,
+        "body": {
+          "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": "Upload too large.",
+            "requestId": "488c9607-b601-4bb7-a93f-5036b437c6ec"
+          }
+        }
+      }
+    },
+    {
+      "id": "L13",
+      "label": "no storage, database, ingestion, version or audit row from any anonymous request",
+      "pass": true,
+      "detail": "all 8 counters unchanged: {\"document_records\":2,\"document_versions\":2,\"attachment_records\":0,\"audit_logs\":3,\"stored_files\":2,\"document_ingestions\":2,\"workspace_save_intents\":0,\"storageFiles\":2}",
+      "measured": {
+        "before": {
+          "document_records": 2,
+          "document_versions": 2,
+          "attachment_records": 0,
+          "audit_logs": 3,
+          "stored_files": 2,
+          "document_ingestions": 2,
+          "workspace_save_intents": 0,
+          "storageFiles": 2
+        },
+        "after": {
+          "document_records": 2,
+          "document_versions": 2,
+          "attachment_records": 0,
+          "audit_logs": 3,
+          "stored_files": 2,
+          "document_ingestions": 2,
+          "workspace_save_intents": 0,
+          "storageFiles": 2
+        },
+        "delta": {}
+      }
+    },
+    {
+      "id": "L3",
+      "label": "authenticated, chunked 26 MiB, NO Content-Length -> 413 from the stream, RSS bounded",
+      "pass": true,
+      "detail": "413 in 1572ms, sent 25.50/26.00 MiB · \"This attachment is too large.\" · RSS 231.8 -> peak 241.7 MiB",
+      "measured": {
+        "status": 413,
+        "writtenAtResponse": 26738688,
+        "totalBytes": 27263298,
+        "body": {
+          "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": "This attachment is too large.",
+            "requestId": "989e8d18-7e26-47de-80d0-f0e9f708085a"
+          }
+        },
+        "rssBefore": 231.8,
+        "peak": 241.7
+      }
+    },
+    {
+      "id": "L4",
+      "label": "authenticated, declares 1 KiB and sends 26 MiB -> never served",
+      "pass": true,
+      "detail": "0 in 3ms · \"\" · the framing layer reads only the declared 1024 bytes, so understating buys a truncated body, not a bigger parse",
+      "measured": {
+        "status": 0,
+        "body": null,
+        "text": "",
+        "socketError": "ECONNRESET"
+      }
+    },
+    {
+      "id": "L7",
+      "label": "a raw quote in the filename -> 400 MALFORMED_MULTIPART (attachments)",
+      "pass": true,
+      "detail": "400 · {\"code\":\"MALFORMED_MULTIPART\",\"message\":\"Malformed multipart body.\"} · cache-control no-store",
+      "measured": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "MALFORMED_MULTIPART",
+            "message": "Malformed multipart body.",
+            "requestId": "f88068f3-916d-4221-b74d-4bbc80e1ea66"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L7",
+      "label": "a raw quote in the filename -> 400 MALFORMED_MULTIPART (documents/upload)",
+      "pass": true,
+      "detail": "400 · {\"code\":\"MALFORMED_MULTIPART\",\"message\":\"Malformed multipart body.\"} · cache-control no-store",
+      "measured": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "MALFORMED_MULTIPART",
+            "message": "Malformed multipart body.",
+            "requestId": "2685cff1-678e-4726-a677-c9daf5acb743"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L7",
+      "label": "a raw quote in the filename -> 400 MALFORMED_MULTIPART (versions/upload)",
+      "pass": true,
+      "detail": "400 · {\"code\":\"MALFORMED_MULTIPART\",\"message\":\"Malformed multipart body.\"} · cache-control no-store",
+      "measured": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "MALFORMED_MULTIPART",
+            "message": "Malformed multipart body.",
+            "requestId": "50b54831-15fe-461c-b931-c4cc8dcffaf4"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L7b",
+      "label": "all three routes answer the same bytes identically (the old 422-vs-400 split)",
+      "pass": true,
+      "detail": "400 MALFORMED_MULTIPART Malformed multipart body.",
+      "measured": {
+        "answers": [
+          "400 MALFORMED_MULTIPART Malformed multipart body.",
+          "400 MALFORMED_MULTIPART Malformed multipart body.",
+          "400 MALFORMED_MULTIPART Malformed multipart body."
+        ]
+      }
+    },
+    {
+      "id": "L10",
+      "label": "a signed-in 64 KiB upload succeeds and the stored bytes match (attachments)",
+      "pass": true,
+      "detail": "201 in 7ms · sha256 3cb9afbc3f10… found in stored_files, size 65580 = sent 65580 · cache-control (absent)",
+      "measured": {
+        "status": 201,
+        "sha256": "3cb9afbc3f10cd1c4db3148cf8e31d95d34e30d2b3dacba90832c4744202d7ad",
+        "stored": {
+          "size": 65580,
+          "mimeType": "application/pdf"
+        },
+        "sentBytes": 65580,
+        "cacheControl": null
+      }
+    },
+    {
+      "id": "L10",
+      "label": "a signed-in 64 KiB upload succeeds and the stored bytes match (documents/upload)",
+      "pass": true,
+      "detail": "201 in 6ms · sha256 e98be4d1cf2c… found in stored_files, size 65580 = sent 65580 · cache-control no-store",
+      "measured": {
+        "status": 201,
+        "sha256": "e98be4d1cf2c24a8ed4b9938b2af2b9b47186ea71fc1beb54e3d775cf6446afc",
+        "stored": {
+          "size": 65580,
+          "mimeType": "application/pdf"
+        },
+        "sentBytes": 65580,
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L10",
+      "label": "a signed-in 64 KiB upload succeeds and the stored bytes match (versions/upload)",
+      "pass": true,
+      "detail": "201 in 5ms · sha256 eafb86ca5ca3… found in stored_files, size 65580 = sent 65580 · cache-control no-store",
+      "measured": {
+        "status": 201,
+        "sha256": "eafb86ca5ca3e69a5bfa2676c0d32ec6b46a13294afa52221546aaf47a2ee41b",
+        "stored": {
+          "size": 65580,
+          "mimeType": "application/pdf"
+        },
+        "sentBytes": 65580,
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L8",
+      "label": "anonymous flood -> 429 with a truthful Retry-After",
+      "pass": true,
+      "detail": "429 on attempt 230 · Retry-After 58 (window 60s, +1ms honesty margin => 61 is the ceiling) · \"Too many uploads. Please wait and try again.\" · cache-control no-store",
+      "measured": {
+        "attempts": 230,
+        "status": 429,
+        "retryAfter": "58",
+        "body": {
+          "error": {
+            "code": "RATE_LIMITED",
+            "message": "Too many uploads. Please wait and try again.",
+            "requestId": "c2c2a5b4-32cb-4641-ac44-5fe3c73f9d35"
+          }
+        },
+        "cacheControl": "no-store"
+      }
+    },
+    {
+      "id": "L8b",
+      "label": "an 8 MiB body offered while rate limited is refused unread",
+      "pass": true,
+      "detail": "429 in 0ms, sent 0.06/8.00 MiB",
+      "measured": {
+        "status": 429,
+        "writtenAtResponse": 65536,
+        "totalBytes": 8388931
+      }
+    },
+    {
+      "id": "L8c",
+      "label": "a signed-in caller is unaffected by the anonymous flood (separate bucket)",
+      "pass": true,
+      "detail": "201 · \"accepted\"",
+      "measured": {
+        "status": 201,
+        "body": {
+          "document": {
+            "id": "cmto9g7o3000zuox8letpf2jk",
+            "name": "probe.pdf",
+            "workspaceId": "cmto9g1tz0007uox8fuww40dz",
+            "folderId": null,
+            "projectId": null
+          },
+          "file": {
+            "id": "cmto9g7o2000yuox8id5mza5j",
+            "key": "ca/0b/1e/0b1ee2a60aba8b4384c9a3fe9bf2fbe1b1196e99e01643d5e5341e7313edacdc",
+            "size": 512,
+            "mimeType": "application/pdf",
+            "originalName": "probe.pdf"
+          },
+          "ingestion": {
+            "id": "cmto9g7o40010uox8j2y0oxnb",
+            "status": "pending",
+            "checksum": "0b1ee2a60aba8b4384c9a3fe9bf2fbe1b1196e99e01643d5e5341e7313edacdc",
+            "pageCount": null
+          },
+          "deduplicated": false
+        }
+      }
+    },
+    {
+      "id": "L9",
+      "label": "obeying Retry-After to the second is enough: the next attempt is not 429",
+      "pass": true,
+      "detail": "401 after 58s · \"UNAUTHORIZED\"",
+      "measured": {
+        "status": 401,
+        "waitedSeconds": 58,
+        "body": {
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication is required.",
+            "requestId": "7ceedb5c-13af-4c96-aa8b-1bdf432d9e43"
+          }
+        }
+      }
+    }
+  ]
+}

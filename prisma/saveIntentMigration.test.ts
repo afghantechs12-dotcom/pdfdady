@@ -11,7 +11,11 @@
  *
  * How the "before" state is built. `prisma migrate deploy` only ever brings a
  * database to HEAD, so the pre-migration schema is produced by running every
- * migration except the last through the real Prisma CLI, then seeding it. The
+ * migration BEFORE the one under test through the real Prisma CLI, then seeding it.
+ * The migration under test is named, not taken as "the last one": the first
+ * migration added after this phase (the instance lease) made "last" a different
+ * file, and this test then built its own control with the save-intent table already
+ * in it and failed on a claim it was not making. The
  * final migration is then applied — by the same CLI, from the same file the
  * deployment will use — to a byte copy, leaving the seeded original in place as the
  * control. A test that migrated the original could not tell "preserved" from
@@ -42,7 +46,9 @@ const migrations = readdirSync(migrationsDirectory, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
-const finalMigration = migrations.at(-1)!;
+/** The migration this test is about, by name. See the note above on why not `at(-1)`. */
+const finalMigration = "20260902100000_add_workspace_save_intents";
+const beforeFinal = migrations.slice(0, migrations.indexOf(finalMigration));
 
 function runSql(file: string, database: string) {
   execFileSync(
@@ -170,8 +176,7 @@ beforeAll(async () => {
   const before = path.join(temporaryDirectory, "before.sql");
   writeFileSync(
     before,
-    migrations
-      .slice(0, -1)
+    beforeFinal
       .map((name) => `${readFileSync(path.join(migrationsDirectory, name, "migration.sql"), "utf8")}\n;\n`)
       .join("\n"),
   );
@@ -208,8 +213,8 @@ describe("D20 — the migration preserves everything already stored", () => {
     expect(await indexNames(legacy, "document_ingestions")).toContain(
       "document_ingestions_workspaceId_checksum_key",
     );
-    expect(migrations.length).toBeGreaterThan(1);
-    expect(finalMigration).toBe("20260902100000_add_workspace_save_intents");
+    expect(migrations).toContain(finalMigration);
+    expect(beforeFinal.length).toBeGreaterThan(0);
   });
 
   it("keeps every document, including the archived and the trashed one", async () => {

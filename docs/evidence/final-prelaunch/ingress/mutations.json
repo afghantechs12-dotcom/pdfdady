@@ -1,0 +1,121 @@
+{
+  "rows": [
+    {
+      "id": "M1",
+      "property": "class A refuses every body",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 4 test(s) failed — the decision > refuses any body on a class A path | the decision > is method-agnostic: a GET with a body is still bounded | the decision > ignores every other header, including the ones a client might forge"
+    },
+    {
+      "id": "M2",
+      "property": "a chunked body on A or B is 411, unread",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > refuses a chunked body on class A and B with 411, unread"
+    },
+    {
+      "id": "M3",
+      "property": "the ceiling is inclusive — exactly the limit still reaches the app",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > accepts a class B body at the ceiling and refuses one byte more"
+    },
+    {
+      "id": "M4",
+      "property": "Content-Length is read the way Node's parser reads it",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > refuses a malformed Content-Length with 400"
+    },
+    {
+      "id": "M5",
+      "property": "class C is exactly the matcher's five exclusions",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 4 test(s) failed — class boundaries > puts exactly the five streaming paths in class C | class boundaries > agrees with proxy.ts about which paths the matcher excludes | class boundaries > has the same number of exclusions as proxy.ts has anchored api carve-outs"
+    },
+    {
+      "id": "M6",
+      "property": "the seam applies the policy to every method, GET included",
+      "file": "ingress/guard.mjs",
+      "gate": "ingress/guard.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/guard.test.ts exit 1, 1 test(s) failed — the installation seam > wraps the server Next creates, refusing bodies and passing everything else through"
+    },
+    {
+      "id": "M7",
+      "property": "a refusal discloses nothing about the path it refused",
+      "file": "ingress/policy.mjs",
+      "gate": "ingress/policy.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/policy.test.ts exit 1, 1 test(s) failed — the decision > answers identically for a page, a real route and a path with no route"
+    },
+    {
+      "id": "M8",
+      "property": "shutdown releases the lease while it still reads held",
+      "file": "ingress/guard.mjs",
+      "gate": "ingress/guard.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/guard.test.ts exit 1, 1 test(s) failed — shutdown > calls the release while the lease still reads held, not after"
+    },
+    {
+      "id": "M9",
+      "property": "the exit waits for the release, but not forever",
+      "file": "ingress/guard.mjs",
+      "gate": "ingress/guard.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/guard.test.ts exit 1, 1 test(s) failed — shutdown > holds the exit until the release settles, then exits with the given code"
+    },
+    {
+      "id": "M10",
+      "property": "acquisition is a compare-and-swap, not a read then a write",
+      "file": "src/infrastructure/config/instanceLease.ts",
+      "gate": "src/infrastructure/config/instanceLease.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "src/infrastructure/config/instanceLease.test.ts exit 1, 1 test(s) failed — acquisition > takes over a lease that expired more than the grace margin ago"
+    },
+    {
+      "id": "M11",
+      "property": "an unguarded production process refuses to start",
+      "file": "src/infrastructure/config/ingressState.ts",
+      "gate": "src/infrastructure/config/ingressState.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "src/infrastructure/config/ingressState.test.ts exit 1, 1 test(s) failed — assertIngressInstalled > refuses a production process that was not started through ingress/server.mjs"
+    },
+    {
+      "id": "M12",
+      "property": "the container starts the entry that installs the guard",
+      "file": "Dockerfile",
+      "gate": "deploymentArtifact.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "deploymentArtifact.test.ts exit 1, 2 test(s) failed — R3 — the container image can be built and can serve > carries the migration toolchain the standalone output leaves behind | R3 — the container image can be built and can serve > starts through the ingress guard, and ships it"
+    },
+    {
+      "id": "M13",
+      "property": "a new body-consuming route cannot appear without a body policy",
+      "file": "app/api/_mutation_probe/route.ts",
+      "gate": "ingress/bodyRoutes.test.ts",
+      "red": true,
+      "reverted": true,
+      "detail": "ingress/bodyRoutes.test.ts exit 1, 1 test(s) failed — body policy ledger > lists every route that can receive a request body"
+    }
+  ]
+}

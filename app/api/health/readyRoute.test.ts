@@ -35,6 +35,7 @@ vi.mock("@/lib/server/dependencyCheck", () => ({
 vi.mock("@/data/admin", () => ({ STORE_PATH: process.cwd() + "/package.json" }));
 
 import { GET } from "@/app/api/health/ready/route";
+import { ingressState } from "@/src/infrastructure/config/ingressState";
 
 /**
  * A fresh copy of the route, so its dependency cache is empty.
@@ -58,6 +59,10 @@ beforeEach(() => {
   state.checks = [];
   state.containerThrows = false;
   state.deps = { qpdf: true, ghostscript: true, libreoffice: true };
+  // A serving process holds the single-instance lease. The route reports that as
+  // its own check, so every "healthy" case here has to say so; the case where it
+  // is NOT held has its own test below.
+  ingressState().lease = "held";
 });
 
 describe("GET /api/health/ready", () => {
@@ -70,6 +75,25 @@ describe("GET /api/health/ready", () => {
     expect(body.status).toBe("ready");
     expect(body.database).toBe(true);
     expect(body.checks).toEqual([{ name: "database", healthy: true }]);
+  });
+
+  it("is not ready when this process does not hold the single-instance lease", async () => {
+    // A standby that lost the race, or a holder whose lease was taken, is a live
+    // process that must not receive traffic — which is what a readiness probe is
+    // for. `disabled` (development, nothing to exclude) is the one non-held status
+    // that still serves.
+    state.checks = [{ name: "database", healthy: true }];
+    ingressState().lease = "lost";
+    const res = await GET();
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.instance).toBe(false);
+    expect(body.database).toBe(true);
+    // Whether, never which holder or why.
+    expect(JSON.stringify(body)).not.toMatch(/holder|standby|taken|lease/i);
+
+    ingressState().lease = "disabled";
+    expect((await GET()).status).toBe(200);
   });
 
   it("returns 503 and names the failing subsystem without explaining why", async () => {
