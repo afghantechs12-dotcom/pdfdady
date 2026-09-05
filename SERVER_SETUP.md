@@ -21,6 +21,22 @@ If a binary is missing, the matching tool returns a clear error:
 `Server dependency missing: <tool>. Install it or run via Docker.`
 No file is ever faked or returned without real processing.
 
+## How to start it — `node ingress/server.mjs`
+
+`npm run start` runs this, the Docker `CMD` runs this, and it is the only
+supported production entry point. It installs the request-body guard around
+`http.createServer` and then loads the generated `.next/standalone/server.js`
+itself.
+
+Starting the generated entry directly (`node .next/standalone/server.js`) **exits
+1 in production** and says why. That is deliberate rather than tidy: the generated
+server prints `✓ Ready in 0ms` and binds its port *before* `instrumentation.ts`
+runs, so anything that must refuse an oversized body — or refuse traffic on behalf
+of a single-instance lease it does not yet hold — has to be installed at
+server-creation time. Nothing an operator can configure substitutes for it: the
+body policy is code (`ingress/policy.mjs`, `ingress/bodyRoutes.mjs`), versioned
+with the app, and there is no environment variable that turns it off.
+
 ## Production configuration gate
 
 With `NODE_ENV=production`, PDFDadi validates its configuration **at process
@@ -113,7 +129,7 @@ Moving to PostgreSQL is a schema change plus a regenerated migration history
 work is done and verified, one writable deployment per database file is the
 supported topology — see `docs/adr/ADR-M7-009-sqlite-operations.md`.
 
-### Instance topology — one instance, declared at boot
+### Instance topology — one instance, enforced by a database lease
 
 `DEPLOYMENT_TOPOLOGY=single-instance` is required in production, and it is the
 only accepted value. It is a declaration rather than a tuning knob, and two
@@ -142,14 +158,53 @@ all three of these exist, in this order:
 `REDIS_URL` alone does **not** make the app multi-instance; it moves job dispatch
 out of the server process. The other two rows still apply.
 
-**What the gate does and does not do.** It refuses to boot a production process
-that has not declared the topology, and `docker-compose.yml` declares it and
-pins `container_name`, which makes `docker compose up --scale pdfdadi=2` fail. It
-is **not** mutual exclusion: two processes started by hand against the same
-database would each declare `single-instance` and each start. Operating one
-instance per database remains an operator responsibility — the gate makes the
-assumption explicit and auditable, and R6/R8 in `deploymentTopology.test.ts` keep
-it that way.
+**What the config gate does.** It refuses to boot a production process that has
+not declared the topology, and `docker-compose.yml` declares it and pins
+`container_name`, which makes `docker compose up --scale pdfdadi=2` fail.
+
+**What the gate did NOT do, and what now does it.** This section previously ended
+here, saying the gate "is **not** mutual exclusion: two processes started by hand
+against the same database would each declare `single-instance` and each start" and
+that operating one instance per database "remains an operator responsibility". That
+was accurate and it was not sufficient — it was measured: two hand-started
+production processes against one database both booted and both answered `200`, so
+the global upload bucket admitted twice its budget and SQLite got a second writer.
+
+Exclusion is now a **lease in the database itself** —
+`src/infrastructure/config/instanceLease.ts`, one row `instance_leases['app']`:
+
+- **Acquire.** `INSERT` wins the first ever boot; afterwards a single
+  `UPDATE … WHERE id='app' AND (holder = me OR expiresAt < now - grace)` either
+  updates one row or none. The read and the write are the same statement, so two
+  processes cannot both see a free lease.
+- **Identity.** `holder` is `<host>:<pid>:<uuid>` — the PROCESS, not the host, so a
+  restart onto a recycled pid can never inherit a dead instance's lease.
+- **Heartbeat and expiry.** The holder beats every 3 s and the lease outlives its
+  last beat by 10 s (plus a 2 s clock-grace margin before a contender treats it as
+  stealable). Three missed beats, so a GC pause does not hand over the deployment.
+- **A refused process does not exit — it stands by.** It answers `503` to every
+  path (no reason disclosed) and keeps retrying, so when the holder stops it takes
+  over by itself: measured **12.1 s after a `SIGKILL`**, and **0.43 s** after a
+  clean `SIGTERM`, because shutdown releases the row instead of leaving it to
+  expire. Exiting instead would turn every stale-lease window into a restart loop
+  under `restart: unless-stopped`.
+- **Readiness tells you.** `/api/health/ready` carries an `instance` check and
+  answers `503` when this process does not hold the lease, so a load balancer
+  drains a standby without being told which one it is.
+
+Two operational consequences:
+
+1. **Apply migrations before starting.** If `instance_leases` does not exist yet,
+   no process can acquire — every one of them refuses traffic with `503`. That is
+   the fail-closed direction and it is deliberate, but a fresh volume that skipped
+   `prisma migrate deploy` looks exactly like a dead deployment. The Docker `CMD`
+   runs `migrate deploy` first for this reason.
+2. **Start through `node ingress/server.mjs`.** Staleness is judged on the
+   application clock plus the grace margin, which is exact on one host; a
+   multi-host Postgres deployment should move the comparison onto the database
+   clock. R6/R8 in `deploymentTopology.test.ts` still pin the config gate;
+   `instanceLease.test.ts` and `scripts/singleton-probe.mjs` (8/8 live) pin the
+   exclusion.
 
 ### Migrations
 
@@ -360,21 +415,31 @@ watermark, page numbers, sign, fill forms, remove metadata) work locally with
   accepted value. Behind N instances the request ceiling would become N × the
   configured number while the per-request byte ceiling stayed the same; rather than
   leave that to a load-balancer rule nobody owns, the boot gate refuses the
-  configuration. See "Instance topology" above for the three things multi-instance
-  would need first.
-- **Bound request bodies at the reverse proxy too, if you run one.** Not for the byte
-  ceilings — the app owns those, as above — but for memory. Next buffers the body of
-  any request its proxy matcher claims before the handler runs, up to
-  `experimental.proxyClientMaxBodySize` (`next.config.mjs`, 120 MB here), and that
-  includes every page URL and every unrouted path, where no rate limiter has run yet.
-  Measured on a cold production artifact: a 64 MiB anonymous POST to a matched path
-  is read in full, the same POST to an excluded upload path stops after ~1.25 MiB, and
-  28 concurrent 100 MiB posts took one process from 301 MB to 1795 MB RSS and kept it
-  there (`docs/evidence/final-prelaunch/proxy-body-clone-cost.log`). This is
-  pre-existing Next behaviour, not something the upload work introduced, and lowering
-  the config value instead re-arms the silent-truncation problem its docstring
-  documents. So set a small `client_max_body_size` globally and raise it only on the
-  five paths the matcher excludes, which are the only ones that need a large body:
+  configuration **and the instance lease refuses the second process** — a declared
+  topology alone did not stop two hand-started processes from serving. See "Instance
+  topology" above for the lease, and for the three things multi-instance would need
+  first.
+- **The app bounds request bodies itself, at ingress — you are not required to run a
+  reverse proxy for that.** This bullet used to say the opposite: that Next buffers the
+  body of any matched request up to `experimental.proxyClientMaxBodySize`
+  (`next.config.mjs`, 120 MB) before the handler runs, that this included every page URL
+  and every unrouted path where no limiter has run, that 28 concurrent anonymous 100 MiB
+  posts took one process from 301 MB to 1795 MB RSS and kept it there, and that the
+  mitigation was an nginx `client_max_body_size`. The measurements were real — and a
+  safety property that only exists when an optional proxy is configured is not a safety
+  property. `ingress/server.mjs` now installs a guard around `http.createServer` that
+  classifies every request BEFORE Next sees it: paths that take no body get `0` bytes,
+  paths that take a small structured body get 2 MiB, and the five multipart upload paths
+  keep their own bounded readers. Over-ceiling requests are refused on the request line
+  with `connection: close`, so the transfer stops instead of completing. The same 28 ×
+  100 MiB burst now offers **15.75 MiB of 2800** and moves RSS by **0 MB**
+  (`docs/evidence/final-prelaunch/ingress/RESULTS.md`). Nothing is silently truncated: no
+  body that exceeded a ceiling is ever handed to a handler.
+
+  **Still set a proxy cap if you run one** — as defence in depth and to keep bad requests
+  off the app entirely, not because the app depends on it. Set a small
+  `client_max_body_size` globally and raise it only on the five paths the matcher
+  excludes, which are the only ones that need a large body:
 
   ```nginx
   client_max_body_size 1m;                      # everything else

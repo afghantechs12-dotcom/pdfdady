@@ -94,3 +94,49 @@ Evidence: `singleton-guarded.{log,json}`.
 `8/8 passed`, exit 0. S6 and S7 now measure something: at baseline there was no lease, so
 there was no takeover to time. S7 in particular was red once on this branch at 12 547 ms,
 which is how the skipped release was found — see `ingress/guard.test.ts`, `describe("shutdown")`.
+
+# §9 repeat at the FINAL artifact — the build the closeout ends on
+
+The artifact above was rebuilt once more, for a reason that has nothing to do with the
+ingress work and everything to do with not claiming a baseline that was not re-run:
+`next.config.mjs` bakes the static-asset CSP's `report-to` group from
+`NEXT_PUBLIC_SITE_URL` **at build time**, `.env` carries `http://localhost:3000`, and
+`scripts/restart-origin.sh` exports the https origin only at *runtime*. So the first
+csp-probe run of this session read `108/110` with two rows red — a build input, not a
+regression, and the probe's own comment says which command fixes it. It was rebuilt with
+`NEXT_PUBLIC_SITE_URL=https://172.20.10.2:3001` exported to the build, which is what a real
+production build does anyway.
+
+Final artifact: **`BUILD_ID 98appVCcbyMxzlhk26zya`**, entry `node ingress/server.mjs`, pid
+sampled from `lsof -nP -iTCP:3002 -sTCP:LISTEN -t`. Every live row in §10 is from this
+artifact. Evidence: `probe-guarded-final.{log,json}`,
+`probe-guarded-final-repeat.{log,json}`, `singleton-guarded-final.{log,json}`,
+`upload-abuse-final.{log,json}`, `proxy-parity-final.{log,json}`, `tool-matrix-final.*`,
+`job-ownership-final.log`, `phase1-reliability-final.log`, `workflow-completeness-final.log`,
+`export-fidelity-final.log`.
+
+| burst on the final artifact | before | peak | settled | offered of 2800 MiB | statuses | CSP |
+|---|---|---|---|---|---|---|
+| §9 run | 238.4 | 238.4 | 238.4 | **15.75** | 413 ×28 | 0/28 |
+| §9 repeat, same process | 241.3 | 241.3 | **238.0** | **17.5** | 413 + closed socket | 0/28 |
+
+`25/25 passed`, exit 0, both runs. The repeat is the row that answers the original finding
+directly: at baseline a second identical burst on the same process cost another +828 MiB and
+gave back nothing, so RSS was monotonic across bursts. Here the second burst ends **3.3 MiB
+below where it started**. Singleton on the final artifact: **8/8**, exit 0, S6 12 107 ms and
+S7 433 ms.
+
+## Two things this rebuild established that the earlier runs could not
+
+1. **An unmeasured memory row used to pass.** The first two probe runs on this artifact were
+   invoked without `--pid`, and E7/E8 printed `RSS null → peak 0 → settled null` under a
+   **PASS**: `peakOk` read `baseline === null || …`. A memory claim that was never measured
+   is worse than a red row, because it looks like evidence. `scripts/ingress-probe.mjs` now
+   fails those two rows and prints `RSS NOT SAMPLED — rerun with --pid <server pid>`. The
+   numbers in the table above are from runs that could not have passed vacuously.
+2. **A database with no schema fails closed.** `singleton-probe.mjs` was run once against a
+   freshly deleted `/tmp/audit-singleton-db.db`: `instance_leases` did not exist, no process
+   could acquire, and **both** answered 503 (`serving=0`, 3/8). That is the correct direction
+   — a lease that cannot be verified must not be assumed — but it is indistinguishable from a
+   dead deployment, so `SERVER_SETUP.md` now says to apply migrations before starting and
+   why the Docker `CMD` runs `migrate deploy` first.

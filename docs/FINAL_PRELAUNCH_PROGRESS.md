@@ -410,7 +410,10 @@ authentication ran, and nothing bounded how many times. That is **P1**, not P2 �
 annotation on P2-7 in §35 and the closeout in **§38**. The original row and its evidence file
 are untouched; the correction is written next to them.
 
-Branch `upload-abuse-closeout` from the audit HEAD `1640b12`. Six commits:
+Branch `upload-abuse-closeout` from the audit HEAD `1640b12`. **Seven commits**, in the
+six rows below — the fifth row is two commits, because `9d46606` and `434adc1` closed the
+same finding from two directions. (This sentence read "Six commits" while its own table
+listed seven; the table was right.)
 
 | Commit | What |
 |---|---|
@@ -477,7 +480,7 @@ readiness contradictions were the whole subject; full detail is `FINAL_PRELAUNCH
 |---|---|---|---|
 | 1. Nine high dependency advisories, harness exit 1 with `PRODUCT FAILURE` I3 | one PRODUCT FAILURE | **CLOSED** — 0 vulnerabilities on both graphs; harness exit 0, PASS 67/67, PRODUCT FAILURE 0. **9 of 11 were production-reachable, not dev-only**: fixed by `next 16.2.12 → 16.3.4` (nested postcss + sharp), `pdfjs-dist 6.1.200 → 6.3.289`, `npm update brace-expansion`/`nanoid`, `autoprefixer` for browserslist, plus one narrow `overrides: deepmerge-ts ^8.0.2` where no supported parent upgrade existed. Next and PDF.js moved, so their gates were run | `audit-RECONCILED-{prod,full}.json`, `audit-static-RECONCILED.log` |
 | 2. One full-suite failure whose identity was not retained | unattributed | **REPRODUCED, OWNED, FIXED** — test-harness + cross-test interference, not the product: a shared spy left set by whichever test ran first, a wall-clock fallback racing an abort, and vitest's inherited 5000 ms default | `suite/m3-shuffle-20260904.summary.json` (the red one) + three GREEN runs below |
-| 3. Process-local upload limiting with unenforced topology | prose only | **CLOSED via Path A** — `DEPLOYMENT_TOPOLOGY=single-instance` required in production and the only accepted value, boot gate + compose `container_name`, 12 tests (R6/R8). R7 N/A; no Redis added | `deploymentTopology.test.ts`, `SERVER_SETUP.md` "Instance topology" |
+| 3. Process-local upload limiting with unenforced topology | prose only | ~~**CLOSED via Path A**~~ → **CONFIG VALIDATION ONLY; reopened and closed for real in Session 7.** What was built is described accurately below and did not achieve exclusion: `DEPLOYMENT_TOPOLOGY=single-instance` required in production and the only accepted value, boot gate + compose `container_name`, 12 tests (R6/R8), R7 N/A and no Redis added — but a boot gate proves an operator TYPED the value. Two hand-started production processes against one database both booted and both served `200`, measured at 3/8 in `singleton-baseline-unguarded.log`. Exclusion is now a database lease, 8/8 live | `deploymentTopology.test.ts`, `SERVER_SETUP.md` "Instance topology" — corrected by `instanceLease.test.ts` and `ingress/{BASELINE,RESULTS}.md` §7 |
 | 4. Five upload paths excluded from the matcher, parity unproven | partial | **CLOSED** — R9/R10/R11, 19 tests, against the regexp the cold build actually compiled; every responsibility in the brief's inventory disposed of, none lost, nothing moved | `proxyMatcherParity.test.ts`, `proxy-body-clone-cost.log` |
 
 Three retained suite runs at this tip, all GREEN, **384 files / 7432 tests / 0 failed**:
@@ -512,9 +515,64 @@ running 110 of 118 checks, two CSP failures that were my build environment, `Fai
 Server Action` lines that came from my own curls, and evidence files that broke the eslint
 gate by landing inside its default file set.
 
-Verdict unchanged: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**. The one
+Verdict at the time: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**. The one
 measured characteristic left unfixed in code — matched paths retain up to 120 MB of an
 anonymous body before dispatch, 28 concurrent posts taking one process 301 → 1795 MB — is
 pre-existing, was already recorded under §37's verdict, is strictly *reduced* by the
 exclusion, and its mitigation is a reverse-proxy body cap rather than a product change,
 because the in-app lever re-arms the silent-truncation footgun `next.config.mjs` guards.
+
+**Corrected in Session 7 (below).** That last sentence is the one this branch had to
+overturn. Every measurement in it stands; the conclusion drawn from it does not. "The in-app
+lever" was assumed to be `proxyClientMaxBodySize` — the only lever *inside Next's
+configuration*. There is another one outside it: the `http.Server` Next is handed. A guard
+installed there classifies and refuses a body before Next exists, which is neither a lower
+config value nor silent truncation, and it does not depend on an optional reverse proxy.
+
+## Session 7 — the ingress closeout: the two things a document could not fix
+
+Two findings, both previously classified as "recorded and mitigated by configuration", both
+reclassified as open and closed in code. The full report is `docs/FINAL_PRELAUNCH_AUDIT.md`
+§40; this section is the checkpoint.
+
+**What was wrong, in one line each.** Matched paths retained up to 120 MB of an anonymous body
+before Next routed it — a page URL and an unrouted path were both amplifiers, needing no auth.
+And `DEPLOYMENT_TOPOLOGY=single-instance` validated that an operator had *typed* the word: two
+production processes against one database both booted and both served.
+
+**Baselines, reproduced on a cold artifact before any fix.** Body: 6/18, with RSS monotonic
+across two identical 28 × 100 MiB bursts on one process — 141.7 → 3316.7 → 3145.7, then
+3340.4 → 4168.9 → 4169.8, `offered 2800 MiB of 2800` both times. Topology: 3/8, `serving=2`,
+with S6 and S7 green **vacuously** because with no lease there is nothing to take over.
+
+**What was built.** `installIngress()` patches `http.createServer` and swaps the single
+`'request'` listener, so the policy runs before the port binds — the generated
+`.next/standalone/server.js` printed `✓ Ready in 0ms` *before* `instrumentation.ts`, which is
+why the fix cannot live in instrumentation. Three classes in `ingress/policy.mjs` (A = 0 bytes,
+B = 2 MiB, C = the five matcher-excluded multipart paths on the bounded reader), a 98-route
+inventory in `ingress/bodyRoutes.mjs`, and a compare-and-swap lease in
+`src/infrastructure/config/instanceLease.ts`.
+
+**Result at `BUILD_ID 98appVCcbyMxzlhk26zya`.** The same 28 × 100 MiB load, twice on one
+process: **15.75 MiB read of 2800 offered**, RSS **238.4 → 238.4 → 238.4**, then 241.3 → 241.3
+→ **238.0**. Ingress probe 25/25 twice, singleton 8/8 (SIGKILL failover 12 107 ms, clean
+release 433 ms), upload-abuse 32/32, csp 118/118, vitest 389 files / 7487 tests, tsc 0,
+eslint 0 errors, prisma 0. **PRODUCT FAILURE 0** on every gate. 13 mutations, 13 caught.
+
+**Statements corrected** (each keeping the superseded text visible): the "Six commits" heading
+above a seven-row table; Session 6's `CLOSED via Path A` for the topology; "the only in-app
+lever is `proxyClientMaxBodySize`"; `SERVER_SETUP.md`'s implied boot enforcement and its
+required reverse proxy; the ledger's "enforced at boot" and "now enforced rather than
+described"; two runbooks still naming the unguarded entry.
+
+**Three defects in the instruments,** which is this branch's recurring subject: the ingress
+probe's RSS rows passed *without measuring anything* when `--pid` was omitted
+(`baseline === null || …`); S7 passed for two different wrong reasons before it got a budget
+instead of a bare 200; and the CSP probe's two red rows were my build environment again —
+`REPORT_ENDPOINT` resolves from `NEXT_PUBLIC_SITE_URL` at **build** time.
+
+**Still not exercised:** container execution (no local `docker`), human visual acceptance,
+production acceptance. **Carried forward unchanged:** `app/api/storage/multipart/**` is
+anonymous; local readiness is 503 on `toolchain: false` for the missing `soffice`.
+
+Verdict: **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**.

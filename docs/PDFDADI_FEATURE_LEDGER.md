@@ -727,8 +727,13 @@ this is the map.
 - **Feature flags:** As above; unconfigured → 503, never an invented price.
 - **Known limitations:** No UI, no plan-change/proration path, no seat picker.
   Rate limited per client IP at 6/min, in-process. That is the whole limit,
-  because `DEPLOYMENT_TOPOLOGY=single-instance` is now required in production and
-  enforced at boot — there is no second process to multiply it by. Scaling out
+  because `DEPLOYMENT_TOPOLOGY=single-instance` is required in production and a
+  second process against the same database is now refused by the instance lease
+  before it serves anything — there is no second process to multiply it by.
+  (This sentence read "enforced at boot" when the boot gate only checked that the
+  variable was TYPED; two processes both booted and both served. What makes it true
+  is `src/infrastructure/config/instanceLease.ts`, measured 8/8 in
+  `docs/evidence/final-prelaunch/ingress/RESULTS.md`.) Scaling out
   needs a shared limiter store and PostgreSQL first; see
   `docs/adr/ADR-M7-009-sqlite-operations.md`.
 - **Next related step:** Pricing UI calls this endpoint and reads `url` only. If
@@ -1798,15 +1803,19 @@ Where 3.2 changed a fact, the bullet says so.
   than naming a header, so the flip cannot leave a second switch behind and the
   report-only walk and the enforced walk are literally the same walk. CDP over a raw WebSocket, no
   Playwright, matching the other probes in `scripts/`. Run against the real
-  standalone artifact, never `next start`:
+  standalone artifact, never `next start`. (Recipe corrected at the ingress closeout: the
+  entry is `node ingress/server.mjs` from the repository root, and the https origin must be
+  exported at BUILD time. The commands as they were originally written boot nothing now —
+  the generated entry exits 1 in production.)
 
   ```
-  node scripts/next-build.js
+  NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 node scripts/next-build.js
   cp -R .next/static .next/standalone/.next/static     # the Dockerfile's own recipe
-  cd .next/standalone && NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 \
+  NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 DEPLOYMENT_TOPOLOGY=single-instance \
     NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 PROCESSING_PIPELINE=on \
-    DATABASE_URL="file:/abs/path/prisma/prisma/dev.db" node server.js > /tmp/csp-server.log 2>&1 &
-  node /tmp/tls-front.mjs      # ~20-line https:3001 -> http:3002 terminator, self-signed
+    DATABASE_URL="file:/abs/path/prisma/prisma/dev.db" \
+    node ingress/server.mjs > /tmp/csp-server.log 2>&1 &
+  node scripts/tls-front.mjs --listen 3001 --target 3002   # in the repo now, not /tmp
   NODE_TLS_REJECT_UNAUTHORIZED=0 CHROME_PATH=/tmp/chrome-insecure \
     node scripts/csp-probe.mjs --url https://<lan-ip>:3001 --server-log /tmp/csp-server.log
   ```
@@ -2500,8 +2509,10 @@ a coin flip.
 
 ### Probe recipes corrected (both re-verified by running them)
 
-- **`scripts/billing-probe.mjs`** — now boots `.next/standalone/server.js` (the production
-  runtime) instead of `npx next start`, which refuses under `output: standalone`, with a
+- **`scripts/billing-probe.mjs`** — now boots the production runtime instead of `npx next
+  start`, which refuses under `output: standalone`. (It booted `.next/standalone/server.js`
+  when this was written; since the ingress closeout it spawns `node ingress/server.mjs`,
+  which loads that file itself.) With a
   non-loopback `probe-billing-<port>.test` origin used for both `NEXT_PUBLIC_SITE_URL` and
   the `Origin` header. No HTTPS terminator: it is `fetch`-based with its own cookie jar.
   **78/78, exit 0.** No real Stripe verification was attempted.
@@ -4333,7 +4344,9 @@ raw CDP through `scripts/lib/probe-browser.mjs` (`--force-device-scale-factor=1`
 
 **How the server has to be configured, and why.** The permanent probe is
 `scripts/premium-ui-ux-probe.mjs`, run against the production standalone artifact
-(`node .next/standalone/server.js`; `next start` refuses under `output: "standalone"`)
+(`node ingress/server.mjs`, which loads `.next/standalone/server.js` behind the ingress
+guard — the generated entry exits 1 in production since the ingress closeout, and
+`next start` refuses under `output: "standalone"` as it always did)
 listening on loopback http, with `scripts/tls-front.mjs` terminating TLS on the LAN
 address in front of it, and `NEXT_PUBLIC_SITE_URL` set to exactly that https origin.
 Three production rules make that the only configuration in which an authenticated
@@ -4801,7 +4814,10 @@ unaffected.
   5000 ms default. `testTimeout` is now declared explicitly. Three retained runs at the
   tip are GREEN at **384 files / 7432 tests**, including the previously red seed and a
   single-worker run.
-- **Instance topology, now enforced rather than described:** `DEPLOYMENT_TOPOLOGY` is
+- **Instance topology, declared and gated — not yet excluded** (this heading read "now
+  enforced rather than described", which overstates a boot gate; the body below was already
+  accurate that it is not mutual exclusion, and the ingress closeout made it so)**:**
+  `DEPLOYMENT_TOPOLOGY` is
   required in production and `single-instance` is its only accepted value. The boot gate
   reports it alongside every other problem, states the multiplied budget using the
   operator's own configured limits, and stays out of development and `next build`.
@@ -4830,7 +4846,10 @@ unaffected.
   **32/32**, and every live gate re-run at one cold artifact
   (`BUILD_ID J9-02HdnjsxfHyAkc7Xg-`): csp 118/118, proxy-parity 37/37, job-ownership
   25/25, export-fidelity 35/35, workflow-completeness 155/156, tsc/eslint/prisma clean.
-- **Known limitations:** Matched paths still retain up to `proxyClientMaxBodySize`
+- **Known limitations** (the first of these was CLOSED IN CODE at the ingress closeout —
+  see "Ingress body policy and the single-instance lease" below; it is left here as written
+  because the reasoning it records is what the closeout had to overturn)**:** Matched paths
+  still retain up to `proxyClientMaxBodySize`
   (120 MB) of an anonymous body before dispatch — every page URL and every unrouted path,
   with no limiter in front; 28 concurrent 100 MiB posts took one process 301 → 1795 MB
   RSS. Pre-existing Next behaviour, strictly reduced by the exclusion, quantified in
@@ -4843,3 +4862,122 @@ unaffected.
   `DEPLOYMENT_TOPOLOGY=single-instance`.
 - **Next related step:** human visual acceptance (Entry Gate B) and production acceptance
   in a real environment. Neither is code, and neither was performed here.
+
+## Ingress body policy and the single-instance lease
+
+The previous entry's own "Known limitations" is what this one closes, and the reasoning there
+is what had to be overturned. Two claims were wrong. "The only in-app lever re-arms the silent
+truncation `next.config.mjs:130-159` guards against" — the only lever *inside Next's
+configuration*, yes; there is another one outside it, the `http.Server` Next is handed. And
+"the topology gate is a declaration, not mutual exclusion" was accurate as written and was
+being *reported* as enforcement. Both were reclassified from "recorded and mitigated by
+configuration" to open P1 and closed in code.
+
+Measured before: a page URL and an unrouted path each retained up to 120 MB of an anonymous
+body before dispatch, and two production processes against one SQLite database both booted and
+both served `200` — each with its own in-memory rate-limit `Map`, so the global upload ceiling
+admitted twice its budget against a database that assumes one writer.
+
+### What was built
+
+**`ingress/guard.mjs` — the seam, at `http.createServer`.** `installIngress()` patches the
+factory once and swaps the single `'request'` listener Next installs for one that classifies
+first and delegates second, so the policy is in place **before the port binds**. That timing is
+the whole design: the generated `.next/standalone/server.js` prints `✓ Ready in 0ms` *before*
+`instrumentation.ts` runs, so anything that must refuse on behalf of a not-yet-known state
+cannot live in instrumentation. A refusal writes JSON plus `connection: close`, which is what
+actually stops an in-flight transfer — the sender never gets to finish sending.
+
+**`ingress/policy.mjs` — three classes, one implementation.** **A** (`CLASS_A_MAX_BYTES` 0):
+everything that takes no body — page URLs, GETs, `/admin/*`, and **every unknown path**, which
+refuses byte-identically to a known one so a body-bearing probe cannot tell a page from a
+protected route from a nonexistent one. **B** (`CLASS_B_MAX_BYTES` 2 MiB): JSON,
+`application/csp-report`, `text/plain`, form-encoded — refused on the request line, before
+parsing. **C**: the five matcher-excluded multipart paths, unchanged, still on
+`lib/server/multipart.ts`'s bounded reader with authorization first. Chunked or absent
+`Content-Length` on A/B is **411 before a byte is read**, because measuring a body means
+reading it; `Content-Length` is parsed digits-only so the guard agrees with Node's own parser
+rather than holding a second opinion about the same header.
+
+**`ingress/bodyRoutes.mjs` — 98 routes, and a test that fails when one appears without a
+policy.** Every route with the methods it exports and its class, including the seven that read
+no body, because "reads nothing" is a policy an edit should not be able to change silently.
+Membership is "can receive a body", not "calls `.json()`" — `app/api/auth/register/route.ts` is
+`export const POST = signupPost`, which a file-local search for a body read would have missed.
+`ingress/bodyRoutes.test.ts` walks `app/api/**` on disk and goes red when a route exists that
+the table does not list, when it lists one that no longer exists, when a route's methods
+change, or when a class C entry has no ceiling of its own.
+
+**`ingress/server.mjs` — the entry, and the refusal to run without it.** It installs the guard
+and then `require`s the generated server. `assertIngressInstalled()` in `instrumentation.ts`
+makes an unguarded production boot **exit 1** rather than serve, and `Dockerfile:102` starts
+`prisma migrate deploy … && exec node ingress/server.mjs`.
+
+**`src/infrastructure/config/instanceLease.ts` — mutual exclusion, one row.**
+`instance_leases` id `app`: `create` wins the first boot, and afterwards
+`updateMany WHERE id='app' AND (holder=me OR expiresAt < now−grace)` updates exactly one row or
+none — the read and the write are one statement, so two contenders cannot both see a free
+lease. `holderId = <host>:<pid>:<uuid>` is per **process**, so a restart onto a recycled pid
+cannot inherit a lease. TTL 10 s, heartbeat 3 s, clock grace 2 s. A refused process does not
+exit: it cannot serve (the guard answers 503 to everything while the lease is not held) and
+exiting would turn every stale-lease window into a restart loop under
+`restart: unless-stopped`, so it becomes a **warm standby** that retries on the same interval.
+`/api/health/ready` carries a named `instance` check.
+
+### Tests, and why the numbers are the argument
+
+- **Live, on a cold `output: "standalone"` artifact** (`BUILD_ID 98appVCcbyMxzlhk26zya`): the
+  original 28 × 100 MiB burst, twice on one process. Unguarded it read all 2800 MiB and grew
+  +2800 then +828 MiB, monotonically. Guarded it read **15.75 MiB of 2800 offered** and moved
+  RSS **0.0 MiB** — 238.4 → 238.4 → 238.4, then 241.3 → 241.3 → **238.0**, settling below its
+  own baseline. `scripts/ingress-probe.mjs` **25/25**, twice.
+- **The ceiling triple, which is what "no silent truncation" means.** One byte below the class B
+  ceiling reaches the application (413 from the route, **with a CSP**); exactly the ceiling
+  likewise; one byte over is the guard's 413 with **no CSP** after 0.06 MiB. The CSP is the
+  external witness throughout: every Next response carries one, so a response without one was
+  written before Next ran.
+- **Five controls read off the baseline JSON and compared** — status, CSP provenance and body —
+  5/5 identical (E16). A slow legitimate body (64 KiB every 40 ms for 3.0 s) is untouched; a
+  malformed sub-ceiling body still gets the route's own documented answer, not the guard's.
+- **Two processes, one database:** `scripts/singleton-probe.mjs` **8/8**. SIGKILL the holder and
+  the standby served in **12 107 ms** unattended; after a clean SIGTERM release a fresh
+  instance acquired in **433 ms**, against ≥12 000 ms for the expiry path.
+- **68 unit tests** — `ingress/policy.test.ts` 16, `guard.test.ts` 11, `bodyRoutes.test.ts` 7,
+  `instanceLease.test.ts` 14, `ingressState.test.ts` 4, `instrumentation.test.ts` 8,
+  `readyRoute.test.ts` 8. **13 mutations, 13 caught**, each applied alone and reverted; M6
+  (skipping GET/HEAD) is recorded as a near-miss because one assertion caught it and no live
+  probe could have — a GET with a body is not a shape a browser produces.
+- **Regression surface held** at the same artifact: upload-abuse **32/32** with S1–S18 intact,
+  csp 118/118, proxy-parity 37/37, job-ownership 25/25, tool-matrix 29/29 exercised,
+  phase1-reliability 29/29, workflow-completeness 155/156, export-fidelity 35/35, vitest
+  **389 files / 7487 tests**, tsc 0, eslint 0 errors, prisma valid. **PRODUCT FAILURE 0**.
+
+### Two instrument defects found by running it
+
+`scripts/ingress-probe.mjs` read `peakOk = baseline === null || peak - baseline <= 150`: run
+without `--pid` it sampled nothing and printed `RSS null → peak 0 → settled null` **under a
+PASS** — a memory claim, in the finding that is entirely about memory, that no one had
+measured. And S7's bare `status === 200` is also what waiting out the expiry produces, so it
+was green at baseline where nothing was ever released, and green again with a shutdown bug that
+skipped the delete; it now asserts an 8 000 ms budget the expiry path cannot meet.
+
+### One migration, and two operational consequences
+
+`20260905090000_add_instance_lease`. **Apply migrations before starting** — a database with no
+`instance_leases` makes *every* process refuse (`serving=0`: the correct direction, but a total
+outage), which is how it was found. **Start through `node ingress/server.mjs`** — the generated
+entry exits 1 in production. Both are now in `SERVER_SETUP.md`, which also no longer requires a
+reverse proxy for body limits: the app bounds bodies itself, and the nginx `location` list is
+kept as defence in depth.
+
+- **Known limitations:** the lease is judged on the application clock plus a 2 s grace margin —
+  exact on one host, and marked `ponytail:` in the source with the upgrade (compare against
+  `now()` in the database) for the day a second host is real. A standby is failover, not
+  capacity: the upload limiter is still per-process memory, safe *by exclusion*, so it must
+  move to a shared store before the lease is relaxed. Carried forward unchanged and not closed
+  here: `app/api/storage/multipart/**` is anonymous, bounded by class B's 2 MiB rather than by
+  authorization.
+- **Next related step:** container execution is **NOT EXERCISED** — no local `docker`, so the
+  `CMD` is covered statically and by `deploymentArtifact.test.ts` (mutation M12). Then human
+  visual acceptance (Entry Gate B) and production acceptance. None is code, and none was
+  performed here.

@@ -235,7 +235,7 @@ with all four of those confirmed absent first.
 | R4 client | `prisma generate` | **exit 0**, Prisma Client v6.19.3 |
 | R5 migrate | `prisma migrate deploy` onto an **empty database file** | **exit 0**, `All migrations have been successfully applied` — **23** migrations recorded, **42** tables created |
 | R4 build | `npm run build` | **exit 0**, `BUILD_ID ru-Ap-qQ5xfFzGqKIfgYn`, standalone server present |
-| boot (shipped default) | `env … node .next/standalone/server.js` | `/api/health` **200**, `/api/health/ready` **503 degraded — toolchain false** |
+| boot (shipped default) | `env … node .next/standalone/server.js` — the shipped default **at the time of this run**; since §40 it is `node ingress/server.mjs`, and the generated entry exits 1 in production | `/api/health` **200**, `/api/health/ready` **503 degraded — toolchain false** |
 | workflow probe, default | `workflow-completeness-probe.mjs` | **155/156**, `PROBE_EXIT=0` |
 | boot (`PROCESSING_PIPELINE=on`) | same, one variable added | `/api/health` **200**, ready **503 degraded — toolchain false** |
 | workflow probe, pipeline-on | same probe | **155/156**, `PROBE_EXIT=0` |
@@ -2254,7 +2254,10 @@ boot with a relative SQLite `DATABASE_URL`.
 ### 13 — Remaining limitations
 
 1. The limiter is **process-local** (item 6).
-2. Paths still matched by the middleware matcher still buffer their bodies before their
+2. **CLOSED IN CODE IN §40** (this item is left as written because it is what §40 had to
+   overturn; the reasoning below — "not fixed in-app", "the mitigation is a reverse-proxy body
+   cap" — is exactly the conclusion that was wrong). Paths still matched by the middleware
+   matcher still buffer their bodies before their
    handler runs. That is pre-existing behaviour for non-upload routes, unchanged here, and now
    recorded with measurements in `proxy.ts`. **Quantified during the reconciliation**
    (`docs/evidence/final-prelaunch/proxy-body-clone-cost.log`, §39.4): a matched path reads
@@ -2377,7 +2380,9 @@ all-problems-at-once reporting, and the compose file agreeing with the gate.
 
 What the gate does **not** do is stated in `SERVER_SETUP.md` rather than glossed: it is not
 mutual exclusion, and two hand-started processes against one database would each declare
-`single-instance` and each start. R7 (cross-process limiting) is **N/A under Path A** — no
+`single-instance` and each start. (§40 measured exactly that — both booted, both served
+`200` — and closed it with a database lease. Saying so plainly here is what made it findable;
+what it did not do was make it non-blocking.) R7 (cross-process limiting) is **N/A under Path A** — no
 Redis or other service was added for it, which the brief forbids doing silently.
 
 ### 39.4 — Contradiction 4: proxy matcher exclusion parity (CLOSED)
@@ -2567,7 +2572,14 @@ Three statements from earlier reports are corrected here in their accurate form:
 3. ~~"PDFDADI CODE READY."~~ → the verdict is qualified, and its basis is now re-run
    evidence at one named artifact rather than an inherited claim (39.8).
 
-**The one measured characteristic left unfixed in code.** Any path the matcher still claims
+**The one measured characteristic left unfixed in code — FIXED IN CODE IN §40.** What
+follows is the §39 text, kept because the reclassification in §40 is a correction OF it and
+not a replacement for it: the measurements were right, "pre-existing" was true, and neither
+made it non-blocking. `ingress/server.mjs` now bounds every request body before Next is
+reached; the same 28 × 100 MiB burst offers 15.75 MiB of 2800 and moves RSS by 0 MB. The
+reverse-proxy cap remains recommended as defence in depth and is no longer the mitigation.
+
+> Any path the matcher still claims
 that ends at the App Router — every page URL, and any unrouted path — retains up to
 `proxyClientMaxBodySize` (120 MB) of an anonymous body before dispatch, with no rate limiter
 in front; 28 concurrent 100 MiB posts took one process 301 → 1795 MB RSS and it stayed
@@ -2587,5 +2599,436 @@ first-party self-hosted measurement needs a consent banner in the launch jurisdi
 which is a question for qualified legal review and not one to answer by inventing a consent
 system. These were open at §37's verdict, are open now, and are what
 "PRODUCTION ACCEPTANCE NOT EXERCISED" names.
+
+**PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**
+
+---
+
+## §40 — Final ingress memory-safety and deployment-enforcement closeout (postdates §39)
+
+Branch `ingress-memory-safety-closeout`, cut from `478e111`. `main` untouched, no remote
+configured, nothing pushed, nothing deployed, no container built.
+
+### 40.1 — The two findings, and their correct classification
+
+Both were already in this report. Neither was blocking in it, and both should have been.
+
+| | what §38/§39 said | what it actually was |
+|---|---|---|
+| **Body amplification** | "pre-existing", "not caused by the exclusion", "not fixed in code", mitigation = a reverse-proxy body cap (§39.10) | **an open P1.** An anonymous stranger, with no account and no rate limiter in front, could make one production process retain up to `proxyClientMaxBodySize` (120 MB) per request, on every page URL and every unrouted path. Calling it pre-existing does not make it non-blocking, and a safety property that requires an optional proxy is not a property of the product |
+| **Single-instance topology** | "required in production and enforced at boot", "the boot gate refuses the configuration" (§39.3, ledger) | **config validation.** The gate proved an operator had TYPED `single-instance`. Two hand-started production processes against one database both booted and both served — measured, not argued |
+
+Every measurement in the earlier sections stands. What was wrong was the conclusion drawn
+from them, in one specific place: "the only in-app lever is lowering
+`proxyClientMaxBodySize`". That is the only lever inside *Next's configuration*. There is
+another one outside it — the `http.Server` Next is handed.
+
+### 40.2 — Baseline reproduction on a cold artifact: the body
+
+`.next/standalone/server.js` started with no guard, `NODE_ENV=production`,
+`DATABASE_URL=file:/tmp/audit-final-db.db`, `127.0.0.1:3002`. Probe:
+`node scripts/ingress-probe.mjs --label baseline-unguarded`, whose expectations are the
+POST-FIX ones, so the same instrument is the reproduction and then the acceptance.
+`docs/evidence/final-prelaunch/ingress/BASELINE.md`, `probe-baseline-unguarded.{log,json}`.
+
+**6/18 passed.** Two identical 28 × 100 MiB bursts, one process:
+
+| moment | RSS (MiB) |
+|---|---|
+| process start | 141.7 |
+| burst 1 — before / peak / settled | 516.5 / 3316.7 / 3145.7 |
+| burst 2 — before / peak / settled | 3340.4 / 4168.9 / 4169.8 |
+
+`offered 2800 MiB of 2800` in both: all 28 anonymous 100 MiB bodies read in full. All 28
+answered **200** — the root page rendered, with a per-request nonce CSP, *after* the body had
+been retained. The first burst gave back 171 MiB; the second gave back nothing. Retention,
+not a spike. The originally reported 301 → 1795 MiB is reproduced and exceeded.
+
+Per-case, the same run: `POST /` 200 after 100/100 MiB · unrouted path **404 after
+100/100 MiB** · `/admin/…` **307 after 100/100 MiB** · chunked with no length **200 after
+100/100 MiB** · `/api/csp-report` **413 after the whole body** (the forbidden shape: right
+status, memory already spent) · `Expect: 100-continue` **200**, Node auto-continued and
+invited the payload · hostile client headers (`proxy-secret`, XFF, CSP) changed nothing.
+Three amplifier facts follow: a page URL is one, an unrouted path is one, and a missing
+`Content-Length` is not a way out — so protecting only known routes, or trusting the declared
+length, would each have left it open.
+
+### 40.3 — Baseline reproduction on a cold artifact: the topology
+
+`scripts/singleton-probe.mjs --entry .next/standalone/server.js`, two processes on 3011/3012,
+one `DATABASE_URL=file:/tmp/audit-singleton-db.db`, both with
+`DEPLOYMENT_TOPOLOGY=single-instance`. **3/8 passed.**
+
+`:3011` served 200; `:3012` **also served 200** (`{"ok":true,"status":"up"}`); `serving=2`;
+the second process's `/` answered 200 and its readiness disclosed `dataDir`, `toolchain` and
+`database`; no `instance` check existed. S6 and S7 passed **vacuously** — with no lease there
+is no takeover to measure, which is why they are recorded rather than counted. S8 failed for
+an unrelated reason (`NEXT_PUBLIC_SITE_URL`), and that is exactly why the row now asserts the
+guard's own message and not just the exit code.
+
+The unguarded entry printed `✓ Ready in 0ms` **before `instrumentation.ts` ran**: the port was
+bound and the listener installed before any lease could be consulted. That window is the whole
+reason the fix cannot live in instrumentation.
+
+### 40.4 — §2 the canonical inventory, and the test that fails when a route appears without a policy
+
+`ingress/bodyRoutes.mjs` lists **98** routes with the method set each one exports and the
+class assigned to it; `docs/evidence/final-prelaunch/ingress/BODY-ROUTES.md` is the same table
+as a page. Membership is "can receive a body", not "calls `.json()`" — `app/api/auth/register/route.ts`
+is `export const POST = signupPost`, so a file-local search for a body read would have missed it.
+Seven routes read no body at all and are listed anyway, because "reads nothing" is a policy a
+later edit should not be able to change silently.
+
+`ingress/bodyRoutes.test.ts` (7 tests) is what makes it an inventory rather than a snapshot.
+It walks `app/api/**` on the filesystem and fails when a route exists that the inventory does
+not list, when the inventory lists one that no longer exists, when a route's exported methods
+change, when a class C entry has no ceiling of its own, when the evidence page drifts from the
+module, and when the class B ceiling would pre-empt a per-route ceiling. **A new
+body-consuming route with no assigned policy is a red test, not a silent gap** — which is the
+brief's requirement, and it is the reason the table is generated from a module the guard
+itself imports rather than maintained beside it.
+
+### 40.5 — §3 the three classes, and where the policy lives
+
+`classifyPath` in `ingress/policy.mjs`, one implementation, used by the guard that enforces it
+and by the test that checks the table:
+
+| class | ceiling | what it is | on over-ceiling |
+|---|---|---|---|
+| **A** | `CLASS_A_MAX_BYTES` = **0** | everything that takes no body: page URLs, GETs, unrouted paths, `/admin/*` | 413 on the request line, `connection: close` |
+| **B** | `CLASS_B_MAX_BYTES` = **2 MiB** | small structured bodies — JSON, `application/csp-report`, `text/plain`, form-encoded | 413 on the request line |
+| **C** | the route's own | the five matcher-excluded multipart paths, on the bounded shared reader with authorization first | unchanged — `readMultipart` counts what it reads and stops |
+
+Three properties that are the class rules rather than decoration. **Unknown paths are class A**,
+so an unrouted path is protected exactly like a known one and the refusal is byte-identical —
+a body-bearing probe cannot tell a page from a protected route from a nonexistent one (E2b).
+**Chunked on A or B is 411 before a byte is read**, because measuring a body means reading it;
+class C accepts it and counts. **`Content-Length` is parsed digits-only**, so the guard agrees
+with Node's own parser rather than having a second opinion about the same header.
+
+The policy is **code**, versioned with the app: `ingress/policy.mjs` and
+`ingress/bodyRoutes.mjs`, installed by `ingress/server.mjs`, with no environment variable that
+disables it and no operator setting to remember. `assertIngressInstalled()` in
+`instrumentation.ts` refuses a production boot that reached instrumentation without it.
+
+### 40.6 — §4 the architecture, and the three that were rejected
+
+**Chosen: a guard on the `http.Server` Next is handed.** `installIngress()` patches
+`http.createServer` once, and swaps the single `'request'` listener Next installs for one that
+classifies first and delegates second. `ingress/server.mjs` does that and then `require`s the
+generated `.next/standalone/server.js`, so the guard is in place *before* the port is bound —
+the `✓ Ready in 0ms` window from 40.3. A refusal writes a JSON body plus
+`connection: close`, which is what actually stops an in-flight transfer.
+
+Rejected, and why each is worse rather than merely different:
+
+1. **Lower `proxyClientMaxBodySize`.** Re-arms the silent-truncation footgun
+   `next.config.mjs:130-159` exists to prevent (measured at 10481664 bytes through /
+   10485760 not), and the brief forbids it by name.
+2. **A reverse-proxy body cap as the mechanism.** Makes the safety property conditional on an
+   optional deployment component. Kept as defence in depth in `SERVER_SETUP.md`; it is no
+   longer the mitigation.
+3. **A `proxy.ts` (middleware) check.** Cannot work: Next buffers the body *before* middleware
+   runs, which is the finding itself. Middleware is downstream of the problem.
+4. **A Node HTTP server of my own in front.** A second HTTP implementation to keep in step
+   with Next's — the brief's "do not build a fragile proxy from scratch if the platform
+   already offers a supported boundary". `http.createServer` **is** the supported boundary; the
+   guard is ~200 lines that reuse Next's own listener.
+
+### 40.7 — §5 legitimate body behaviour, preserved and measured
+
+Every row live on the final artifact, `probe-guarded-final.log`:
+
+| what | result |
+|---|---|
+| one byte **below** the class B ceiling | reaches the application — 413 from the route, **with a CSP** (E13a) |
+| **exactly** the ceiling | still the application's answer, with a CSP (E13b) |
+| one byte **over** | the guard, 413, **no CSP**, 0.06 MiB read (E13c) |
+| a slow legitimate body (64 KiB every 40 ms, 3.0 s) | 204, untouched (E14a) |
+| an interrupted upload | client aborts; the next `GET /` answers 200 (E14b) |
+| a malformed sub-ceiling body | the route's own documented answer, 204 with a CSP — not the guard's (E15) |
+| absent `Content-Length` | 411 on A/B before a byte; accepted and counted on C |
+| understated `Content-Length` | the extra bytes cannot enter the request at all (E6) |
+| **five recorded controls vs the unguarded baseline** | 5/5 identical in status, CSP source and body (E16) |
+
+E16 is the one that answers "byte-identical" rather than asserting it: it reads
+`probe-baseline-unguarded.json` off disk and compares status, CSP provenance and body for
+`GET /`, a valid csp-report, the analytics route's own 16 KiB refusal, and both class C
+controls. **No over-ceiling body is ever handed to a handler** (E10, 5/5 refused before
+dispatch), so there is no silent truncation anywhere in the design: a body is either whole or
+refused with a status.
+
+The CSP is the external witness throughout. Every Next response carries one — a per-request
+nonce from `proxy.ts`, or the static policy from `next.config.mjs`. **A response with no CSP
+was written by the guard before Next ran.** That is how ownership of each answer is
+attributed without instrumenting the server.
+
+### 40.8 — §6 the topology, closed by a lease rather than a declaration
+
+`src/infrastructure/config/instanceLease.ts`, one row (`instance_leases`, id `app`, migration
+`20260905090000_add_instance_lease`) and one statement per attempt. Each of the brief's nine
+properties, and the line that carries it:
+
+| property | how |
+|---|---|
+| atomic acquisition | `create` wins the first boot; afterwards `updateMany WHERE id='app' AND (holder=me OR expiresAt < now-grace)` — the read and the write are one statement, so two contenders cannot both see a free lease |
+| unique identity | `holderId = <host>:<pid>:<uuid>` — per **process**, so a restart onto a recycled pid is a different holder |
+| heartbeat | `HEARTBEAT_MS` 3 s, extending `expiresAt` to now + `LEASE_TTL_MS` 10 s |
+| stale expiry | a contender may steal only `expiresAt < now − CLOCK_GRACE_MS` (2 s) |
+| clean release | `deleteMany WHERE id='app' AND holder=me` on SIGTERM — scoped, so a process that already lost the lease cannot delete a healthy instance's row |
+| crash recovery | S6: SIGKILL the holder, the standby served in **12 107 ms** unattended (TTL 10 s + grace 2 s + one beat) |
+| clock-race protection | the grace margin; the supported topology is one host, one clock. `ponytail:` a multi-host Postgres deployment should move the comparison to `now()` in the database — one dialect branch, worth writing when a second host is real |
+| refusal **before serving traffic** | the guard answers 503 to everything while the lease is not `held`, installed at `http.createServer` time — before the port binds, and long before `instrumentation.ts` |
+| readiness unhealthy when the lease is lost | `/api/health/ready` carries a named `instance` check; a lost lease makes it 503 |
+
+A refused process does not exit. It cannot serve, so the safety property does not need an
+exit — and exiting would turn every stale-lease window into a restart loop under
+`restart: unless-stopped`. The same interval that heartbeats a held lease retries acquisition
+when it is not held, which makes the second process a **warm standby**: S7 measured a fresh
+instance acquiring in **433 ms** after a clean release, against ≥12 000 ms for the expiry path.
+
+Two operational consequences, both now in `SERVER_SETUP.md` because both were found by running
+it: **apply migrations before starting** (a database with no `instance_leases` makes *every*
+process refuse — `serving=0`, which is the correct direction but total outage), and **start
+through `node ingress/server.mjs`** (the generated entry exits 1 in production).
+
+### 40.9 — §7 the tests
+
+**25 live rows** (`scripts/ingress-probe.mjs`, E2a–E16), each of which can only be answered by
+running a production artifact: what the socket did, how many bytes crossed it, which component
+wrote the response, and what RSS did before/at/after the burst. **68 unit tests** across seven
+files, each of which can only be answered without one — the branch conditions the live probe
+cannot arrange on demand:
+
+| file | tests | what it owns |
+|---|---|---|
+| `ingress/policy.test.ts` | 16 | classification, ceilings, chunked, `Content-Length` parsing, non-disclosure |
+| `ingress/guard.test.ts` | 11 | the seam: listener swap, method-agnostic enforcement, shutdown ordering |
+| `ingress/bodyRoutes.test.ts` | 7 | the inventory against the filesystem (40.4) |
+| `instanceLease.test.ts` | 14 | compare-and-swap, takeover, grace, scoped release |
+| `ingressState.test.ts` | 4 | `assertIngressInstalled()` refusing an unguarded production boot |
+| `instrumentation.test.ts` | 8 | lease started before the first request; failure directions |
+| `readyRoute.test.ts` | 8 | the `instance` check, and 503 on a lost lease |
+
+### 40.10 — §8 the mutations
+
+**13 mutations, 13 caught.** Each applied alone, the red gate observed with its exit code and
+failing-test count, then reverted with `git checkout --`; the full table with the exact
+assertion that fired is `docs/evidence/final-prelaunch/ingress/MUTATIONS.md`. They cover the
+ceiling being inclusive (M3), the header parser (M4), method-agnostic enforcement (M6), the
+class C carve-out set (M5), non-disclosure (M7), shutdown ordering (M8/M9), the
+compare-and-swap itself (M10), the unguarded-boot refusal (M11), the container `CMD` (M12), and
+**M13 — a new body-consuming route added with no policy**, which is the §2 requirement as an
+experiment rather than a claim.
+
+M6 is recorded as a **near-miss** and left in the file: skipping GET/HEAD was caught by exactly
+one assertion in `guard.test.ts`, and the live probe would not have caught it at all, because a
+GET with a body is not a shape a browser produces. That is why commit `3b113c7` exists.
+
+Mutations are source-level, so the artifact rebuild in 40.11 does not invalidate them.
+
+### 40.11 — §9 live verification on the final artifact
+
+`BUILD_ID 98appVCcbyMxzlhk26zya`, a cold `output: "standalone"` build started through
+`node ingress/server.mjs` on `127.0.0.1:3002` behind the TLS front on
+`https://172.20.10.2:3001`, `DATABASE_URL=file:/tmp/audit-final-db.db`. **The original 28 ×
+100 MiB load was exercised, twice, on one process** — not a smaller substitute:
+
+| moment | baseline RSS | peak | settled | offered of 2800 MiB |
+|---|---|---|---|---|
+| burst 1 | 238.4 | 238.4 | 238.4 | **15.75** |
+| burst 2 (same process) | 241.3 | 241.3 | **238.0** | **17.5** |
+
+The unguarded artifact read all 2800 MiB and grew +2800 then +828 MiB, monotonically
+(40.2). The guarded artifact read **15.75 MiB of 2800 offered** and moved RSS by **0.0 MiB**,
+and the second burst settled *below* its own baseline. The bytes that were not read are the
+finding: the guard refuses on the request line and closes the connection, so the sender never
+gets to send.
+
+All §10 gates on this one artifact, every exit code 0: ingress-probe **25/25** twice,
+singleton **8/8**, upload-abuse **32/32**, csp **118/118**, proxy-parity 37/37,
+job-ownership 25/25, tool-matrix 29/29 exercised, phase1-reliability 29/29,
+workflow-completeness 155/156, export-fidelity 35/35, `tsc` 0, `eslint` 0 errors,
+`prisma validate` 0, **vitest 389 files / 7487 tests**. Server log across every run: no 5xx,
+no Server Action errors.
+
+### 40.12 — §10 regression gates, with the four verdict classes kept apart
+
+Every row below ran on `BUILD_ID 98appVCcbyMxzlhk26zya` in this session. A gate that ran and
+passed is not the same claim as a gate that could not run here, so the last three columns are
+never folded into the first.
+
+| gate | result | exit | product failures | environmental | not exercised |
+|---|---|---|---|---|---|
+| `scripts/ingress-probe.mjs` (E2a–E16) | **25/25** | 0 | 0 | — | — |
+| the same probe, repeated on the same process | **25/25** | 0 | 0 | — | — |
+| `scripts/singleton-probe.mjs` (S1–S8, guarded) | **8/8** | 0 | 0 | — | — |
+| `scripts/upload-abuse-probe.mjs` (S1–S18 + front rows) | **32/32** | 0 | 0 | — | — |
+| `scripts/csp-probe.mjs` | **118/118** | 0 | 0 | — | — |
+| `scripts/proxy-parity-probe.mjs` | 37/37 | 0 | 0 | — | — |
+| `scripts/legacy-job-ownership-probe.mjs` | 25/25 | 0 | 0 | — | — |
+| `scripts/tool-matrix-probe.mjs` | 29/29 exercised, 34 rows / 32 tools | 0 | **0** | 2 | 3 |
+| `scripts/phase1-reliability-probe.mjs` | 29/29 | 0 | 0 | — | 2 |
+| `scripts/workflow-completeness-probe.mjs` | 155/156 | 0 | 0 | 1 | — |
+| `scripts/export-fidelity-probe.mjs` | 35/35 fixtures | 0 | 0 | — | — |
+| `npx tsc --noEmit` | clean | 0 | 0 | — | — |
+| `npx eslint .` | 0 errors, 13 warnings | 0 | 0 | — | — |
+| `npx prisma validate` | valid | 0 | 0 | — | — |
+| `npx vitest run` | **389 files, 7487 tests** | 0 | 0 | — | — |
+
+**PRODUCT FAILURE: 0** across every gate.
+
+The non-passes, named rather than counted. *Environmental* (2 + 1): the tool matrix's two rows
+and the workflow probe's journey I need `soffice`, which is not installed on this machine —
+the route branch each one guards is covered by unit tests. *Not exercised* (3 + 2): three
+tool-matrix rows need the same missing binary, and the two phase-1 observability rows read
+server log lines that are only forwarded into the browser console under `next dev`. *Manual
+review required*: nothing new in this closeout. **Container execution: NOT EXERCISED** — there
+is no local `docker`, so the `Dockerfile` `CMD` change is validated statically and by
+`deploymentArtifact.test.ts` (M12), which is not production acceptance and is not called that.
+
+### 40.13 — §11 documentation corrections
+
+Each correction below replaces a statement that was **wrong**, not merely incomplete, and each
+keeps the superseded text visible — the brief's "do not rewrite prior evidence as though it
+never existed".
+
+| file | what was wrong | now |
+|---|---|---|
+| `docs/FINAL_PRELAUNCH_PROGRESS.md` | "Six commits:" above a table listing **seven** | "Seven commits, in the six rows below — the fifth row is two commits", with the discrepancy named |
+| ″ | Session 6 row 3 read `CLOSED via Path A` for the topology | struck through → `CONFIG VALIDATION ONLY; reopened and closed for real in Session 7` |
+| ″ | the Session 6 verdict: "the only in-app lever is `proxyClientMaxBodySize`" | corrected in place — that is the only lever *inside Next's configuration*; the `http.Server` is outside it |
+| `docs/FINAL_PRELAUNCH_AUDIT.md` §38 13.2, §39.10 | "the one measured characteristic left unfixed in code" | prefixed **FIXED IN CODE IN §40**, original paragraph preserved as a blockquote |
+| ″ | the `boot (shipped default)` row implied enforcement | annotated with what the boot gate actually checked |
+| `SERVER_SETUP.md` | "What the gate does and does not do" implied the topology was enforced | split into **what the config gate does** and **what the gate did NOT do, and what now does it**, quoting the old text, with the measured 12.1 s takeover and 0.43 s release |
+| ″ | a reverse proxy was required for body limits | "**The app bounds request bodies itself, at ingress**", citing 15.75 MiB of 2800 and 0 MB RSS; nginx `location` list kept as defence in depth |
+| ″ | no start instruction distinguished the entries | new top section: `node ingress/server.mjs`, plus migrate-first |
+| `docs/PDFDADI_FEATURE_LEDGER.md` | "enforced at boot" for the billing rate limit; "now enforced rather than described" for topology | corrected to what the boot gate checked; heading → "declared and gated — not yet excluded", then the Session 7 entry; csp-probe recipe corrected to the guarded entry and build-time origin |
+| `docs/evidence/.../FINAL-VERIFICATION-COMMANDS.md` | `node .next/standalone/server.js` | annotated: that entry exits 1 in production |
+| `docs/evidence/.../rollback-runbook.md` | quoted `CMD` from `Dockerfile:88` | corrected to `prisma migrate deploy … && exec node ingress/server.mjs` (`Dockerfile:102`) |
+
+### 40.14 — the forbidden shortcuts, and what was done instead
+
+| forbidden | what was done |
+|---|---|
+| lower `proxyClientMaxBodySize` and accept silent truncation | untouched at 120 MB; the guard refuses whole requests, so no truncated body reaches a handler (E10, 5/5) |
+| global `overflow`-style masking | no catch-all; every path resolves to exactly one class, unknown paths included |
+| rely solely on `Content-Length` | chunked and absent-length are 411 on A/B **before** a byte (E5a/E5b); understated length is bounded by the parser (E6) |
+| 413 only after buffering the whole body | 413 on the request line — 0.06 MiB read where the baseline read 100 MiB |
+| make the reverse proxy optional while relying on it | the mechanism is in the app; the proxy is defence in depth |
+| protect only known routes | unknown paths are class A and refuse **byte-identically** to known ones (E2b) |
+| change the probe to offer fewer bytes | the same 28 × 100 MiB, twice, on one process; `offered … of 2800` is printed in every run |
+
+Two of the brief's specific requirements are also live rows rather than assertions: the
+trusted-proxy secret and forwarded identity **cannot be supplied by a client** (E12 — hostile
+`x-proxy-secret`, `x-forwarded-for` and CSP headers changed nothing), and **failure responses
+disclose no protected-route existence** (E2b, S4, M7).
+
+### 40.15 — defects found in the instruments, not the product
+
+Recorded because an instrument that lies is worse than a red row, and both of these were found
+by using them rather than reading them.
+
+1. **The RSS rows could pass without measuring anything.** `scripts/ingress-probe.mjs` read
+   `const peakOk = baseline === null || peak - baseline <= 150`. Run without `--pid`, nothing
+   was sampled and E7/E8 printed `RSS null → peak 0 → settled null` **under a PASS** — a
+   memory claim, in the finding that is entirely about memory, that no one had measured. Now
+   `baseline !== null && …`, with `RSS NOT SAMPLED — rerun with --pid` in the detail. Confirmed
+   red without a pid (23/25), then green with one.
+2. **S7 passed for two different wrong reasons before it passed for the right one.** A bare
+   `status === 200` is also what waiting out the expiry produces, so the row was green at
+   baseline where nothing was ever released, and green again with a shutdown-hook bug that
+   skipped the delete. It now asserts a **budget**: 8 000 ms, which the release path meets in
+   433 ms and the expiry path (TTL 10 s + 2 s grace) cannot.
+3. **The CSP probe's two red rows were a build input, not a product defect.**
+   `next.config.mjs:41` resolves `REPORT_ENDPOINT` from `NEXT_PUBLIC_SITE_URL` **at build
+   time**, and `.env` carries `http://localhost:3000`, so the static-asset report group was
+   absent from the artifact. Rebuilt with the https origin exported: `routes-manifest.json`
+   then carried `report-to csp-endpoint`, and the probe went 108/110 → **118/118**. The
+   recipe in the ledger and `scripts/tls-front.mjs` now says so, because the next person to
+   run it would have hit the same two rows and looked for the bug in the product.
+
+### 40.16 — residual risk and known ceilings
+
+Four, each with the condition that makes it matter and the upgrade that answers it.
+
+1. **The lease is judged on the application clock.** One host, one clock, so it is exact in the
+   supported topology; `CLOCK_GRACE_MS` 2 s absorbs small skew beyond it. A multi-host Postgres
+   deployment should move the comparison onto the database clock (`now()` in a raw `UPDATE`).
+   Marked `ponytail:` in the source with that upgrade path. Do it when a second host is real.
+2. **A standby is a warm spare, not a load balancer.** Two instances behind one database give
+   failover, not capacity. The upload rate limiter is still per-process memory — which is
+   *safe* now, because only one process serves, but it is safe by exclusion rather than by
+   being shared. A genuinely multi-instance deployment needs the limiter moved to the database
+   or a shared store before the lease is relaxed.
+3. **`CLASS_B_MAX_BYTES` is 2 MiB for every structured body.** A future route that legitimately
+   needs a larger JSON body must be given its own ceiling in `ingress/bodyRoutes.mjs`, and
+   `bodyRoutes.test.ts` fails until it is — the ceiling is a decision the inventory forces,
+   not a limit that silently truncates.
+4. **The guard depends on Next installing exactly one `'request'` listener.** `guard.test.ts`
+   asserts the swap, and `assertIngressInstalled()` refuses a production boot that reached
+   instrumentation without it, so a Next upgrade that changed this shape fails a test and
+   refuses to start rather than serving unguarded. That is the fail-closed direction, but it is
+   a coupling to review on a major Next upgrade.
+
+### 40.17 — what is NOT exercised
+
+Stated as gaps, not as passes.
+
+- **Container execution.** No `docker` on this machine. The `Dockerfile` `CMD`
+  (`prisma migrate deploy … && exec node ingress/server.mjs`, `Dockerfile:102`) is validated
+  statically and by `deploymentArtifact.test.ts`, which mutation M12 shows is load-bearing.
+  This is not production acceptance.
+- **Human visual acceptance.** Not begun, per the brief's stop instruction.
+- **Production acceptance.** Not begun: no push, no deploy, no merge to `main`, no remote
+  configured.
+- **Multi-host lease behaviour.** One host was tested. See 40.16.1.
+- **`soffice`-dependent conversions** (3 tool-matrix rows, 2 environmental) and the **two
+  phase-1 observability rows** that need `next dev` log forwarding.
+
+### 40.18 — the branch
+
+Seven commits on `ingress-memory-safety-closeout`, from `478e111`. `main` untouched, no remote
+configured, nothing pushed.
+
+| commit | what it closed |
+|---|---|
+| `1432f91` | the 120 MB a page URL would retain for an anonymous stranger — policy, guard, seam |
+| `792abff` | `DEPLOYMENT_TOPOLOGY=single-instance` proved only that an operator had typed it — the lease |
+| `84e7014` | a guard nothing starts is a note in a runbook — `ingress/server.mjs`, the `Dockerfile` `CMD`, the production refusal |
+| `0c7654b` | two instruments that were wrong before the product was (40.15) |
+| `ce026f6` | the gates, held against a broken boundary one property at a time — the mutation exercise |
+| `3b113c7` | a GET may carry a body, and only the seam can be asked about that — the M6 near-miss |
+| `30a15b5` | three suites that pinned a boot without a lease, and a migration called "the last one" |
+
+### 40.19 — carried forward, unchanged by this closeout
+
+Neither is new, neither is caused by §40, and neither is closed by it; both are recorded so the
+verdict is not read as covering them.
+
+- **`app/api/storage/multipart/**` is anonymous.** Both entries are in the inventory with
+  `auth: "anonymous"` and no per-route ceiling, so they are bounded by class B's 2 MiB rather
+  than by authorization. They are pre-existing routes outside the five accepted multipart
+  paths; the finding stands where §38 left it.
+- **Local readiness returns 503 on `toolchain: false`.** On this machine the toolchain check
+  fails for the missing `soffice`, so `/api/health/ready` is 503 even when the instance holds
+  the lease. The `instance` check itself reports correctly (S5), which is what §6 required.
+
+### 40.20 — verdict
+
+Both boundaries in the brief are closed **in code**, on one cold production artifact, with the
+original load exercised rather than substituted:
+
+- **Body memory amplification.** The unguarded artifact read all 2800 MiB offered and grew
+  +2800 then +828 MiB monotonically across two bursts. The guarded artifact read **15.75 MiB**
+  and moved RSS **0.0 MiB**, settling below its own baseline on the second burst. 25/25 live
+  rows, 68 unit tests, five controls byte-identical to the baseline.
+- **Single-instance topology.** Two processes against one database: the baseline served
+  `200` from both (`serving=2`). Guarded, exactly one serves, the second is a silent 503
+  standby, SIGKILL failover took 12 107 ms unattended and a clean release let a fresh instance
+  in after 433 ms. 8/8.
+
+No product failures on any gate. What remains unexercised is named in 40.17 and is
+environmental or explicitly out of scope, not unknown.
 
 **PDFDADI CODE READY — PRODUCTION ACCEPTANCE NOT EXERCISED**

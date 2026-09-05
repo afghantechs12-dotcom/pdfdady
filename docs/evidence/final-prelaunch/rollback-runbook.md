@@ -6,9 +6,14 @@ repository does not record a decision, the row says so instead of inventing one.
 
 ## What the entrypoint does
 
-`CMD` is `prisma migrate deploy … && exec node server.js` (Dockerfile:88):
+`CMD` is `prisma migrate deploy … && exec node ingress/server.mjs`
+(Dockerfile:102 — it read `exec node server.js` at Dockerfile:88 when this runbook
+was written, and the ingress closeout changed both the entry and the line number):
 migrations run **before** the server serves, and a migration failure exits
-non-zero rather than leaving a container up and 500ing. `migrate deploy` is a
+non-zero rather than leaving a container up and 500ing. The entry matters for
+rollback: `ingress/server.mjs` installs the request-body guard and holds the
+single-instance lease, so an image that starts the generated `server.js` directly
+now exits 1 instead of serving unguarded. `migrate deploy` is a
 no-op when there is nothing pending, so a plain restart is safe.
 
 There is **no down-migration**. Prisma applies forward only, and this repository

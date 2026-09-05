@@ -1,0 +1,338 @@
+{
+  "label": "guarded-final-artifact",
+  "origin": "http://127.0.0.1:3002",
+  "rows": [
+    {
+      "id": "E3a",
+      "label": "POST / with a declared 100 MiB body is refused on the request line",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/100 MiB (max 1)  3ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 3,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E3b",
+      "label": "GET / still renders, with middleware's per-request CSP",
+      "pass": true,
+      "detail": "status 200 (want 200)  offered 0/0 MiB (max 0.001)  12ms  csp present (want present)",
+      "measured": {
+        "status": 200,
+        "offeredBytes": 0,
+        "totalBytes": 0,
+        "latencyMs": 12,
+        "csp": "nonce",
+        "text": "<!DOCTYPE html><html lang=\"en\" class=\"inter_c15e96cb-module__0bjUvq__variable\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, i"
+      }
+    },
+    {
+      "id": "E2a",
+      "label": "POST to an unknown path with a declared 100 MiB body is refused",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/100 MiB (max 1)  1ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 1,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E2b",
+      "label": "an unknown path refuses identically to an existing one (no disclosure)",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/100 MiB (max 1)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E5a",
+      "label": "chunked 100 MiB to a page path is refused without a length",
+      "pass": true,
+      "detail": "status 411 (want 411)  offered 0.06/100 MiB (max 1)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 411,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"A request body must declare Content-Length.\"}"
+      }
+    },
+    {
+      "id": "E5b",
+      "label": "chunked 100 MiB to an API path is refused without a length",
+      "pass": true,
+      "detail": "status 411 (want 411)  offered 0.06/100 MiB (max 1)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 411,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"A request body must declare Content-Length.\"}"
+      }
+    },
+    {
+      "id": "E4a",
+      "label": "POST /api/csp-report with a declared 100 MiB body is refused",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/100 MiB (max 1)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E4b",
+      "label": "3 MiB — over the class B ceiling, far under proxyClientMaxBodySize",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/3 MiB (max 1)  2ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 3145728,
+        "latencyMs": 2,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E4c",
+      "label": "a legitimate small report still reaches the handler",
+      "pass": true,
+      "detail": "status 204 (want 204,202,200)  offered 0/0 MiB (max 0.01)  2ms  csp present (want present)",
+      "measured": {
+        "status": 204,
+        "offeredBytes": 90,
+        "totalBytes": 90,
+        "latencyMs": 2,
+        "csp": "nonce",
+        "text": ""
+      }
+    },
+    {
+      "id": "E4d",
+      "label": "the route's own 16 KiB limit still answers before the class ceiling",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/0.06 MiB (max 0.2)  1ms  csp present (want present)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 65536,
+        "latencyMs": 1,
+        "csp": "nonce",
+        "text": "{\"error\":\"Payload too large.\"}"
+      }
+    },
+    {
+      "id": "E6",
+      "label": "understated Content-Length cannot carry a larger body into Next",
+      "pass": true,
+      "detail": "status 0 (want 0,400,413,204,202,200)  offered 0.06/100 MiB (max 2)  1ms  csp absent (either)",
+      "measured": {
+        "status": 0,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 1,
+        "csp": null,
+        "text": ""
+      }
+    },
+    {
+      "id": "E12",
+      "label": "client-supplied proxy-secret / forwarded headers do not raise the ceiling",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/100 MiB (max 1)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E3c",
+      "label": "Expect: 100-continue is refused before the body is invited",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0/100 MiB (max 0.001)  0ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 0,
+        "totalBytes": 104857600,
+        "latencyMs": 0,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E9a",
+      "label": "an excluded multipart path still refuses anonymously, before the body",
+      "pass": true,
+      "detail": "status 400 (want 400,401,403,429)  offered 8/8 MiB (max 8.1)  740ms  csp present (want present)",
+      "measured": {
+        "status": 400,
+        "offeredBytes": 8388608,
+        "totalBytes": 8388608,
+        "latencyMs": 740,
+        "csp": "static",
+        "text": "{\"error\":\"Malformed multipart body.\"}"
+      }
+    },
+    {
+      "id": "E9b",
+      "label": "an excluded multipart path still enforces its own 110 MiB ceiling",
+      "pass": true,
+      "detail": "status 400 (want 400,401,403,413,429)  offered 0.06/100 MiB (max 2)  4ms  csp present (want present)",
+      "measured": {
+        "status": 400,
+        "offeredBytes": 65536,
+        "totalBytes": 104857600,
+        "latencyMs": 4,
+        "csp": "static",
+        "text": "{\"error\":\"Missing `slug` query parameter.\"}"
+      }
+    },
+    {
+      "id": "E13a",
+      "label": "one byte below the class B ceiling still reaches the application",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 2/2 MiB (max 2.1)  178ms  csp present (want present)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 2097151,
+        "totalBytes": 2097151,
+        "latencyMs": 178,
+        "csp": "nonce",
+        "text": "{\"error\":\"Payload too large.\"}"
+      }
+    },
+    {
+      "id": "E13b",
+      "label": "exactly the class B ceiling is still the application's to answer",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 2/2 MiB (max 2.1)  182ms  csp present (want present)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 2097152,
+        "totalBytes": 2097152,
+        "latencyMs": 182,
+        "csp": "nonce",
+        "text": "{\"error\":\"Payload too large.\"}"
+      }
+    },
+    {
+      "id": "E13c",
+      "label": "one byte over the ceiling is refused by the guard instead",
+      "pass": true,
+      "detail": "status 413 (want 413)  offered 0.06/2 MiB (max 1)  1ms  csp absent (want absent)",
+      "measured": {
+        "status": 413,
+        "offeredBytes": 65536,
+        "totalBytes": 2097153,
+        "latencyMs": 1,
+        "csp": null,
+        "text": "{\"error\":\"Request body is too large.\"}"
+      }
+    },
+    {
+      "id": "E14a",
+      "label": "a slow legitimate body is not mistaken for an attack",
+      "pass": true,
+      "detail": "status 204 (want 204,202,200)  offered 0/0 MiB (max 0.01)  3013ms  csp present (want present)",
+      "measured": {
+        "status": 204,
+        "offeredBytes": 87,
+        "totalBytes": 87,
+        "latencyMs": 3013,
+        "csp": "nonce",
+        "text": ""
+      }
+    },
+    {
+      "id": "E14b",
+      "label": "an interrupted upload leaves the origin serving",
+      "pass": true,
+      "detail": "interrupted after 0.04 MiB (status aborted, client timeout); the next GET / answered 200",
+      "measured": {
+        "interruptedBytes": 40960,
+        "next": 200
+      }
+    },
+    {
+      "id": "E15",
+      "label": "a malformed sub-ceiling body keeps the application's own error",
+      "pass": true,
+      "detail": "status 204 (want 204,202,200,400,422)  offered 0/0 MiB (max 0.01)  2ms  csp present (want present)",
+      "measured": {
+        "status": 204,
+        "offeredBytes": 17,
+        "totalBytes": 17,
+        "latencyMs": 2,
+        "csp": "nonce",
+        "text": ""
+      }
+    },
+    {
+      "id": "E10",
+      "label": "no over-ceiling body is answered as if it had been read",
+      "pass": true,
+      "detail": "5/5 over-ceiling cases answered 413; understated-length case answered socket error after 0.06 MiB of the 100 MiB offered"
+    },
+    {
+      "id": "E16",
+      "label": "legitimate requests answer exactly as they did unguarded",
+      "pass": true,
+      "detail": "5/5 controls identical in status, CSP source and body"
+    },
+    {
+      "id": "E7",
+      "label": "28 concurrent anonymous 100 MiB offers to /",
+      "pass": true,
+      "detail": "RSS 238.4 → peak 238.4 → settled 238.4 MiB (peak +0, want ≤150)  offered 15.75 MiB of 2800 (want ≤56)  statuses 413  28/28 read a refusal  csp on 0/28 (want 0)  6ms",
+      "measured": {
+        "baseline": 238.4,
+        "peak": 238.4,
+        "settled": 238.4,
+        "offeredBytes": 16515072,
+        "statuses": [
+          413
+        ],
+        "answered": 28,
+        "hungUp": 0,
+        "hangupReasons": [],
+        "withCsp": 0,
+        "elapsed": 6
+      }
+    },
+    {
+      "id": "E8",
+      "label": "settled RSS returns toward baseline after the burst",
+      "pass": true,
+      "detail": "settled 238.4 MiB vs baseline 238.4 MiB (want ≤ baseline+100)",
+      "measured": {
+        "baseline": 238.4,
+        "settled": 238.4
+      }
+    }
+  ]
+}

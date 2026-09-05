@@ -14,13 +14,20 @@
  * re-created a copy of this file in /tmp by hand. Once, in the repo, is better:
  * the recipes in the probe headers can name something that exists.
  *
- *   # terminal 1
- *   node scripts/next-build.js
+ *   # terminal 1 — `scripts/restart-origin.sh` does all of this, in this order
+ *   NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 node scripts/next-build.js
+ *   #   the https origin must be exported at BUILD time: `next.config.mjs` bakes the
+ *   #   static-asset CSP's report-to group from it, and a build that did not know it
+ *   #   emits no group at all — two csp-probe rows fail for a build-input reason.
  *   cp -R .next/static .next/standalone/.next/static      # the Dockerfile's own step
  *   [ -d public ] && cp -R public .next/standalone/public   # only if the repo has one
- *   cd .next/standalone && NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 \
+ *   NODE_ENV=production PORT=3002 HOSTNAME=127.0.0.1 DEPLOYMENT_TOPOLOGY=single-instance \
  *     NEXT_PUBLIC_SITE_URL=https://<lan-ip>:3001 \
- *     DATABASE_URL="file:/abs/path/to.db" node server.js
+ *     DATABASE_URL="file:/abs/path/to.db" node ingress/server.mjs
+ *   #   `node ingress/server.mjs` from the REPOSITORY ROOT, not `node server.js` from
+ *   #   inside `.next/standalone`: the generated entry now exits 1 in production
+ *   #   because it binds its port before anything can refuse a body, and it holds no
+ *   #   single-instance lease. It loads the generated server itself.
  *
  *   # terminal 2
  *   node scripts/tls-front.mjs --listen 3001 --target 3002

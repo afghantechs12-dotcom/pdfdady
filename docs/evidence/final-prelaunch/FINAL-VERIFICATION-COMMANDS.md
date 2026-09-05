@@ -14,6 +14,8 @@ npx eslint .
 npx prisma validate && npx prisma migrate status
 npx vitest run
 node .next/standalone/server.js     # PORT=3052 HOSTNAME=127.0.0.1 NODE_ENV=production
+#   ^ the entry AT THIS HEAD. Since the ingress closeout it is `node ingress/server.mjs`
+#     from the repository root and this line exits 1 in production; see §40.
 node scripts/tls-front.mjs --listen 3051 --target 3052
 node scripts/final-prelaunch-audit.mjs --json ...        # static harness, groups A-R
 node scripts/workflow-completeness-probe.mjs --url https://172.20.10.2:3051

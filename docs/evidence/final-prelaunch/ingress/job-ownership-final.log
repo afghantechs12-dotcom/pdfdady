@@ -1,0 +1,44 @@
+
+LEGACY JOB OWNERSHIP PROBE  →  https://172.20.10.2:3001
+(run the server with PROCESSING_PIPELINE=off)
+
+── 1. The server is up and serving the legacy tool
+(node:68450) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   POST /api/jobs is reachable and rejects an empty submit
+
+── 2. An anonymous visitor submits and can read its OWN job
+  ok   submit accepted (202)
+  ok   submit returned a job id
+  ok   submit minted an anonymous identity cookie
+  ok   the minted identity is a per-visitor uuid, not a shared bucket
+  ok   the owner reads its own job (200)
+  ok   the job is a LEGACY pdf-tool row, not a pipeline row
+
+── 3. A stranger is refused on every legacy endpoint (404, never 403)
+  ok   GET /api/jobs/{id} → 404 for no session at all
+  ok   GET /download → 404 for no session at all
+  ok   GET /download leaks no signed URL to no session at all
+  ok   POST /cancel → 404 for no session at all
+  ok   GET /progress → 404 for no session at all
+  ok   GET /progress opens no event stream for no session at all
+  ok   GET /api/jobs/{id} → 404 for a different visitor's cookie
+  ok   GET /download → 404 for a different visitor's cookie
+  ok   GET /download leaks no signed URL to a different visitor's cookie
+  ok   POST /cancel → 404 for a different visitor's cookie
+  ok   GET /progress → 404 for a different visitor's cookie
+  ok   GET /progress opens no event stream for a different visitor's cookie
+  ok   an unknown id answers the same 404 as a forbidden one
+
+── 4. The owner's access survived all of that
+  ok   the owner still reads its own job after the denied attempts (200)
+
+── 5. The owner can actually download the output
+  ok   owner download returns 302 to a signed URL
+  ok   the redirect carries a signed storage location
+  ok   the redirect names a download file
+  ok   following the owner's signed URL yields a real PDF
+
+────────────────────────────────────────────────────────────────
+checks passed: 25   failed: 0   skipped: 0
+LEGACY JOB OWNERSHIP: PASS

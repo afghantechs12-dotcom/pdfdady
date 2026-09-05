@@ -208,8 +208,18 @@ async function burst({ concurrency = 28, path = "/", chunkDelayMs = 0 }) {
 
   // 100 MiB offered × 28. The ceiling: refusing on the request line should cost
   // a socket read each, so growth of even 100 MiB over baseline is generous.
-  const peakOk = baseline === null || peak - baseline <= 150;
-  const settledOk = baseline === null || settled - baseline <= 100;
+  /*
+   * `baseline === null` means `--pid` was not given, so `ps` was never asked and
+   * NOTHING was sampled. That is a FAIL, not a pass. These two rows exist to make
+   * a memory claim — the one the whole finding is about — and a memory claim that
+   * was never measured is exactly the vacuous green this probe was written to
+   * catch elsewhere. It read `baseline === null || …` and printed
+   * `RSS null → peak 0 → settled null` under a PASS, which is worse than a red row
+   * because it looks like evidence.
+   */
+  const peakOk = baseline !== null && peak - baseline <= 150;
+  const settledOk = baseline !== null && settled - baseline <= 100;
+  const noRss = baseline === null ? "RSS NOT SAMPLED — rerun with --pid <server pid>.  " : "";
   const offeredOk = offered <= concurrency * 2 * MiB;
 
   record({
@@ -217,6 +227,7 @@ async function burst({ concurrency = 28, path = "/", chunkDelayMs = 0 }) {
     label: `${concurrency} concurrent anonymous ${mib(HUGE.length)} MiB offers to ${path}`,
     pass: peakOk && offeredOk && statusesOk,
     detail:
+      noRss +
       `RSS ${baseline} → peak ${peak} → settled ${settled} MiB (peak +${
         baseline === null ? "?" : Math.round(peak - baseline)
       }, want ≤150)  ` +
@@ -241,7 +252,7 @@ async function burst({ concurrency = 28, path = "/", chunkDelayMs = 0 }) {
     id: "E8",
     label: "settled RSS returns toward baseline after the burst",
     pass: settledOk,
-    detail: `settled ${settled} MiB vs baseline ${baseline} MiB (want ≤ baseline+100)`,
+    detail: noRss + `settled ${settled} MiB vs baseline ${baseline} MiB (want ≤ baseline+100)`,
     measured: { baseline, settled },
   });
 }
