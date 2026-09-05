@@ -32,13 +32,13 @@ export function ResultActions({ result, onReset }: ResultActionsProps) {
   const funnel = useToolFunnel();
   const toolSlug = useToolSlug();
   return (
-    <div role="status" className="flex flex-col items-center gap-5 text-center">
+    <div className="flex flex-col items-start gap-5 text-left">
       <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-success">
         <CheckCircle2 size={30} />
       </span>
       <div>
-        <p className="text-lg font-semibold text-navy">Your file is ready</p>
-        <p className="mt-1 text-sm text-navy-soft">
+        <p role="status" className="text-lg font-semibold text-navy">Your file is ready</p>
+        <p className="mt-2 break-words text-base font-medium text-navy">
           {result.fileName} · {formatBytes(result.blob.size)}
         </p>
       </div>

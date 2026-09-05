@@ -138,12 +138,7 @@ export function WorkspaceDashboard({
       {/* Main + side columns */}
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-4">
-          <FoldersCard
-            folders={folders}
-            workspaceId={workspaceId}
-            organizationId={organizationId}
-            canWrite={canWrite}
-          />
+
 
           {/* Recent documents — a compact overview above the full manager. */}
           {recent.length > 0 && (
@@ -161,10 +156,10 @@ export function WorkspaceDashboard({
                       className="flex items-center gap-2.5 px-4 py-2.5 transition-colors hover:bg-app-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
                     >
                       <FileText size={16} aria-hidden="true" className="shrink-0 text-primary" />
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-app-text">
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-text">
                         {doc.name}
                       </span>
-                      <span className="shrink-0 text-[11px] text-app-muted" data-relative-time>
+                      <span className="shrink-0 text-xs text-app-muted" data-relative-time>
                         {relativeTime(doc.updatedAt)}
                       </span>
                     </Link>
@@ -173,6 +168,13 @@ export function WorkspaceDashboard({
               </ul>
             </AppCard>
           )}
+
+          <FoldersCard
+            folders={folders}
+            workspaceId={workspaceId}
+            organizationId={organizationId}
+            canWrite={canWrite}
+          />
 
           {/* The full document manager */}
           <AppCard as="section" className="p-0">

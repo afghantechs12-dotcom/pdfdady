@@ -32,7 +32,7 @@ export function ToolPageTemplate({
   const isPreview = layout === "preview";
   return (
     <PageContainer
-      className="section-pad"
+      className="py-6 sm:py-10"
       maxWidth={isPreview ? "wide" : "narrow"}
     >
       <JsonLd data={softwareApplicationSchema(tool)} />
@@ -41,13 +41,13 @@ export function ToolPageTemplate({
           { name: "Tools", path: "/tools" },
           { name: tool.name, path: tool.href },
         ]}
-        className={isPreview ? undefined : "mx-auto max-w-2xl"}
+        className={isPreview ? undefined : "mx-auto"}
       />
 
-      <header className="mt-6 text-center">
+      <header className="mt-5 text-left">
         <span
           className={cn(
-            "mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl",
+            "inline-flex h-12 w-12 items-center justify-center rounded-2xl",
             iconToneClasses[tool.iconTone],
           )}
         >
@@ -56,14 +56,14 @@ export function ToolPageTemplate({
         <h1 className="mt-5 text-[clamp(1.9rem,4vw,2.75rem)] font-bold text-navy">
           {tool.name}
         </h1>
-        <p className="mx-auto mt-3 max-w-lg text-base text-navy-soft sm:text-lg">
+        <p className="mt-2 max-w-2xl text-base text-navy-soft">
           {tool.description}
         </p>
       </header>
 
       <div
         className={cn(
-          "mt-10 rounded-card border border-softborder bg-white shadow-card",
+          "mt-6 min-h-80 rounded-card border border-softborder bg-white shadow-card",
           isPreview ? "p-5 sm:p-6" : "p-6 sm:p-8",
         )}
       >

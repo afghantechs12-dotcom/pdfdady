@@ -91,7 +91,7 @@ export function AuthShell({
   footer: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-lavender-gradient lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+    <div className="min-h-screen bg-app-bg lg:grid lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
       {/* Branding panel — full column on desktop, compact header on mobile. */}
       <aside className="relative overflow-hidden bg-navy px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-16">
         <div
@@ -151,7 +151,7 @@ export function AuthShell({
 
       {/* Form panel */}
       <main id="main" className="flex items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
-        <div className="w-full max-w-[27rem]">
+        <div className="w-full max-w-lg">
           <div className="rounded-[18px] border border-softborder bg-white p-6 shadow-card sm:p-8">
             <h1 className="text-2xl font-bold tracking-tight text-navy sm:text-[1.75rem]">{title}</h1>
             <p className="mt-2 text-sm leading-relaxed text-navy-soft">{subtitle}</p>
