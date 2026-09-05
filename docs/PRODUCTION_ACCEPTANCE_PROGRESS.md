@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T12:54:38Z (UTC) |
+| Last updated | 2026-09-05T17:15:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `98appVCcbyMxzlhk26zya` (accepted cold artifact; **not** rebuilt yet in this acceptance) |
@@ -20,7 +20,7 @@ what it produced, and what is still owed.
 | --- | --- | --- |
 | 1 | Repository and release-candidate safety | **DONE** |
 | 2 | Production environment contract | **DONE** |
-| 3 | Container build | NOT STARTED — will record `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
+| 3 | Container build | **DONE (static)** — `CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME` |
 | 4 | Persistent database and storage | NOT STARTED |
 | 5 | Network and proxy topology | NOT STARTED |
 | 6 | Staging deployment (local production-mode surrogate) | NOT STARTED |
@@ -94,6 +94,31 @@ pre-fix code, the build arg with the `ARG` line removed.
 
 Evidence: `docs/evidence/production-acceptance/03-environment-contract.md`.
 
+## Stage 3 — container build (DONE, static only)
+
+## CONTAINER EXECUTION: NOT EXERCISED — NO CONTAINER RUNTIME
+
+Re-verified on this host at the time of writing, not assumed from an earlier
+stage: `docker`, `podman`, `nerdctl`, `finch`, `colima`, `lima`, `limactl`,
+`buildah`, `kubectl`, `skaffold` all absent; `trivy`, `grype`, `syft`,
+`docker-scout`, `dockle`, `hadolint` all absent. **No image was built and no
+container was started.** Nothing in Stage 3 may be read as evidence that the image
+builds or serves.
+
+What was checked instead is every relationship between the deployment files and
+the tree they deploy — a `COPY` source against the path it names, a variable the
+boot gate requires against the compose file that supplies it, a mount point
+against the value that resolves inside it, the container's Prisma CLI path against
+the package's own `bin` field, and the `.dockerignore` entries that keep a
+developer database and `.env*` out of the build context.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `npx vitest run deploymentArtifact.test.ts` | 0 | 11 passed (2 added in this acceptance) |
+| `npx vitest run deploymentTopology.test.ts` | 0 | 12 passed |
+
+Evidence: `docs/evidence/production-acceptance/05-container-static.md`.
+
 ## Environmental limitations (consolidated)
 
 These are host facts, not product defects. They determine which stages can be
@@ -115,10 +140,8 @@ ocrmypdf, python3, openssl, sqlite3, Playwright chromium-1234, Chrome, LAN IP
 
 ## Remaining actions
 
-1. Stage 3 — static Dockerfile and compose validation; record the container
-   non-execution verdict.
-2. Stages 4–5 — persistent volume and proxy topology validation, backup/restore
-   drill against a throwaway database (`scripts/migration-restore-drill.mjs`).
+1. Stage 5 — proxy topology validation (`TRUSTED_PROXY_SECRET`,
+   `X-Forwarded-For`, `HOSTNAME` binding, proxy body limits).
 3. Stages 6–11 — stand up the production-mode surrogate on
    `https://172.20.10.2:3001` and re-run the probe fleet against it.
 4. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
