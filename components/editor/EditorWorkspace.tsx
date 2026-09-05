@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorProvider, useEditorContext } from "@/components/editor/EditorContext";
+import { AsyncStatus } from "@/components/ui/AsyncStatus";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { EditorCanvas } from "@/components/editor/EditorCanvas";
 import { PremiumEditorFrame } from "@/components/editor/PremiumEditorFrame";
@@ -50,7 +51,6 @@ import {
   type DocumentIdentity,
 } from "@/src/application/editor/persistence/documentIdentity";
 import {
-  REPLACE_FLUSH_ATTEMPTS,
   describeUnsavedReplace,
   hasUnidentifiedWork,
   nextReplaceFlushStep,
@@ -70,7 +70,7 @@ import { useEditorActions } from "@/hooks/editor/useEditorActions";
 import { useShortcuts } from "@/hooks/editor/useShortcuts";
 import { editorBreakpoints } from "@/styles/editor";
 import { downloadBytes, exportEditorPdf } from "@/lib/editor/exportClient";
-import { loadPdfIntoEditor, PdfOpenError } from "@/lib/editor/loadPdf";
+import { loadPdfIntoEditor, PdfOpenError, type PdfLoadProgress } from "@/lib/editor/loadPdf";
 import {
   WorkspaceDocumentLoadError,
   isAbortError,
@@ -97,7 +97,10 @@ import {
 } from "@/components/editor/DocumentLoadingOverlay";
 import { DocumentErrorPanel } from "@/components/editor/DocumentErrorPanel";
 import type { EditorTool } from "@/components/editor/editorTypes";
-import { isDrawingTool } from "@/components/editor/editorTypes";
+import { createShapeObject } from "@/src/domain/editor/objectFactories";
+import type { ShapeObject } from "@/src/domain/editor/objects";
+import { ShapeControls } from "@/components/editor/ShapeControls";
+import { isDrawingTool, shapeKindForTool } from "@/components/editor/editorTypes";
 import { DrawControls } from "@/components/editor/DrawControls";
 import {
   DEFAULT_DRAW_SETTINGS,
@@ -391,6 +394,10 @@ function EditorWorkspaceInner({
    * contextual controls under the toolbar and the stroke being drawn read the
    * same state, and so the choice survives switching to Select and back.
    */
+  const [eraserRadius, setEraserRadius] = useState(16);
+  const [shapeDefaults, setShapeDefaults] = useState<Partial<Record<EditorTool, ShapeObject>>>({});
+  const shapeKind = shapeKindForTool(tool);
+  const shapeTemplate = useMemo(() => shapeKind ? shapeDefaults[tool] ?? createShapeObject({ x: 0, y: 0 }, "preview", shapeKind) : null, [shapeKind, shapeDefaults, tool]);
   const [drawSettings, setDrawSettings] = useState<DrawSettings>(DEFAULT_DRAW_SETTINGS);
   const [viewport, setViewport] = useState<Viewport>({ zoom: 1, pan: { x: 48, y: 48 } });
   const [fitMode, setFitMode] = useState<FitMode | null>(null);
@@ -403,6 +410,12 @@ function EditorWorkspaceInner({
    * would hydrate a different tree than the server produced. `true` is the
    * pre-existing behaviour, so a user with no stored preference sees no change.
    */
+  const [focusCanvas, setFocusCanvas] = useState(false);
+  const changeFocusCanvas = useCallback((focused: boolean) => {
+    setFocusCanvas(focused);
+    try { window.localStorage.setItem("pdfdadi.editor.focusCanvas", String(focused)); } catch { /* optional preference */ }
+  }, []);
+  useEffect(() => { try { setFocusCanvas(window.localStorage.getItem("pdfdadi.editor.focusCanvas") === "true"); } catch { /* optional preference */ } }, []);
   const [leftRailOpen, setLeftRailOpen] = useState(true);
   useEffect(() => {
     try {
@@ -423,6 +436,9 @@ function EditorWorkspaceInner({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [backgrounds, setBackgrounds] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
+  const openingRef = useRef(false);
+  const [openingFileName, setOpeningFileName] = useState("");
+  const [localLoad, setLocalLoad] = useState<PdfLoadProgress>({ phase: "reading" });
   // The Workspace document load, as an explicit machine. `loading` above stays
   // for the standalone editor's local file-open path, which has no network,
   // no preparation state and nothing to poll.
@@ -879,9 +895,13 @@ function EditorWorkspaceInner({
    * open: same identity derivation, same draft interlock, same failure copy.
    */
   const openFile = async (file: File) => {
+    if (openingRef.current) return;
+    openingRef.current = true;
+    setOpeningFileName(file.name);
+    setLocalLoad({ phase: "reading" });
     setLoading(true);
     try {
-      const loaded = await loadPdfIntoEditor(file);
+      const loaded = await loadPdfIntoEditor(file, { onProgress: setLocalLoad });
       /*
        * The last moment the OUTGOING document is both open and still on screen, so
        * the last moment a capture of it is correct. `closeDocument` cancels the
@@ -957,6 +977,7 @@ function EditorWorkspaceInner({
         ).description,
       );
     } finally {
+      openingRef.current = false;
       setLoading(false);
     }
   };
@@ -1613,6 +1634,7 @@ function EditorWorkspaceInner({
       case "color":
       case "width":
       case "opacity":
+        changeFocusCanvas(false);
         panels.selectTab("properties");
         break;
       // `more` promotes the full right-click menu at the selection, so the long
@@ -1681,6 +1703,8 @@ function EditorWorkspaceInner({
       toolbar={
         <>
           <EditorToolbar
+            focused={focusCanvas}
+            onToggleFocus={() => changeFocusCanvas(!focusCanvas)}
             tool={tool}
             onToolChange={setTool}
             toolPinned={toolSession.pinned}
@@ -1695,11 +1719,23 @@ function EditorWorkspaceInner({
             // operation (insert/duplicate/rotate/delete/reorder), so a separate
             // organiser would be a parallel list of the same commands.
             onOrganizePages={() => {
+              changeFocusCanvas(false);
               setSidebarTab("pages");
               toggleLeftRail(true);
             }}
             organizePagesActive={leftRailOpen && sidebarTab === "pages"}
           />
+          {shapeTemplate && <ShapeControls template={shapeTemplate} onChange={next => setShapeDefaults(current => ({ ...current, [tool]: next }))} />}
+          {tool === "eraser" && <div className="flex flex-wrap items-center gap-3 border-b border-editor-border bg-editor-surface px-3 py-2 text-sm text-editor-text">
+            <strong>Partial ink eraser</strong>
+            <label className="flex min-h-11 items-center gap-2">Eraser diameter
+              <input aria-label="Eraser diameter" type="range" min={8} max={128} step={2}
+                value={eraserRadius * 2} onChange={e => setEraserRadius(Number(e.target.value) / 2)}
+                className="min-h-11 w-32 accent-editor-accent" />
+              <output className="min-w-16 tabular-nums">{eraserRadius * 2} pt</output>
+            </label>
+            <span className="text-editor-muted">Ink only · stays active · Esc cancels</span>
+          </div>}
           {/* Draw's contextual controls: present only while a freehand tool is
               active, which is also the unmistakable "Draw mode" signal. */}
           {isDrawingTool(tool) ? (
@@ -1786,7 +1822,7 @@ function EditorWorkspaceInner({
         // NAVIGATION shipped with a silent ellipsis. Re-measuring the candidate
         // geometries found `180 / 28` clean, which is what this is — 4px of canvas
         // for three readable tab labels.
-        leftRailOpen ? (
+        focusCanvas ? undefined : leftRailOpen ? (
           <aside className="hidden w-[180px] shrink-0 flex-col border-r border-editor-border bg-editor-surface md:flex">
             <div className="flex shrink-0 items-center border-b border-editor-border pl-1 pr-0.5">
               <div
@@ -1944,6 +1980,8 @@ function EditorWorkspaceInner({
               onToolChange={setTool}
               onInsertionComplete={completeInsertion}
               drawSettings={drawSettings}
+              eraserRadius={eraserRadius}
+              shapeTemplate={shapeTemplate}
               backgroundImageForPage={(id) => backgrounds.get(id)}
               onContextMenu={(_pagePoint: Point, client: Point) => setContextMenu({ x: client.x, y: client.y })}
               objectToolbar={
@@ -1969,7 +2007,7 @@ function EditorWorkspaceInner({
           */}
           {loading ? (
             <DocumentLoadingOverlay
-              presentation={{ message: "Reading PDF…", spinner: true, retry: false }}
+              presentation={{ message: `${openingFileName} — ${localLoad.phase === "rendering" ? `Rendering page ${(localLoad.completed ?? 0) + 1} of ${localLoad.total}` : localLoad.phase === "preparing" ? "Preparing PDF" : "Reading document"}`, spinner: true, retry: false }}
             />
           ) : null}
           {/* The Workspace document load. Every non-ready phase renders
@@ -2000,21 +2038,17 @@ function EditorWorkspaceInner({
           {exporting ? (
             <div
               className="absolute inset-0 z-20 flex items-center justify-center bg-editor-bg/85"
-              aria-hidden="true"
+              aria-busy="true"
             >
-              <div className="flex items-center gap-2 rounded-panel border border-editor-border bg-editor-surface px-4 py-3 text-[13px] font-medium text-editor-text shadow-apppanel">
-                <Loader2
-                  className="h-4 w-4 animate-spin motion-reduce:animate-none text-editor-accent"
-                  aria-hidden="true"
-                />
-                Exporting…
+              <div className="rounded-panel border border-editor-border bg-editor-surface px-4 py-3 text-editor-text shadow-apppanel">
+                <AsyncStatus phase="pending" message="Exporting PDF" fileName={fileName} />
               </div>
             </div>
           ) : null}
           {canvasOverlay}
         </div>
       }
-      rightInspector={rightInspector}
+      rightInspector={focusCanvas ? undefined : rightInspector}
       statusBar={
         <StatusBar
           zoom={viewport.zoom}
@@ -2093,6 +2127,7 @@ function EditorWorkspaceInner({
           // the toolbar's "Organize Pages" — one command, two entry points, not
           // two implementations.
           onPageOverview={() => {
+            changeFocusCanvas(false);
             setSidebarTab("pages");
             toggleLeftRail(true);
           }}
@@ -2100,8 +2135,8 @@ function EditorWorkspaceInner({
           // One Inspector, one toggle. Offered at every width now: where the
           // panel docks this collapses/restores the dock, and where it cannot it
           // opens the drawer — the same control, honest behaviour per width.
-          onToggleInspector={() => panels.toggleInspector()}
-          inspectorActive={panels.layout.inspector !== "closed"}
+          onToggleInspector={() => { changeFocusCanvas(false); panels.toggleInspector(); }}
+          inspectorActive={!focusCanvas && panels.layout.inspector !== "closed"}
           // The CANVAS width, not the frame's: the capsule lives inside the
           // canvas region, so what it can fit is decided by the space left after
           // the rail and the Inspector dock — the two things that move.
@@ -2110,7 +2145,7 @@ function EditorWorkspaceInner({
       }
       overlays={
         <>
-          {panels.layout.inspector === "drawer" ? (
+          {!focusCanvas && panels.layout.inspector === "drawer" ? (
             <EditorPanelDrawer title="Inspector" onClose={panels.closeDrawer}>
               <EditorInspector
                 tabs={panels.tabs}
@@ -2153,7 +2188,7 @@ function EditorWorkspaceInner({
             competing live region.
           */}
           <div className="sr-only" role="status" aria-live="polite">
-            {announcement}
+            {loading ? `Opening ${openingFileName}` : announcement}
           </div>
           {!source && (
             <input ref={openPdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={onOpenPdfFile} aria-hidden="true" />

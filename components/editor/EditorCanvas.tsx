@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorContext } from "@/components/editor/EditorContext";
-import { ObjectRenderer } from "@/components/editor/canvas/ObjectRenderer";
+import { InteractionLayer, type InteractionLayerHandle } from "@/components/editor/canvas/InteractionLayer";
+import { PartialInkGesture } from "@/src/application/editor/tools/partialEraser";
+import { EraseInkCommand } from "@/src/application/editor/commands/EraseInkCommand";
 import { SelectionOverlay, type SnapGuide } from "@/components/editor/canvas/SelectionOverlay";
 import { ObjectToolbar } from "@/components/editor/canvas/ObjectToolbar";
 import type {
@@ -17,24 +19,22 @@ import {
   resolveTextDragPlacement,
 } from "@/src/application/editor/tools/textPlacement";
 import {
-  defaultShapeSize,
   isPointOnPage,
   isShapeDrag,
-  shapeClickBounds,
-  shapeDragBounds,
 } from "@/src/application/editor/tools/shapeCreation";
 import {
   DEFAULT_TEXT_FONT_SIZE,
   DEFAULT_TEXT_LINE_HEIGHT,
   createTextObject,
-  shapeLabel,
+  createShapeObject,
+  createHighlight,
 } from "@/src/domain/editor/objectFactories";
+import { resolveShapeDraft } from "@/src/application/editor/tools/shapeDraft";
 import { TextEditor } from "@/components/editor/canvas/TextEditor";
 import { resolveTextExit } from "@/components/editor/canvas/textCommitSemantics";
 import type { TextEditEntry } from "@/components/editor/canvas/textEditorGeometry";
 import { type EditorTool, isBoxTool, shapeKindForTool } from "@/components/editor/editorTypes";
 import {
-  objectToSvgMatrix,
   pageToScreen,
   screenToPage,
   type PageScreenOrigin,
@@ -49,10 +49,9 @@ import { MAX_ZOOM, MIN_ZOOM } from "@/components/editor/viewport/zoom";
 import { HitTestService } from "@/src/application/editor/hitTesting/HitTestService";
 import { createDefaultSnapStrategies } from "@/src/application/editor/extensions/SnapStrategies";
 import { CompositeSnapEngine, type ISnapEngine } from "@/src/application/editor/extensions/Snapping";
-import { TransformObjectsCommand, RemoveObjectsCommand } from "@/src/application/editor/commands/commands";
+import { TransformObjectsCommand } from "@/src/application/editor/commands/commands";
 import {
   DEFAULT_ERASER_RADIUS,
-  topmostErasableAt,
 } from "@/src/application/editor/tools/eraserHitTest";
 import {
   addAnchor,
@@ -71,7 +70,7 @@ import {
   type ResizeHandle,
 } from "@/src/application/editor/transform/TransformService";
 import { shouldLockAspect } from "@/src/application/editor/transform/aspectConstraint";
-import { pageObjects, worldBounds, getActivePage } from "@/src/domain/editor/document";
+import { pageObjects, worldBounds, getActivePage, type EditorPage } from "@/src/domain/editor/document";
 import {
   beginPan,
   cancelPan,
@@ -80,15 +79,12 @@ import {
   type PanSession,
 } from "@/src/application/editor/tools/panTool";
 import {
-  compose,
   makeBounds,
-  makeScale,
-  makeTranslate,
   type AffineTransform,
   type Bounds,
   type Point,
 } from "@/src/domain/editor/geometry";
-import type { EditorObject, ImageObject, TextObject } from "@/src/domain/editor/objects";
+import type { EditorObject, ImageObject, TextObject, ShapeObject } from "@/src/domain/editor/objects";
 import { isObjectKind } from "@/src/domain/editor/objects";
 import { isReadonlySourceText } from "@/src/domain/editor/importedTextRendering";
 import { CropOverlay } from "@/components/editor/canvas/CropOverlay";
@@ -104,7 +100,7 @@ import {
   type DrawSettings,
 } from "@/src/application/editor/tools/drawSettings";
 import { editorColorToCss } from "@/lib/editor/color";
-import { DRAFT, DRAFT_TINT, DRAFT_TINT_WEAK } from "@/components/editor/canvas/signalColors";
+import { DRAFT, DRAFT_TINT_WEAK } from "@/components/editor/canvas/signalColors";
 
 const SNAP_THRESHOLD_PX = 6;
 const HIT_TOLERANCE_PX = 4;
@@ -131,6 +127,8 @@ export interface EditorCanvasProps {
    * (tests, embedders) falls back to the pen defaults.
    */
   drawSettings?: DrawSettings;
+  eraserRadius?: number;
+  shapeTemplate?: ShapeObject | null;
   /** Optional per-page background image (e.g. a rendered PDF page data URL). */
   backgroundImageForPage?: (pageId: string) => string | undefined;
   /** Fired on right-click with the page + screen point, so the workspace can show the menu. */
@@ -210,9 +208,9 @@ type Gesture =
    * Escape or a lost pointer mid-drag has nothing to clean up, and the preview
    * can be honest about the box that will actually be committed.
    */
-  | { mode: "shape-place"; pointerId: number; startPage: Point }
+  | { mode: "shape-place"; pointerId: number; startPage: Point; template: EditorObject; page: EditorPage }
   | { mode: "draw"; pointerId: number; startPage: Point; points: Point[] }
-  | { mode: "erase"; pointerId: number; erased: Set<string>; began: boolean }
+  | { mode: "erase"; pointerId: number; ink: PartialInkGesture }
   | { mode: "path-place"; pointerId: number }
   /**
    * Text tool pressed: still undecided between a click (auto-sized box) and a
@@ -227,6 +225,8 @@ export function EditorCanvas({
   onToolChange,
   onInsertionComplete,
   drawSettings = DEFAULT_DRAW_SETTINGS,
+  eraserRadius = DEFAULT_ERASER_RADIUS,
+  shapeTemplate,
   backgroundImageForPage,
   onContextMenu,
   onPagePointerMove,
@@ -236,6 +236,9 @@ export function EditorCanvas({
 }: EditorCanvasProps) {
   const { state, service, activePage, selection, actions } = useEditorContext();
   const svgRef = useRef<SVGSVGElement>(null);
+  const interactionRef = useRef<InteractionLayerHandle>(null);
+  const eraseFrameRef = useRef<number | null>(null);
+  const erasePointsRef = useRef<Point[]>([]);
   const gestureRef = useRef<Gesture>({ mode: "none" });
   const gestureKeyCounter = useRef(0);
   // Temporary spacebar hand mode (M6.8): state (not a ref) so the cursor
@@ -398,7 +401,7 @@ export function EditorCanvas({
   };
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   /** The box tools' in-progress rectangle while dragging, in page space. */
-  const [shapeDraft, setShapeDraft] = useState<{ from: Point; to: Point } | null>(null);
+
   /** The text tool's in-progress area while dragging, in page space. */
   const [textDraft, setTextDraft] = useState<{ from: Point; to: Point } | null>(null);
   // Defaulted here rather than at each call site: an embedder that omits the
@@ -579,38 +582,18 @@ export function EditorCanvas({
    * (shapes) and 160×28 (highlight) — which is why every committed shape came out
    * 1.2× the size of the drag.
    */
-  const commitShape = useCallback(
-    (start: Point, end: Point) => {
-      setShapeDraft(null);
-      const page = getActivePage(service.getState());
-      const pageSize = { width: page.width, height: page.height };
-      // A click (no meaningful drag) places a sensible default-size shape centred
-      // on the press; a drag uses exactly the rectangle drawn. Either way the
-      // result is clamped onto the page and can never be zero-area.
-      const target = isShapeDrag(start, end)
-        ? shapeDragBounds(start, end, pageSize)
-        : shapeClickBounds(start, defaultShapeSize(pageSize), pageSize);
-      const position = { x: target.x, y: target.y };
-      const localBounds = makeBounds(0, 0, target.width, target.height);
+  const commitShape = (g: Extract<Gesture, { mode: "shape-place" }>, end: Point, shift: boolean) => {
+    const page = getActivePage(service.getState());
+    if (page !== g.page) { interactionRef.current?.reset(); return; }
+    const object = resolveShapeDraft(g.template, g.startPage, end, page, shift);
+    actions.addObject(object);
+    interactionRef.current?.reset();
+    actions.select(object.id);
+    insertionComplete();
+  };
 
-      const kind = shapeKindForTool(tool);
-      const id = kind
-        ? actions.addShape(position, kind, {
-            localBounds,
-            name: shapeLabel(kind),
-          })
-        : actions.addHighlight(position, { localBounds });
-      // Select what was just created, so handles, the contextual bar and the
-      // Inspector are immediately about the new object.
-      actions.select(id);
-      insertionComplete();
-    },
-    [actions, service, tool, insertionComplete],
-  );
-
-  /** Abandons an in-progress box gesture without creating anything. */
   const cancelShapeGesture = useCallback(() => {
-    setShapeDraft(null);
+    interactionRef.current?.reset();
     setGesture({ mode: "none" });
   }, [setGesture]);
 
@@ -634,31 +617,35 @@ export function EditorCanvas({
   // --- Eraser (M6.9) ----------------------------------------------------------
   const eraserCircleRef = useRef<SVGCircleElement>(null);
 
-  /**
-   * Erases the topmost eligible object under the eraser at `pagePoint`. The
-   * whole drag is ONE undo entry: a history transaction opens on the first hit
-   * and commits on pointer-up. `g.erased` suppresses duplicate deletes for the
-   * same object within one gesture.
-   */
-  const tryErase = (g: Extract<Gesture, { mode: "erase" }>, pagePoint: Point) => {
-    const page = getActivePage(service.getState());
-    const radiusPage = DEFAULT_ERASER_RADIUS / viewport.zoom;
-    const id = topmostErasableAt(pageObjects(page), pagePoint, radiusPage, g.erased);
-    if (!id) return;
-    const obj = page.objects[id];
-    if (!obj) return;
-    if (!g.began) {
-      service.beginTransaction("Erase");
-      g.began = true;
-    }
-    service.execute(new RemoveObjectsCommand("Erase", [obj]));
-    g.erased.add(id);
+  const flushErase = (g: Extract<Gesture, { mode: "erase" }>) => {
+    if (eraseFrameRef.current !== null) cancelAnimationFrame(eraseFrameRef.current);
+    eraseFrameRef.current = null;
+    for (const point of erasePointsRef.current) g.ink.move(point);
+    erasePointsRef.current = [];
+    interactionRef.current?.ink(g.ink.replacements);
   };
-
-  /** Ends an erase gesture: commit what was erased, or no-op if nothing was. */
+  const tryErase = (g: Extract<Gesture, { mode: "erase" }>, point: Point) => {
+    erasePointsRef.current.push(point);
+    if (eraseFrameRef.current === null) eraseFrameRef.current = requestAnimationFrame(() => flushErase(g));
+  };
   const finishErase = (g: Extract<Gesture, { mode: "erase" }>) => {
-    if (g.began) service.commit();
+    flushErase(g);
+    // Identity fence: never apply an old gesture across a reload/page edit.
+    if (getActivePage(service.getState()) === g.ink.page && g.ink.replacements.size) {
+      service.execute(new EraseInkCommand(g.ink.page, g.ink.replacements));
+    }
+    interactionRef.current?.reset();
   };
+  const cancelErase = useCallback(() => {
+    if (eraseFrameRef.current !== null) cancelAnimationFrame(eraseFrameRef.current);
+    eraseFrameRef.current = null;
+    erasePointsRef.current = [];
+    interactionRef.current?.reset();
+  }, []);
+  useEffect(() => () => cancelErase(), [cancelErase]);
+  useEffect(() => {
+    if (gestureRef.current.mode === "erase") { cancelErase(); setGesture({ mode: "none" }); }
+  }, [tool, activePage.id, cancelErase, setGesture]);
 
   // --- Path/pen tool (M6.10) --------------------------------------------------
   /**
@@ -717,8 +704,8 @@ export function EditorCanvas({
   // the page. Nothing is created (creation happens on pointer-up), so the
   // gesture is simply dropped.
   useEffect(() => {
-    if (!isBoxTool(tool)) setShapeDraft(null);
-  }, [tool]);
+    if (gestureRef.current.mode === "shape-place") cancelShapeGesture();
+  }, [tool, activePage.id, cancelShapeGesture]);
 
   // --- Crop mode (M6.11) ------------------------------------------------------
   // Valid only for exactly one selected, unlocked image with real natural
@@ -958,9 +945,10 @@ export function EditorCanvas({
       return;
     }
     if (tool === "eraser") {
-      const g: Extract<Gesture, { mode: "erase" }> = { mode: "erase", pointerId: e.pointerId, erased: new Set(), began: false };
+      if (!isPointOnPage(pagePoint, activePage)) return;
+      const g: Extract<Gesture, { mode: "erase" }> = { mode: "erase", pointerId: e.pointerId, ink: new PartialInkGesture(activePage, pagePoint, eraserRadius) };
       setGesture(g);
-      tryErase(g, pagePoint);
+      interactionRef.current?.ink(g.ink.replacements);
       return;
     }
     if (tool === "text") {
@@ -996,8 +984,10 @@ export function EditorCanvas({
       // defect — a drag starting 32px left of the page committed an object
       // there). Refusing the gesture is honest; silently relocating it is not.
       if (!isPointOnPage(pagePoint, { width: activePage.width, height: activePage.height })) return;
-      setGesture({ mode: "shape-place", pointerId: e.pointerId, startPage: pagePoint });
-      setShapeDraft({ from: pagePoint, to: pagePoint });
+      const kind = shapeKindForTool(tool);
+      const base = kind ? createShapeObject(pagePoint, topLayerId(), kind) : createHighlight(pagePoint, topLayerId());
+      const template = kind && shapeTemplate ? { ...shapeTemplate, id: base.id, layerId: base.layerId } : base;
+      setGesture({ mode: "shape-place", pointerId: e.pointerId, startPage: pagePoint, template, page: activePage });
     }
   };
 
@@ -1092,7 +1082,7 @@ export function EditorCanvas({
       // Preview only — the object is created on pointer-up. The draft is clamped
       // by the same pure helper the commit uses, so what is previewed is exactly
       // what will be committed.
-      setShapeDraft({ from: g.startPage, to: pagePoint });
+      interactionRef.current?.shape(isShapeDrag(g.startPage, pagePoint) ? resolveShapeDraft(g.template, g.startPage, pagePoint, activePage, e.shiftKey) : null);
       return;
     }
     if (g.mode === "erase") {
@@ -1133,7 +1123,7 @@ export function EditorCanvas({
       setMarquee(null);
     }
     if (g.mode === "shape-place") {
-      commitShape(g.startPage, toPage(e));
+      commitShape(g, toPage(e), e.shiftKey);
     }
     if (g.mode === "draw") {
       const pts = g.points;
@@ -1173,6 +1163,7 @@ export function EditorCanvas({
       insertionComplete();
     }
     if (g.mode === "erase") {
+      erasePointsRef.current.push(toPage(e));
       finishErase(g);
     }
     setGesture({ mode: "none" });
@@ -1291,9 +1282,8 @@ export function EditorCanvas({
         }
         const g = gestureRef.current;
         if (g.mode === "erase") {
-          // Cancel the erase gesture: roll the open transaction back so every
-          // object deleted during this drag is restored.
-          if (g.began) service.rollback();
+          // Only the ephemeral preview exists; cancellation needs no undo.
+          cancelErase();
           setGesture({ mode: "none" });
         }
         if (g.mode === "shape-place") {
@@ -1340,8 +1330,8 @@ export function EditorCanvas({
   }, [tool, selectionEmpty]);
 
   // Losing pointer capture (alt-tab, browser gesture, element removal) must
-  // never leave the editor stuck mid-gesture: end everything cleanly. An open
-  // erase transaction commits (the erases already happened on screen).
+  // never leave the editor stuck mid-gesture. Lost/cancelled input discards
+  // ephemeral ink and shapes without changing canonical state.
   const onLostPointerCapture = (e: React.PointerEvent) => {
     const longPress = longPressRef.current;
     if (longPress?.pointerId === e.pointerId) {
@@ -1356,14 +1346,14 @@ export function EditorCanvas({
     panSessionRef.current = null;
     panPointerIdRef.current = null;
     setPanning(false);
-    if (g.mode === "erase") finishErase(g);
+    if (g.mode === "erase") cancelErase();
     setGesture({ mode: "none" });
     setMarquee(null);
     setDrawingPoints(null);
     setTextDraft(null);
     // A box gesture interrupted by a lost capture creates nothing: the draft is
     // the only state it had, so dropping it leaves no orphan preview.
-    setShapeDraft(null);
+    interactionRef.current?.reset();
     setSnapGuides([]);
   };
 
@@ -1445,7 +1435,7 @@ export function EditorCanvas({
         onPointerUp={onPointerUp}
         onPointerCancel={onLostPointerCapture}
         onLostPointerCapture={onLostPointerCapture}
-        onPointerLeave={() => publishCoords(null)}
+        onPointerLeave={() => { publishCoords(null); eraserCircleRef.current?.setAttribute("opacity", "0"); }}
         onDoubleClick={onDoubleClick}
         onWheel={onWheel}
         onContextMenu={onContextMenuEvent}
@@ -1512,33 +1502,8 @@ export function EditorCanvas({
           />
         ) : null}
 
-        {/* Objects in paint order (bottom first). */}
-        {objects.map((obj) => (
-          <g
-            key={obj.id}
-            transform={objectToSvgMatrix(obj, viewport, origin)}
-            opacity={obj.visible ? 1 : 0}
-            style={{
-              pointerEvents: obj.visible && !obj.locked && tool === "select" ? "auto" : "none",
-              cursor: tool === "select" ? "move" : "crosshair",
-            }}
-            onPointerDown={(e) => onObjectPointerDown(e, obj)}
-            data-object-id={obj.id}
-            role="img"
-            aria-label={obj.name}
-          >
-            {/* Transparent hit rect so the whole bbox is grabbable. */}
-            <rect
-              x={0}
-              y={0}
-              width={obj.localBounds.width}
-              height={obj.localBounds.height}
-              fill="rgba(0,0,0,0)"
-              pointerEvents="all"
-            />
-            <ObjectRenderer obj={obj} />
-          </g>
-        ))}
+        <InteractionLayer ref={interactionRef} objects={objects} viewport={viewport}
+          origin={origin} selecting={tool === "select"} onObjectPointerDown={onObjectPointerDown} />
 
         {/* In-progress freehand drawing — rendered with the LIVE brush settings
             (color, width, effective opacity, multiply blend for the highlighter)
@@ -1618,41 +1583,9 @@ export function EditorCanvas({
           </g>
         ) : null}
 
-        {/* In-progress box gesture (shape / highlight). Drawn from the SAME pure
-            helper the commit uses, so the preview is a promise: the rectangle
-            shown is exactly the object that will be created — including the page
-            clamp and the minimum-extent floor. Dashed + accent-tinted so it
-            reads as a draft rather than a finished object. */}
-        {shapeDraft ? (() => {
-          const b = shapeDragBounds(shapeDraft.from, shapeDraft.to, {
-            width: activePage.width,
-            height: activePage.height,
-          });
-          const dragging = isShapeDrag(shapeDraft.from, shapeDraft.to);
-          return (
-            <rect
-              data-shape-draft="true"
-              x={b.x * viewport.zoom + origin.x}
-              y={b.y * viewport.zoom + origin.y}
-              width={b.width * viewport.zoom}
-              height={b.height * viewport.zoom}
-              fill={DRAFT_TINT}
-              stroke={DRAFT}
-              strokeWidth={1.5}
-              strokeDasharray="5 3"
-              // Below the drag threshold the gesture will place a default-size
-              // shape instead, so a nearly-still pointer shows no misleading
-              // hairline box.
-              opacity={dragging ? 1 : 0}
-              pointerEvents="none"
-              aria-hidden="true"
-            />
-          );
-        })() : null}
-
         {/* Selection chrome + marquee + snap guides. */}
         <SelectionOverlay
-          selectionBounds={selection.bounds}
+          selectionBounds={gestureActive && (isBoxTool(tool) || tool === "eraser") ? null : selection.bounds}
           viewport={viewport}
           origin={origin}
           marquee={marquee}
@@ -1680,7 +1613,7 @@ export function EditorCanvas({
         {tool === "eraser" ? (
           <circle
             ref={eraserCircleRef}
-            r={DEFAULT_ERASER_RADIUS}
+            r={eraserRadius * viewport.zoom}
             fill="rgba(15,23,42,0.06)"
             stroke="rgba(15,23,42,0.5)"
             strokeWidth={1}

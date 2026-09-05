@@ -99,10 +99,10 @@ export function clampToPage(p: Point, page: PageSize): Point {
 export function shapeDragBounds(from: Point, to: Point, page: PageSize): Bounds {
   const a = clampToPage(from, page);
   const b = clampToPage(to, page);
-  const x = Math.min(a.x, b.x);
-  const y = Math.min(a.y, b.y);
-  const width = Math.max(Math.abs(b.x - a.x), SHAPE_MIN_EXTENT);
-  const height = Math.max(Math.abs(b.y - a.y), SHAPE_MIN_EXTENT);
+  const width = Math.min(page.width, Math.max(Math.abs(b.x - a.x), SHAPE_MIN_EXTENT));
+  const height = Math.min(page.height, Math.max(Math.abs(b.y - a.y), SHAPE_MIN_EXTENT));
+  const x = Math.min(Math.min(a.x, b.x), page.width - width);
+  const y = Math.min(Math.min(a.y, b.y), page.height - height);
   return makeBounds(x, y, width, height);
 }
 
