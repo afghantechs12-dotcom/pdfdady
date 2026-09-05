@@ -1,0 +1,23 @@
+MIGRATION + RESTORE DRILL in /var/folders/2r/w29d3y252f7fb6md7d29w1mw0000gn/T/pdfdadi-drill-5QKFfS
+  23 migration(s) to reach the schema before 20260905090000_add_instance_lease, then 20260905090000_add_instance_lease
+  migration under test creates: instance_leases
+
+PASS  migrate deploy applies all 24 migrations to an empty database  — exit 0, 24 migration(s)
+PASS  the blank database lands at migration head with nothing pending and no drift  — up to date
+PASS  and the schema it produced is the current one, table for table  — 43 tables, instance_leases present=true
+PASS  the schema before 20260905090000_add_instance_lease builds, and does NOT yet contain the migration under test  — 41 tables, instance_leases present=false
+PASS  Prisma records the shipped migrations as applied, with its own table and checksums  — 23 baselined
+PASS  the database holds a populated Workspace before the migration runs  — users=1 organizations=1 organization_memberships=1 workspaces=1 document_records=1 document_versions=2 document_ingestions=1
+PASS  migrate status names the pending migration rather than reporting a clean database  — pending: 20260905090000_add_instance_lease
+PASS  migrate deploy applies 20260905090000_add_instance_lease to the populated database  — exit 0, applied 20260905090000_add_instance_lease
+PASS  every populated row survived the migration unchanged  — content sha256 923f4caa3637ec24… before and after
+PASS  the migration's own table exists afterwards, so the upgrade really happened  — instance_leases present=true
+PASS  the document still carries its name and its revision  — [{"name":"Quarterly report.pdf","revision":5}]
+PASS  migrate status reports no drift and nothing pending after the upgrade  — Environment variables loaded from .env
+PASS  an online backup of the open database is written  — 958464 bytes (234 page(s))
+PASS  the drill really destroyed data, so the restore below has something to prove  — 0 document record(s) left
+PASS  the backup restores the destroyed Workspace exactly  — content sha256 923f4caa3637ec24… matches
+PASS  the restored database is at migration head, not at the schema it was baselined from  — Database schema is up to date!
+
+────────────────────────────────────────────────────────────────────────
+MIGRATION + RESTORE DRILL — PASS 16/16

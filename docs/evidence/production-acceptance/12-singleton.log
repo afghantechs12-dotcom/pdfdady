@@ -1,0 +1,22 @@
+
+=== singleton probe (guarded) → entry ingress/server.mjs  db file:/tmp/audit-singleton-db.db ===
+
+PASS  S1 a first production instance acquires the lease and serves
+      :3011 GET /api/health → 200 after 440ms
+PASS  S2 a second instance against the same database does not serve
+      :3012 GET /api/health → 503 (want 503) after 407ms  {"error":"Server is not accepting requests."}
+PASS  S3 exactly one of the two instances is serving traffic
+      serving=1 (a=200, b=503)
+PASS  S4 the standby refuses every path identically and discloses no reason
+      ready 503, / 503, body "{\"error\":\"Server is not accepting requests.\"}"
+PASS  S5 readiness on the holder reports the lease as a named check
+      checks.instance = true  (http 503)
+PASS  S6 the standby takes over within the TTL after the holder is SIGKILLed
+      :3012 → 200 after 11731ms (TTL 10s + 2s grace + 3s beat)
+PASS  S7 after a clean SIGTERM release, a fresh instance acquires without waiting out the TTL
+      :3013 → 200 after 428ms from spawn, boot included (want <8000ms; the expiry path costs ≥12000ms)
+PASS  S8 the generated server.js refuses to start in production without the guard
+      exit 1; mentions the guard: true; last line "the ingress guard is not installed. PDFDadi must be started with `node ingress/server.mjs`, which installs the request-b"
+
+8/8 passed
+json → /tmp/pa-stage9-singleton-guarded.json

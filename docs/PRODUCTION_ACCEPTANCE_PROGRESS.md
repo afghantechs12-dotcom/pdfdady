@@ -6,10 +6,10 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T20:05:00Z (UTC) |
+| Last updated | 2026-09-05T20:10:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
-| Build artifact | `.next/BUILD_ID` = `DIi1m4KbzBmf96popnixW` — rebuilt in Stage 7 because the admin-store fix changes compiled application code. Supersedes `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6, rebuilt because `NEXT_PUBLIC_SITE_URL` is a build input) and the accepted cold artifact `98appVCcbyMxzlhk26zya`; the final candidate is rebuilt and re-measured in Stage 14. |
+| Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
 | `package-lock.json` | sha256 `43558cef02ddf3ed8a579b82a995bb8e080e29c26da50ef2a91da1119a9fd039` |
 | Production deployment | **NOT AUTHORIZED.** Stage 15 requires explicit owner authorization and has not begun. |
 | Remote | none configured. Nothing pushed. `main` untouched. |
@@ -26,7 +26,7 @@ what it produced, and what is still owed.
 | 6 | Staging deployment (local production-mode surrogate) | **DONE** — 1 P2 and 1 P3 found and fixed |
 | 7 | Production-like user acceptance | **DONE** — 1 P2 and 3 P3 found and fixed |
 | 8 | Security acceptance | **DONE** — 2 P3 found and fixed; `IMAGE CVE SCAN: NOT EXERCISED — NO SCANNER` |
-| 9 | Reliability and recovery | NOT STARTED |
+| 9 | Reliability and recovery | **DONE** — 0 defects; container rollback `NOT EXERCISED` |
 | 10 | Observability and operations | NOT STARTED — no provider selected; provider-neutral templates only |
 | 11 | Bounded performance smoke test | NOT STARTED |
 | 12 | Human visual acceptance package | NOT STARTED — will be marked `VISUAL ACCEPTANCE PENDING` |
@@ -410,6 +410,32 @@ Secrets: none requested, echoed or written. The one synthetic canary in the CSP 
 (`sk_live_…`, planted by the probe to prove it would be caught) is redacted as
 `[probe-canary-token-redacted]` in the evidence copy.
 
+## Stage 9 — reliability and recovery (DONE)
+
+Four live drills plus a unit-level gate, no defects found, no product code changed.
+Full write-up: `docs/evidence/production-acceptance/12-reliability-recovery.md`.
+
+| Drill | Command | Result | Exit |
+| --- | --- | --- | --- |
+| Single-instance enforcement | `AUDIT_SITE_URL=… node scripts/singleton-probe.mjs --entry ingress/server.mjs --label guarded --json …` | **8/8** | 0 |
+| Worker killed mid-job | `npx tsx scripts/worker-recovery-probe.mts` | **45/45** | 0 |
+| Migrate + online backup + restore | `node scripts/migration-restore-drill.mjs` | **PASS 16/16** | 0 |
+| Deploy and rollback rehearsal | `NEXT_PUBLIC_SITE_URL=… AUDIT_*=… R30_ORIGIN=https://192.168.0.175:3001 R30_FIXTURE=docs/qa/p1/multipage-fixture.pdf R30_WORK=/tmp/pa-stage9-r30 sh scripts/r30-rollback-smoke.sh` | **PASS 8/8** | 0 |
+| Bounded drain + stuck-job recovery | `npx vitest run src/infrastructure/queue/workerShutdown.test.ts src/application/services/StuckJobRecoveryService.test.ts src/infrastructure/queue/DatabaseQueue.test.ts` | 61 tests | 0 |
+
+The two rows an operator meets: **SIGKILL** the holder and the standby serves after
+11 731 ms (TTL 10 s + 2 s grace + 3 s beat); **SIGTERM** it and a fresh instance
+acquires in 428 ms including boot, because the lease is released rather than expired.
+The rollback legs returned the **same 8 218 bytes** of `%PDF-` from the new artifact and
+from the previous one.
+
+**R30 needs three inputs on this host** and the defaults are wrong for it: pass
+`R30_ORIGIN` (the script's default is the stale `172.20.10.2` lease), `R30_FIXTURE`
+(`/tmp/perf-fixtures/manypage-fixture.pdf` is built by the Stage 11 perf probe and did
+not exist yet — the committed `docs/qa/p1/multipage-fixture.pdf` was used instead), and
+`NEXT_PUBLIC_SITE_URL` **for the build leg**, or the rebuilt artifact bakes a different
+CSP report-to endpoint than the origin it will be served on.
+
 ## Remaining actions
 
 1. Stages 8–11 — the surrogate is **already running** and is what these stages
@@ -429,7 +455,7 @@ Secrets: none requested, echoed or written. The one synthetic canary in the CSP 
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stage 8 is done; Stage 9 is reliability and recovery, Stage 10
+   default. Stages 8 and 9 are done; Stage 10 is
    observability (`MONITORING: NOT EXERCISED`, provider-neutral templates, no
    invented provider), Stage 11 the bounded performance smoke test.
 2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
@@ -438,7 +464,7 @@ Secrets: none requested, echoed or written. The one synthetic canary in the CSP 
    the unexplained page exception from Stage 7) and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 8; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 9; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,

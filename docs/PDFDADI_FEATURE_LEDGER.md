@@ -5289,3 +5289,23 @@ exhausts the limiter — which had been passing on luck — reports the exact bu
   `scripts/stripe-testmode-probe.mjs` remains the only real provider verification.
 - **Next related step:** Stages 9–11 — reliability and recovery, observability
   (`MONITORING: NOT EXERCISED`), and the bounded performance smoke test.
+
+## Reliability was measured, not changed
+
+Stage 9 of production acceptance ran four live drills against the shipped code and found
+nothing to fix: single-instance enforcement 8/8 (SIGKILL → the standby serves in 11.7 s,
+SIGTERM → a fresh instance acquires in 428 ms because the lease is *released*), a real
+worker SIGKILLed mid-job and recovered by a replacement's startup sweep 45/45, the
+migrate-and-restore drill 16/16 with a byte-exact restore at migration head, and the
+deploy/rollback rehearsal 8/8 — where the previous artifact returned the **same 8 218
+bytes** of PDF as the new one, which is the whole claim of a rollback. Write-up:
+`docs/evidence/production-acceptance/12-reliability-recovery.md`.
+
+- **Feature flags:** none new.
+- **Known limitations:** the container deploy/rollback path is still unexercised (no
+  daemon); the live SIGTERM row is an *idle* worker, so an in-flight Ghostscript job
+  draining inside `WORKER_SHUTDOWN_GRACE_MS` rests on `workerShutdown.test.ts` rather
+  than a drill; storage-volume restore has no drill, and must be snapshotted together
+  with the database or the records outlive their bytes.
+- **Next related step:** Stage 10 observability (`MONITORING: NOT EXERCISED`), Stage 11
+  the bounded performance smoke test.

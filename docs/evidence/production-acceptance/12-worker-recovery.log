@@ -1,0 +1,75 @@
+
+── 0. Environment
+  ok   Ghostscript is installed
+  ok   migrated a fresh SQLite database (gs 10.07.1)
+
+── 1. Submit, exactly as lib/server/processingJobSubmit.ts does it
+  ok   submission is admitted and holds one reservation
+  ok   job is persisted and queued
+
+── 2. Worker A claims the job, then is killed with SIGKILL
+    [A] {"level":"info","msg":"Processing worker using database queue","ts":"2026-09-05T18:05:00.036Z","note":"single-node; set REDIS_URL for multi-instance dispatch"}
+    [A] {"level":"info","msg":"Processing worker started","ts":"2026-09-05T18:05:00.037Z","type":"processing","concurrency":1,"pid":79487}
+  ok   a real worker process claimed the job
+  ok   the claim recorded startedAt
+  ok   attempts is not consumed by the claim
+
+── 3. The lease is Prisma's updatedAt, and the claim refreshes it
+  ok   the claim bumped updatedAt through updateMany
+  ok   worker A died without running a shutdown handler
+  ok   the row is left claimed, with no terminal status
+  ok   the row has no result
+  ok   the user-facing retry cannot rescue it
+
+── 4. A fresh lease is not recovered
+  ok   the row is still claimed going into the sweep
+  ok   the default threshold finds nothing seconds after a claim
+  ok   and the row is untouched by that pass
+
+── 5. Worker B's startup sweep recovers the job and finishes it
+    [B] {"level":"info","msg":"Processing worker using database queue","ts":"2026-09-05T18:05:01.836Z","note":"single-node; set REDIS_URL for multi-instance dispatch"}
+    [B] {"level":"info","msg":"Processing worker started","ts":"2026-09-05T18:05:01.838Z","type":"processing","concurrency":1,"pid":79519}
+    [B] {"level":"info","msg":"Recovered stuck jobs","ts":"2026-09-05T18:05:01.851Z","examined":1,"requeued":1,"failed":0,"cancelled":0,"skipped":0}
+    [B] {"level":"info","msg":"analytics","ts":"2026-09-05T18:05:02.519Z","event":"tool_processing_completed","userId":null,"tool":"compress-pdf","executionMode":"remote_job","jobId":"cmtop0hz50003uoadpgowfowk","ownerType":"user","result":"success","attempt":2,"inputBytes":76983,"outputBytes":47941,"inputSizeBucket":"<1MB","outputSizeBucket":"<1MB","durationMs":166,"errorCategory":null,"pageCount":null}
+  ok   worker B's startup sweep requeued exactly one job
+  ok   the recovered job reached a terminal state
+  ok   it completed
+
+── 6. Same logical job, one customer charge, no stranded work
+  ok   same job id
+  ok   same owner
+  ok   same tool
+  ok   same idempotency key
+  ok   same payload, so every URL the user already holds still resolves
+  ok   the abandoned attempt was charged and the successful one is attempt 2
+  ok   exactly one published output
+  ok   and it is the one the user downloads
+  ok   the output has real bytes
+  ok   no stranded processing row is left
+  ok   a later sweep does not resurrect the finished job
+  ok   settled exactly once
+  ok   one logical job is one customer charge
+  ok   compute telemetry records both attempts, the abandoned one as a failure
+
+── 7. SIGTERM on an idle worker exits promptly and cleanly
+    [B] {"level":"info","msg":"Processing worker shutting down","ts":"2026-09-05T18:05:02.646Z","signal":"SIGTERM"}
+    [B] {"level":"info","msg":"Processing worker stopped","ts":"2026-09-05T18:05:02.646Z"}
+  ok   exited zero
+  ok   and it exited through the shutdown handler
+  ok   exited without waiting out the grace period
+
+── 8. A worker whose attempt was recovered cannot write to the job
+  ok   the fence subject is claimed for attempt 1
+{"level":"info","msg":"Recovered stuck jobs","ts":"2026-09-05T18:05:02.660Z","examined":1,"requeued":1,"failed":0,"cancelled":0,"skipped":0}
+  ok   the sweep hands attempt 2 to someone else
+  ok   and charges the abandoned attempt, which is the fence
+  ok   its failJob is refused
+  ok   and the row is still queued for attempt 2
+  ok   its markCancelled is refused too
+  ok   its progress write moves nothing
+  ok   and does not refresh the lease, which is what would hide the job from the sweep
+  ok   the successor's progress write lands
+  ok   and it does refresh the lease
+  ok   and the successor can finish the job
+
+45 passed, 0 failed

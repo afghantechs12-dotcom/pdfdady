@@ -1,0 +1,14 @@
+R30 — DEPLOY AND ROLLBACK REHEARSAL (standalone path)
+HEAD 209b1ca · 2026-09-05T18:05:39Z
+
+PASS  the artifact now serving is kept aside as the rollback target — BUILD_ID DIi1m4KbzBmf96popnixW
+PASS  npm run build produces an artifact at HEAD               — BUILD_ID MniplDUweIbeIPYT_CM5N,      235 lines of output
+PASS  the artifact built at HEAD boots and answers liveness    — http://127.0.0.1:3002/api/health → 200
+PASS  readiness answers on the new artifact                    — 503 degraded, and says which: toolchain false
+PASS  a real job completes on the new artifact and returns a PDF — job cmtop1jok0004uot2eag44ms0, 8218 bytes of %PDF- over http 200
+PASS  the PREVIOUS artifact boots again after a rollback       — BUILD_ID DIi1m4KbzBmf96popnixW, /api/health → 200
+PASS  a real job completes on the rolled-back artifact         — job cmtop1mu40004uoxht8k2m9xe, 8218 bytes of %PDF- over http 200
+PASS  rolling forward again leaves HEAD serving                — BUILD_ID MniplDUweIbeIPYT_CM5N, /api/health → 200
+
+────────────────────────────────────────────────────────────
+R30 REHEARSAL — PASS (container path NOT EXERCISED: no Docker daemon)
