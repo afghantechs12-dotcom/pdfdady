@@ -133,7 +133,6 @@ import {
   Files,
   History as HistoryIcon,
   Layers as LayersIcon,
-  Loader2,
   PanelLeftClose,
   PanelLeftOpen,
   TriangleAlert,
