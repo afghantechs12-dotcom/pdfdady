@@ -637,3 +637,8 @@ selling a plan does not start refusing work, which remains gated on
   host, user and database name. Details are still logged server-side, and the
   per-binary breakdown stays behind the admin-gated `/api/health/dependencies`.
 - `GET /api/health/dependencies` — per-binary JSON (admin-gated).
+
+There is no `/api/health/live` and no `/api/metrics`; both are 404. The app writes
+no access log either, so request rate, latency and HTTP error rate have to come from
+your reverse proxy. What to alert on, and what the app *does* emit, is in
+[docs/ops/MONITORING.md](docs/ops/MONITORING.md).

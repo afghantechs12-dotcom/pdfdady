@@ -5309,3 +5309,32 @@ bytes** of PDF as the new one, which is the whole claim of a rollback. Write-up:
   with the database or the records outlive their bytes.
 - **Next related step:** Stage 10 observability (`MONITORING: NOT EXERCISED`), Stage 11
   the bounded performance smoke test.
+
+## Operations gained a monitoring document, and the alert set gained a test
+
+Stage 10 added no product behaviour and found no defect. It measured what a running
+PDFDadi emits and wrote it down provider-neutrally in `docs/ops/MONITORING.md`:
+liveness and readiness responses, the four named readiness checks, the JSON log line
+shape, and the signals worth paging on versus ticketing. Two measured facts drive the
+document. **There is no access log** — 20 requests added zero lines to the origin's
+output, and `/api/metrics` does not exist — so request rate, latency and HTTP error
+rate have to come from the reverse proxy. And **two log shapes coexist**: application
+logs are JSON, while the boot gate, instance lease, ingress guard and rate-limit key
+warning are plain `[bracket]`-prefixed lines, so a JSON-only parser silently drops the
+refusal-to-boot line. `SERVER_SETUP.md`'s health-endpoint list now says which paths do
+*not* exist and points at the document.
+
+The new `monitoringSignals.test.ts` (34 assertions) is the part that will still matter
+in a year: an alert keyed to a log message is a string match with nothing in between,
+so renaming `logger.error("Worker loop crashed")` disarms the alert permanently and
+silently — "no matches" and "nothing wrong" look identical from outside. The test pins
+each of the 22 alertable messages at the level the document promises, the eight
+plain-text lifecycle lines, and fails if the document alerts on anything unpinned.
+
+- **Feature flags:** none new.
+- **Known limitations:** nothing is wired to a provider (`MONITORING: NOT EXERCISED —
+  NO PROVIDER`), thresholds read "above baseline" because no baseline exists yet, log
+  volume was measured only at `LOG_LEVEL=info`, and readiness still checks the admin
+  store directory's *presence* rather than writability (manual row **L3**, an owner
+  decision).
+- **Next related step:** Stage 11, the bounded performance smoke test.

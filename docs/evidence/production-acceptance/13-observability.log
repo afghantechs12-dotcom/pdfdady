@@ -1,0 +1,72 @@
+### Stage 10 observability measurements — 2026-09-05T18:19:18Z
+### origin: http://127.0.0.1:3002, BUILD_ID MniplDUweIbeIPYT_CM5N
+
+== 1. HTTP observability surface ==
+GET /api/health                      200  {"ok":true,"status":"up"}
+GET /api/health/ready                503  {"ok":false,"status":"degraded","dataDir":true,"toolchain":false,"database":true,"instance":true,"checks":[{"name":"database","healthy":true}]}
+GET /api/health/live                 404  (HTML page, 24863 bytes — no such endpoint)
+GET /api/health/dependencies         401  {"error":"Unauthorized"}
+GET /api/metrics                     404  (HTML page, 24855 bytes — no such endpoint)
+GET /metrics                         404  (HTML page, 24847 bytes — no such endpoint)
+
+== 2. No access log: 20 requests, zero lines ==
+origin.log lines before: 27
+20 requests issued (10 GET / + 10 GET /api/health)
+origin.log lines after:  27
+
+== 3. Every line this process wrote since boot ==
+     1	▲ Next.js 16.3.4
+     2	- Local:         http://127.0.0.1:3002
+     3	- Network:       http://127.0.0.1:3002
+     4	✓ Ready in 0ms
+     5	✓ Running next.config took 1.2ms
+     6	[startup] PDFDadi configuration OK — env=production db=sqlite storage=local queue=memory billing=disabled usageLimits=observe logLevel=info
+     7	[instance] single-instance lease acquired by <host>:80102:d0f2c024-6cd7-4e3c-b284-bca56b33bbc1.
+     8	[rate-limit] Requests are arriving with X-Forwarded-For but TRUSTED_PROXY_SECRET is not configured (or the request did not present it), so callers are keyed by the connecting address. Behind a reverse proxy that is ONE key for every caller: set TRUSTED_PROXY_SECRET and have the proxy send x-pdfdadi-proxy-secret. Directly exposed, no action is needed.
+     9	{"level":"info","msg":"PDF tool worker ready","ts":"2026-09-05T18:05:48.634Z","queueType":"pdf-tool","retentionType":"file-retention"}
+    10	[ingress] SIGTERM: single-instance lease released.
+    11	▲ Next.js 16.3.4
+    12	- Local:         http://127.0.0.1:3002
+    13	- Network:       http://127.0.0.1:3002
+    14	✓ Ready in 0ms
+    15	✓ Running next.config took 1.4ms
+    16	[startup] PDFDadi configuration OK — env=production db=sqlite storage=local queue=memory billing=disabled usageLimits=observe logLevel=info
+    17	[instance] single-instance lease acquired by <host>:80261:96d9245b-6408-408a-8bea-a345360bfb67.
+    18	[rate-limit] Requests are arriving with X-Forwarded-For but TRUSTED_PROXY_SECRET is not configured (or the request did not present it), so callers are keyed by the connecting address. Behind a reverse proxy that is ONE key for every caller: set TRUSTED_PROXY_SECRET and have the proxy send x-pdfdadi-proxy-secret. Directly exposed, no action is needed.
+    19	{"level":"info","msg":"PDF tool worker ready","ts":"2026-09-05T18:05:52.724Z","queueType":"pdf-tool","retentionType":"file-retention"}
+    20	[ingress] SIGTERM: single-instance lease released.
+    21	▲ Next.js 16.3.4
+    22	- Local:         http://127.0.0.1:3002
+    23	- Network:       http://127.0.0.1:3002
+    24	✓ Ready in 0ms
+    25	✓ Running next.config took 1.1ms
+    26	[startup] PDFDadi configuration OK — env=production db=sqlite storage=local queue=memory billing=disabled usageLimits=observe logLevel=info
+    27	[instance] single-instance lease acquired by <host>:80320:1d6bb095-8eee-41fb-b0ae-b1006b1d3319.
+
+JSON lines in that file: 2 of 27
+
+== 4. No access logging in the ingress layer ==
+$ grep -nE 'console\.(log|info)|access' ingress/server.mjs ingress/guard.mjs | grep -iv lease
+(no matches)
+
+== 5. LOG_LEVEL is a validated enum: a bad value refuses to boot ==
+$ cat /tmp/lvl.ts
+import { getConfig } from '@/src/infrastructure/config/env';
+try { getConfig(); console.log('loaded'); } catch (e) { console.error(String(e).split('\n').slice(0,6).join('\n')); process.exit(1); }
+
+$ LOG_LEVEL=verbose npx tsx /tmp/lvl.ts
+ConfigurationError: Invalid environment configuration: LOG_LEVEL: Invalid enum value. Expected 'debug' | 'info' | 'warn' | 'error', received 'verbose'
+exit=1
+$ LOG_LEVEL=info npx tsx /tmp/lvl.ts
+loaded
+exit=0
+
+== 6. monitoringSignals.test.ts ==
+
+ ✓ monitoringSignals.test.ts (34 tests) 4ms
+
+ Test Files  1 passed (1)
+      Tests  34 passed (34)
+   Start at  20:19:20
+   Duration  270ms (transform 17ms, setup 0ms, collect 42ms, tests 4ms, environment 0ms, prepare 32ms)
+

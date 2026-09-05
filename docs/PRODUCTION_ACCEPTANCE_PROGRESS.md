@@ -6,7 +6,7 @@ what it produced, and what is still owed.
 
 | | |
 | --- | --- |
-| Last updated | 2026-09-05T20:10:00Z (UTC) |
+| Last updated | 2026-09-05T20:25:00Z (UTC) |
 | Branch | `production-acceptance` (cut from `ingress-memory-safety-closeout`) |
 | Base commit | `3e4ac8bdf2e8fe8548270db1582546a41c5c0e3b` |
 | Build artifact | `.next/BUILD_ID` = `MniplDUweIbeIPYT_CM5N` — rebuilt in **Stage 9** by the rollback rehearsal's own deploy leg, from HEAD `209b1ca` with `NEXT_PUBLIC_SITE_URL=https://192.168.0.175:3001` (verified in the baked CSP `report-to`). Supersedes `DIi1m4KbzBmf96popnixW` (Stage 7), `U1Tagyyl2WuT2jmfk2Tvm` (Stage 6) and the accepted cold artifact `98appVCcbyMxzlhk26zya`. Nothing between `ecf51ee` and `209b1ca` changes compiled application code, so Stages 6–8's measurements stand. The final candidate is rebuilt and re-measured in Stage 14. |
@@ -27,7 +27,7 @@ what it produced, and what is still owed.
 | 7 | Production-like user acceptance | **DONE** — 1 P2 and 3 P3 found and fixed |
 | 8 | Security acceptance | **DONE** — 2 P3 found and fixed; `IMAGE CVE SCAN: NOT EXERCISED — NO SCANNER` |
 | 9 | Reliability and recovery | **DONE** — 0 defects; container rollback `NOT EXERCISED` |
-| 10 | Observability and operations | NOT STARTED — no provider selected; provider-neutral templates only |
+| 10 | Observability and operations | **DONE** — 0 defects; `MONITORING: NOT EXERCISED — NO PROVIDER`; template + alert-set test |
 | 11 | Bounded performance smoke test | NOT STARTED |
 | 12 | Human visual acceptance package | NOT STARTED — will be marked `VISUAL ACCEPTANCE PENDING` |
 | 13 | Manual decision register | NOT STARTED |
@@ -186,7 +186,8 @@ Stage 14 report.
 | `soffice`/`libreoffice` absent | `pdf-to-word` and `html-to-pdf` are ENVIRONMENTAL and `word-to-pdf`/`powerpoint-to-pdf`/`excel-to-pdf` are NOT EXERCISED (no fixtures either); one workflow-probe row (the 415 `UNSUPPORTED_OUTPUT` branch) is unreachable for the same reason; `/api/health/ready` correctly answers 503 `toolchain:false` here |
 | No Stripe test credentials | 3 billing rows are ENVIRONMENT-LIMITED (a real checkout URL, a real portal URL, a real price rendered as an amount); `scripts/stripe-testmode-probe.mjs` is the probe that needs them |
 | No staging target, no hosting credentials | Stages 6–11 run against a local production-mode surrogate (`scripts/restart-origin.sh` + `scripts/tls-front.mjs`, throwaway DB and storage root) |
-| No monitoring provider selected | Stage 10 delivers metrics, thresholds and provider-neutral templates, marked `MONITORING: NOT EXERCISED` |
+| No monitoring provider selected | Stage 10 delivered `docs/ops/MONITORING.md` (provider-neutral) and marked `MONITORING: NOT EXERCISED — NO PROVIDER`. No provider, DSN, ingest key or dashboard was invented. Wiring it up is an operator action |
+| No access log, no metrics endpoint | Measured in Stage 10: 20 requests added 0 log lines; `/api/metrics` and `/metrics` are 404. Request rate, latency and HTTP error rate must come from the reverse proxy or platform — not a defect, a documented limitation, and a go-live checklist row |
 | No Git remote | nothing can be pushed; `main` stays untouched |
 
 Available: node v26.7.0, npm 11.19.0, gs, qpdf, pdftoppm, pdfinfo, tesseract,
@@ -436,6 +437,45 @@ not exist yet — the committed `docs/qa/p1/multipage-fixture.pdf` was used inst
 `NEXT_PUBLIC_SITE_URL` **for the build leg**, or the rebuilt artifact bakes a different
 CSP report-to endpoint than the origin it will be served on.
 
+## Stage 10 — observability and operations (DONE)
+
+No defects. No product code changed. Full write-up:
+`docs/evidence/production-acceptance/13-observability.md`; measurements in
+`13-observability.log`.
+
+| Measurement | Result |
+| --- | --- |
+| `GET /api/health` | `200 {"ok":true,"status":"up"}` |
+| `GET /api/health/ready` | `503 degraded` — `dataDir:true toolchain:false database:true instance:true` (the host's missing converters, as in Stage 6) |
+| `GET /api/health/dependencies` | `401 Unauthorized` — admin-gated, so not a machine probe |
+| `GET /api/health/live`, `/api/metrics`, `/metrics` | `404` — none exists |
+| Access log | **None.** 20 requests (10 `GET /`, 10 `GET /api/health`) added **0** lines to the origin's stdout+stderr |
+| Log volume for context | 27 lines across three boots and two completed compress jobs, of which **2** are JSON |
+| `LOG_LEVEL=verbose` | `getConfig()` throws `ConfigurationError: … received 'verbose'`, exit 1 — the enum refuses boot, as documented |
+| `npx vitest run monitoringSignals.test.ts` | **34/34**, exit 0 |
+
+Two facts an operator has to be told, and now is:
+
+1. **Request rate, latency and error rate come from the proxy.** The app writes no
+   line per request. Shipping only container stdout gives no traffic telemetry at all.
+2. **Two log shapes.** Application logs are JSON; the boot gate, instance lease,
+   ingress guard and rate-limit key warning are plain `[bracket]`-prefixed
+   `console.*` lines, because they run before and around the DI container. A
+   JSON-only parser silently drops the refusal-to-boot line and the "one rate-limit
+   key for every caller" warning.
+
+`monitoringSignals.test.ts` pins the alert set both ways: every message at the level
+the document promises, the eight plain-text lifecycle lines, and a scan that fails if
+the document alerts on anything the test does not pin. Verified to bite by renaming a
+message, demoting one from `info` to `debug`, and adding an unpinned document row.
+
+Live corroboration worth keeping: the measured log's rate-limit warning fired for
+real, because this acceptance origin sits behind `scripts/tls-front.mjs` with no
+`TRUSTED_PROXY_SECRET` — the exact state the document tells an operator to alert on.
+
+Secrets: none requested, echoed or written. The evidence log is redacted for repo
+path, home path and hostname.
+
 ## Remaining actions
 
 1. Stages 8–11 — the surrogate is **already running** and is what these stages
@@ -455,16 +495,16 @@ CSP report-to endpoint than the origin it will be served on.
    a *different* store from the one the Stage 7 probes seeded, so pass it. Prefix
    `PROCESSING_PIPELINE=on` for the pilot, workflow and analytics probes; leave it
    off for `legacy-job-ownership-probe.mjs` and for anything measuring the shipped
-   default. Stages 8 and 9 are done; Stage 10 is
-   observability (`MONITORING: NOT EXERCISED`, provider-neutral templates, no
-   invented provider), Stage 11 the bounded performance smoke test.
+   default. Stages 8, 9 and 10 are done; **Stage 11** is next
+   — the bounded performance smoke test (`scripts/perf-load-probe.mjs`, which also
+   builds the `/tmp/perf-fixtures/*` files R30 wanted).
 2. Stage 12 — visual package at 320/360/390/412/768/1024/1440/1920, marked
    `VISUAL ACCEPTANCE PENDING`.
 3. Stage 13 — decision register from the manual rows (11 harness rows plus **S1**,
    the unexplained page exception from Stage 7) and 14 owner decisions.
 4. Stage 14 — `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`, the full suite re-run at the
    final candidate, and the 26-section report.
-5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 9; update it again
+5. `docs/PDFDADI_FEATURE_LEDGER.md` is up to date through Stage 10; update it again
    if a later stage changes behaviour (CLAUDE.md requirement).
 
 **Not to be done without explicit owner authorization:** deploying to production,
