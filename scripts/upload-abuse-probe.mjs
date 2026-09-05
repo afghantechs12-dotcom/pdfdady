@@ -1,4 +1,4 @@
-/* global process, console, setTimeout, clearTimeout, setInterval, clearInterval, Buffer, URL */
+/* global process, console, setInterval, clearInterval, Buffer */
 /**
  * LIVE acceptance for the upload boundary, against a real production artifact.
  *
@@ -26,10 +26,10 @@
  *        --front https://172.20.10.2:3051 --origin https://172.20.10.2:3051 \
  *        --db prisma/dev.db --storage .storage [--json out.json]
  */
-import http from "node:http";
-import https from "node:https";
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+
+import { send, sleep } from "./lib/drip.mjs";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -42,7 +42,6 @@ const DB = arg("db", "prisma/dev.db");
 const STORAGE = arg("storage", ".storage");
 const SERVER_PID = arg("pid", "");
 const MiB = 1024 * 1024;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const rows = [];
 function record(row) {
@@ -115,130 +114,6 @@ function sideEffects() {
  * `declaredLength` is written verbatim, including values that contradict the
  * bytes that follow — that is the point of not using fetch here.
  */
-function send({
-  origin,
-  path,
-  method = "POST",
-  headers = {},
-  body = null,
-  chunkSize = 64 * 1024,
-  chunkDelayMs = 0,
-  declaredLength,
-  chunked = false,
-  expectContinue = false,
-  timeoutMs = 30_000,
-}) {
-  const url = new URL(path, origin);
-  const client = url.protocol === "https:" ? https : http;
-  const outHeaders = { ...headers };
-  if (body && !chunked) {
-    outHeaders["content-length"] = declaredLength ?? String(body.length);
-  }
-  if (declaredLength !== undefined && chunked) outHeaders["content-length"] = declaredLength;
-  if (expectContinue) outHeaders.expect = "100-continue";
-
-  return new Promise((resolve) => {
-    const started = process.hrtime.bigint();
-    let written = 0;
-    let writtenAtResponse = null;
-    let continueAt = null;
-    let settled = false;
-    let timer = null;
-
-    /**
-     * ONE exit, and it destroys the request.
-     *
-     * A refusal that arrives mid-body leaves a request whose declared length was
-     * never satisfied: the server has answered and stopped reading, and neither
-     * side will send another byte. Waiting for a clean `end` on that socket is
-     * how the first version of this script hung. Every outcome — response,
-     * abort, socket error, timeout — lands here, reports how much had been
-     * written, and closes the connection.
-     */
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      req.destroy();
-      resolve({
-        headers: {},
-        text: "",
-        json: null,
-        written,
-        writtenAtResponse,
-        totalBytes: body ? body.length : 0,
-        continueMs: continueAt === null ? null : Number(continueAt - started) / 1e6,
-        setCookie: null,
-        latencyMs: Number(process.hrtime.bigint() - started) / 1e6,
-        ...result,
-      });
-    };
-
-    const req = client.request(
-      {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port,
-        path: url.pathname + url.search,
-        method,
-        headers: outHeaders,
-        rejectUnauthorized: false,
-        agent: false,
-      },
-      (res) => {
-        if (writtenAtResponse === null) writtenAtResponse = written;
-        const chunks = [];
-        const deliver = () => {
-          const text = Buffer.concat(chunks).toString("utf8");
-          let json = null;
-          try {
-            json = JSON.parse(text);
-          } catch {
-            /* not JSON — recorded as raw */
-          }
-          finish({
-            status: res.statusCode,
-            headers: res.headers,
-            text: text.slice(0, 400),
-            json,
-            setCookie: res.headers["set-cookie"] ?? null,
-          });
-        };
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", deliver);
-        // The status line and headers are the measurement; a body cut short by
-        // the server closing an unfinished upload still carries it.
-        res.on("aborted", deliver);
-        res.on("error", deliver);
-      },
-    );
-    req.on("continue", () => {
-      continueAt = process.hrtime.bigint();
-      void writeBody();
-    });
-    // A refusal that closes the socket while we are still writing is the
-    // measurement, not a failure: report what had been sent.
-    req.on("error", (error) => finish({ status: 0, socketError: error.code ?? String(error) }));
-    timer = setTimeout(() => finish({ status: 0, timedOut: true }), timeoutMs);
-
-    async function writeBody() {
-      if (!body) {
-        req.end();
-        return;
-      }
-      for (let offset = 0; offset < body.length; offset += chunkSize) {
-        if (writtenAtResponse !== null) break; // already answered; stop sending
-        const slice = body.subarray(offset, Math.min(offset + chunkSize, body.length));
-        const ok = req.write(slice);
-        written += slice.length;
-        if (!ok) await new Promise((r) => req.once("drain", r));
-        if (chunkDelayMs) await sleep(chunkDelayMs);
-      }
-      req.end();
-    }
-    if (!expectContinue) void writeBody();
-  });
-}
 
 /** A multipart body. `rawQuote` builds the one undici cannot parse. */
 function multipart({ fields = {}, filename = "probe.pdf", bytes, rawQuote = false }) {

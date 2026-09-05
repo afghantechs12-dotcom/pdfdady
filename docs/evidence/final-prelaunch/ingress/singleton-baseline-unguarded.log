@@ -1,0 +1,22 @@
+
+=== singleton probe (baseline-unguarded) → entry .next/standalone/server.js  db file:/tmp/audit-singleton-db.db ===
+
+PASS  S1 a first production instance acquires the lease and serves
+      :3011 GET /api/health → 200 after 441ms
+FAIL  S2 a second instance against the same database does not serve
+      :3012 GET /api/health → 200 (want 503) after 430ms  {"ok":true,"status":"up"}
+FAIL  S3 exactly one of the two instances is serving traffic
+      serving=2 (a=200, b=200)
+FAIL  S4 the standby refuses every path identically and discloses no reason
+      ready 503, / 200, body "{\"ok\":false,\"status\":\"degraded\",\"dataDir\":true,\"toolchain\":f"
+FAIL  S5 readiness on the holder reports the lease as a named check
+      checks.instance = null  (http 503)
+PASS  S6 the standby takes over within the TTL after the holder is SIGKILLed
+      :3012 → 200 after 3ms (TTL 10s + 2s grace + 3s beat)
+PASS  S7 after a clean SIGTERM release, a fresh instance acquires without waiting out the TTL
+      :3013 → 200 after 430ms from spawn (boot included)
+FAIL  S8 the generated server.js refuses to start in production without the guard
+      exit 1; mentions the guard: false
+
+3/8 passed  FAILED: S2, S3, S4, S5, S8
+json → docs/evidence/final-prelaunch/ingress/singleton-baseline-unguarded.json

@@ -1,0 +1,20 @@
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:3002
+- Network:       http://127.0.0.1:3002
+✓ Ready in 0ms
+✓ Running next.config took 5ms
+[startup] PDFDadi configuration OK — env=production db=sqlite storage=local queue=memory billing=disabled usageLimits=observe logLevel=info
+{"level":"info","msg":"PDF tool worker ready","ts":"2026-09-05T09:15:11.161Z","queueType":"pdf-tool","retentionType":"file-retention"}
+{"level":"warn","msg":"Ingestion recovery sweep failed","ts":"2026-09-05T09:15:11.207Z","error":"\nInvalid `prisma.documentIngestion.findMany()` invocation:\n\n\nThe table `main.document_ingestions` does not exist in the current database."}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:15:11.207Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"Failed to schedule initial retention sweep","ts":"2026-09-05T09:15:11.207Z","error":"\nInvalid `prisma.job.create()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"csp violation blocked","ts":"2026-09-05T09:15:30.533Z","module":"csp-report","count":1,"reports":[{"directive":"script-src","blocked":"","documentPath":"/"}]}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:16:11.167Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"csp violation blocked","ts":"2026-09-05T09:16:47.676Z","module":"csp-report","count":1,"reports":[{"directive":"script-src","blocked":"","documentPath":"/"}]}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:17:11.165Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:18:11.163Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:19:11.164Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"csp violation blocked","ts":"2026-09-05T09:19:29.527Z","module":"csp-report","count":1,"reports":[{"directive":"script-src","blocked":"","documentPath":"/"}]}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:20:11.166Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:21:11.161Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
+{"level":"warn","msg":"Stuck-job sweep failed","ts":"2026-09-05T09:22:11.164Z","error":"\nInvalid `prisma.job.findMany()` invocation:\n\n\nThe table `main.jobs` does not exist in the current database."}
