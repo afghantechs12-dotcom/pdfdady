@@ -8,7 +8,7 @@ verdict at the end of this file is what it is.
 
 | | |
 | --- | --- |
-| Release commit | `1b45f1b` on `production-acceptance` (base `3e4ac8b`, `main` untouched, no remote) |
+| Release commit | `1b45f1b` on `production-acceptance` (base `3e4ac8b`, `main` untouched, no remote). The Stage 14 documentation commit `fd4f283` on top of it changes no code, no test and no deployment file, so the artifact and every measurement below are unaffected |
 | Artifact | `.next/BUILD_ID` = `LK-prgSvGFf1hyM1etdkD`, built at this commit |
 | Image digest | **none — no container runtime on the acceptance host** |
 | Full suite | 393 files, 7 556 tests, **0 failures**, exit 0 |
