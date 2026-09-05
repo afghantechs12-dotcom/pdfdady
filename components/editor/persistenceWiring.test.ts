@@ -240,7 +240,7 @@ describe("opening a local file", () => {
   it("flushes only after the new file parsed, so a failed open costs nothing", () => {
     // A flush before the parse would be work done for an open that may never happen;
     // worse, clearing the identity there would unprotect a document that is intact.
-    precedes(openLocalFile(), "await loadPdfIntoEditor(file)", "await flushBeforeReplace()");
+    precedes(openLocalFile(), "await loadPdfIntoEditor(file, { onProgress: setLocalLoad })", "await flushBeforeReplace()");
   });
 
   it("reports work it could not save, after the new content is on screen", () => {

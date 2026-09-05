@@ -181,7 +181,7 @@ describe("EditorWorkspace load surfaces", () => {
     const liveRegions = source.match(/aria-live="polite"/g) ?? [];
     // Selection, active tool, and the load announcement — and no more.
     expect(liveRegions.length).toBe(3);
-    expect(source).toContain("{announcement}");
+    expect(source).toContain("{loading ? `Opening ${openingFileName}` : announcement}");
   });
 
   it("does not turn the status bar into a live region", () => {

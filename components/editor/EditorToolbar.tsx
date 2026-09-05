@@ -637,7 +637,7 @@ export function EditorToolbar({
 
         {onToggleFocus && <button type="button" onClick={onToggleFocus} aria-pressed={focused}
           aria-label="Focus canvas" title={focused ? "Restore editor panels" : "Focus canvas"}
-          className={`flex min-h-11 min-w-11 items-center justify-center rounded-control border focus-visible:outline focus-visible:outline-2 focus-visible:outline-editor-accent ${focused ? "border-editor-accent bg-editor-accentsoft text-editor-accent" : "border-editor-border text-editor-muted"}`}>
+          className={`flex ${rowControlBox(false)} items-center justify-center rounded-control border focus-visible:outline focus-visible:outline-2 focus-visible:outline-editor-accent ${focused ? "border-editor-accent bg-editor-accentsoft text-editor-accent" : "border-editor-border text-editor-muted"}`}>
           <Maximize2 size={16} aria-hidden="true" />
         </button>}
         {/* The row's ONE filled control (P8): a primary action is solid accent,
