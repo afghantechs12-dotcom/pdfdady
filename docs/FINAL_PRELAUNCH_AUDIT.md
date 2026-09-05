@@ -2993,8 +2993,12 @@ Stated as gaps, not as passes.
 
 ### 40.18 — the branch
 
-Seven commits on `ingress-memory-safety-closeout`, from `478e111`. `main` untouched, no remote
-configured, nothing pushed.
+**Seven code commits** on `ingress-memory-safety-closeout`, from `478e111`, plus this
+closeout's documentation commits — §40, the Session 7 checkpoint, the ledger entry and the
+static-harness record. The count is given that way deliberately: a fixed total inside a file
+that is itself one of the commits cannot be correct after it is committed, which is the same
+shape as the "Six commits" heading above a seven-row table that 40.13 corrects.
+`git log --oneline 478e111..HEAD` is the authority.
 
 | commit | what it closed |
 |---|---|
@@ -3005,6 +3009,11 @@ configured, nothing pushed.
 | `ce026f6` | the gates, held against a broken boundary one property at a time — the mutation exercise |
 | `3b113c7` | a GET may carry a body, and only the seam can be asked about that — the M6 near-miss |
 | `30a15b5` | three suites that pinned a boot without a lease, and a migration called "the last one" |
+| documentation | §40, the Session 7 checkpoint, the ledger entry, and the harness record |
+
+`main` untouched, no remote configured, nothing pushed. The static harness in 40.12 ran at
+`1df8ef6`+`1edea88`, i.e. on a tree carrying every code change in this table; anything
+committed after it is prose in these three documents.
 
 ### 40.19 — carried forward, unchanged by this closeout
 
