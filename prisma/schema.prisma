@@ -1400,3 +1400,41 @@ model BillingEvent {
   @@index([receivedAt])
   @@map("billing_events")
 }
+
+/// The single-instance lease: the row that makes `DEPLOYMENT_TOPOLOGY=single-instance`
+/// a fact about the running deployment rather than a claim about its config.
+///
+/// One row, `id = "app"`, held by one process at a time. It exists because two
+/// things in this build are only correct with one active instance: the upload rate
+/// limits are counted in process memory (N instances admit N times the budget) and
+/// SQLite has one writer (ADR-M7-009). The environment variable makes the operator
+/// declare that; this table makes the second process find out.
+///
+/// Mutual exclusion is a compare-and-swap, not a transaction: `create` wins the
+/// first ever boot, and afterwards `updateMany` with `WHERE id = 'app' AND (holder
+/// = me OR expiresAt < now - grace)` either updates one row (the lease is mine) or
+/// zero (someone else holds a live one). One statement, so two processes racing on
+/// the same row cannot both see a free lease.
+///
+/// `holder` is per-PROCESS, not per-host: `<hostname>:<pid>:<uuid>`. A restarted
+/// process on a recycled pid is a different holder, so a crashed instance can never
+/// be mistaken for the new one and silently share the lease.
+///
+/// ponytail: staleness is judged on the APPLICATION clock plus a grace margin, not
+/// the database clock, which is correct for the supported topology (one host, one
+/// process, so one clock) and tolerant of small skew beyond it. A multi-host
+/// Postgres deployment should switch the comparison to the database's own clock —
+/// see `src/infrastructure/config/instanceLease.ts`.
+model InstanceLease {
+  /// Always `app`. The fixed key is what makes the row the lock.
+  id String @id
+
+  /// `<hostname>:<pid>:<uuid>` of the process that currently holds it.
+  holder      String
+  acquiredAt  DateTime
+  heartbeatAt DateTime
+  /// `heartbeatAt + LEASE_TTL_MS`. Read by contenders; written by the holder.
+  expiresAt   DateTime
+
+  @@map("instance_leases")
+}
