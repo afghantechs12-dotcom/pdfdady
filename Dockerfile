@@ -71,14 +71,12 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# The migration toolchain, which the standalone output does NOT contain: it traces
-# the generated `@prisma/client` and its query engine, but not the `prisma` CLI and
-# not `prisma/migrations`. Without these a fresh container starts against a
-# database with no tables and 500s on the first query — and, on the no-egress
-# network, cannot fetch the CLI to fix itself. Taken from `deps` so the engine
-# binaries are the linux ones `npm ci` resolved in this image.
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+# Copy the complete dependency tree used by the Prisma migration CLI. The
+# standalone output traces the generated client but not every package loaded by
+# `prisma migrate deploy` at startup (for example `@prisma/debug`). Keeping the
+# tree produced by `npm ci` intact also guarantees the CLI and its transitive
+# dependencies stay on the exact versions recorded in package-lock.json.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --chown=nextjs:nodejs prisma ./prisma
 
 # The ingress guard, which the standalone trace cannot know about: nothing in the

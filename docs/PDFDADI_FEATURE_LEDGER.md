@@ -4913,6 +4913,13 @@ and then `require`s the generated server. `assertIngressInstalled()` in `instrum
 makes an unguarded production boot **exit 1** rather than serve, and `Dockerfile:102` starts
 `prisma migrate deploy … && exec node ingress/server.mjs`.
 
+**Production image migration CLI completeness (2026-09-08).** The runtime image now copies
+`deps/node_modules` as one lockfile-resolved tree instead of copying only `prisma` and
+`@prisma/engines`. The migration CLI loads additional packages at process startup (including
+`@prisma/debug`); omitting them made the container restart before migrations despite a successful
+image build. The runtime still runs the same repository-defined `CMD`, with no platform command
+override.
+
 **`src/infrastructure/config/instanceLease.ts` — mutual exclusion, one row.**
 `instance_leases` id `app`: `create` wins the first boot, and afterwards
 `updateMany WHERE id='app' AND (holder=me OR expiresAt < now−grace)` updates exactly one row or
