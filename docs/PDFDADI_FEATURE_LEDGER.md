@@ -4917,8 +4917,9 @@ makes an unguarded production boot **exit 1** rather than serve, and `Dockerfile
 `deps/node_modules` as one lockfile-resolved tree instead of copying only `prisma` and
 `@prisma/engines`. The migration CLI loads additional packages at process startup (including
 `@prisma/debug`); omitting them made the container restart before migrations despite a successful
-image build. The runtime still runs the same repository-defined `CMD`, with no platform command
-override.
+image build. The standalone output is overlaid after that tree so its generated Prisma client wins
+over the ungenerated dependency-stage stub. The runtime still runs the same repository-defined
+`CMD`, with no platform command override.
 
 **`src/infrastructure/config/instanceLease.ts` — mutual exclusion, one row.**
 `instance_leases` id `app`: `create` wins the first boot, and afterwards

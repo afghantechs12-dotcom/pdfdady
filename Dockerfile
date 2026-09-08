@@ -68,15 +68,13 @@ RUN groupadd --system --gid 1001 nodejs \
 # Next.js example, made `docker build` impossible. Should a `public/` ever be
 # added, `next build` places it inside the standalone output and the COPY below
 # already brings it along.
+# Copy the complete dependency tree used by the Prisma migration CLI first, then
+# overlay the standalone output. The standalone tree contains the generated
+# platform-specific Prisma client; copying deps afterwards would replace it with
+# the ungenerated package stub and make the instance lease refuse all traffic.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy the complete dependency tree used by the Prisma migration CLI. The
-# standalone output traces the generated client but not every package loaded by
-# `prisma migrate deploy` at startup (for example `@prisma/debug`). Keeping the
-# tree produced by `npm ci` intact also guarantees the CLI and its transitive
-# dependencies stay on the exact versions recorded in package-lock.json.
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --chown=nextjs:nodejs prisma ./prisma
 
 # The ingress guard, which the standalone trace cannot know about: nothing in the
