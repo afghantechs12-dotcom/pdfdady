@@ -4918,8 +4918,10 @@ makes an unguarded production boot **exit 1** rather than serve, and `Dockerfile
 `@prisma/engines`. The migration CLI loads additional packages at process startup (including
 `@prisma/debug`); omitting them made the container restart before migrations despite a successful
 image build. The standalone output is overlaid after that tree so its generated Prisma client wins
-over the ungenerated dependency-stage stub. The runtime still runs the same repository-defined
-`CMD`, with no platform command override.
+over the ungenerated dependency-stage stub. `prisma/schema.prisma` explicitly generates both the
+native build engine and `debian-openssl-3.0.x`, matching the Debian Bookworm runtime even when the
+build host's OpenSSL detection differs. The runtime still runs the same repository-defined `CMD`,
+with no platform command override.
 
 **`src/infrastructure/config/instanceLease.ts` — mutual exclusion, one row.**
 `instance_leases` id `app`: `create` wins the first boot, and afterwards
