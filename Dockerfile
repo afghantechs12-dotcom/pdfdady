@@ -96,10 +96,10 @@ RUN mkdir -p /app/data/admin /app/data/db /app/data/storage \
 USER nextjs
 EXPOSE 3000
 
-# Liveness probe: the Node server answers /api/health. Uses Node's built-in
-# fetch (no curl needed on the slim image). Runs as the non-root nextjs user.
+# Liveness probe: the generated Next server binds to the container hostname, not
+# loopback, so probe that exact address with Node's built-in fetch.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://'+process.env.HOSTNAME+':3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Migrate, then serve — in that order, and only on success. `migrate deploy`
 # applies pending migrations and is a no-op when there are none, so a restart is

@@ -4921,7 +4921,9 @@ image build. The standalone output is overlaid after that tree so its generated 
 over the ungenerated dependency-stage stub. `prisma/schema.prisma` explicitly generates both the
 native build engine and `debian-openssl-3.0.x`, matching the Debian Bookworm runtime even when the
 build host's OpenSSL detection differs. The runtime still runs the same repository-defined `CMD`,
-with no platform command override.
+with no platform command override. The image healthcheck probes the container hostname (the
+interface the generated Next server actually binds) rather than loopback, so Docker health matches
+`/api/health` instead of reporting a false negative against an unbound address.
 
 **`src/infrastructure/config/instanceLease.ts` — mutual exclusion, one row.**
 `instance_leases` id `app`: `create` wins the first boot, and afterwards
